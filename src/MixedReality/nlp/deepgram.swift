@@ -2,13 +2,28 @@ import AVFoundation
 import Starscream
 
 class SpeechProcesser {
+    // Audio properties
     private let audioEngine = AVAudioEngine()
-    // Used to process or convert audio before sending it somewhere
     private let converterNode = AVAudioMixerNode()
-    // Used to collect audio or send it to speakers/network
     private let sinkNode = AVAudioMixerNode()
+
+    // Deepgram properties
+    private let deepgramKey: String
+    private lazy var socket: Starscream.WebSocket = {
+        let url = URL(string: "wss://api.deepgram.com/v1/listen?encoding=linear16&sample_rate=48000&channels=1")!
+        var urlRequest = URLRequest(url: url)
+        urlRequest.setValue("Token \(deepgramKey)", forHTTPHeaderField: "Authorization")
+        return Starscream.WebSocket(request: urlRequest)
+    }()
     
     init() {
+        // Load Deepgram API key from environment variables
+        if let key = ProcessInfo.processInfo.environment["DEEPGRAM_API_KEY"] {
+            self.deepgramKey = key
+        } else {
+            fatalError("Deepgram API Key not found.")
+        }
+        
         configureAudioEngine()
     }
     
@@ -30,6 +45,9 @@ class SpeechProcesser {
         converterNode.installTap(onBus: 0, bufferSize: 1024, format: converterNode.outputFormat(forBus: 0)) {(
             buffer: AVAudioPCMBuffer!,
             time: AVAudioTime!) -> Void in
+            if let data = self.convertAudio(buffer: buffer) {
+               self.socket.write(data: data)
+            }
         }
         
         audioEngine.connect(inputNode, to: converterNode, format: inputFormat)
@@ -42,5 +60,17 @@ class SpeechProcesser {
         } catch {
             print(error)
         }
+    }
+    
+    public func deconfigureAudioEngine() {
+        audioEngine.reset() // Clears connections between nodes
+        audioEngine.stop()
+        converterNode.removeTap(onBus: 0)
+        socket.disconnect(closeCode: 1000)
+    }
+    
+    private func convertAudio(buffer: AVAudioPCMBuffer) -> Data? {
+      let audioBuffer = buffer.audioBufferList.pointee.mBuffers
+      return Data(bytes: audioBuffer.mData!, count: Int(audioBuffer.mDataByteSize))
     }
 }
