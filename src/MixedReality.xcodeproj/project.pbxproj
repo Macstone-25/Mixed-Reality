@@ -11,7 +11,7 @@
 /* End PBXBuildFile section */
 
 /* Begin PBXFileReference section */
-		9B9B4CB22EB2E29700073840 /* MixedReality.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = MixedReality.app; sourceTree = BUILT_PRODUCTS_DIR; };
+		9B9B4CB22EB2E29700073840 /* MRCS.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = MRCS.app; sourceTree = BUILT_PRODUCTS_DIR; };
 		9B9B4CB62EB2E29700073840 /* RealityKitContent */ = {isa = PBXFileReference; lastKnownFileType = wrapper; path = RealityKitContent; sourceTree = "<group>"; };
 /* End PBXFileReference section */
 
@@ -60,7 +60,7 @@
 		9B9B4CB32EB2E29700073840 /* Products */ = {
 			isa = PBXGroup;
 			children = (
-				9B9B4CB22EB2E29700073840 /* MixedReality.app */,
+				9B9B4CB22EB2E29700073840 /* MRCS.app */,
 			);
 			name = Products;
 			sourceTree = "<group>";
@@ -96,7 +96,7 @@
 				9B9B4CB72EB2E29700073840 /* RealityKitContent */,
 			);
 			productName = MixedReality;
-			productReference = 9B9B4CB22EB2E29700073840 /* MixedReality.app */;
+			productReference = 9B9B4CB22EB2E29700073840 /* MRCS.app */;
 			productType = "com.apple.product-type.application";
 		};
 /* End PBXNativeTarget section */
@@ -170,7 +170,7 @@
 				);
 				MARKETING_VERSION = 1.0;
 				PRODUCT_BUNDLE_IDENTIFIER = com.macstone25.MixedReality;
-				PRODUCT_NAME = "$(TARGET_NAME)";
+				PRODUCT_NAME = MRCS;
 				STRING_CATALOG_GENERATE_SYMBOLS = YES;
 				SUPPORTED_PLATFORMS = "xros xrsimulator";
 				SWIFT_APPROACHABLE_CONCURRENCY = YES;
@@ -198,7 +198,7 @@
 				);
 				MARKETING_VERSION = 1.0;
 				PRODUCT_BUNDLE_IDENTIFIER = com.macstone25.MixedReality;
-				PRODUCT_NAME = "$(TARGET_NAME)";
+				PRODUCT_NAME = MRCS;
 				STRING_CATALOG_GENERATE_SYMBOLS = YES;
 				SUPPORTED_PLATFORMS = "xros xrsimulator";
 				SWIFT_APPROACHABLE_CONCURRENCY = YES;

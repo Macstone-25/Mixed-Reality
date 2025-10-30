@@ -2,24 +2,19 @@ import SwiftUI
 
 @main
 struct MixedRealityApp: App {
-    @StateObject private var appState = AppState()
-
+    @State private var appModel = AppModel()
+    
     var body: some Scene {
-        WindowGroup {
-            RootView()
-                .environmentObject(appState)
-        }
-    }
-}
-
-struct RootView: View {
-    @EnvironmentObject var appState: AppState
-
-    var body: some View {
-        if appState.hasConsented {
+        WindowGroup(id: appModel.windowGroupId) {
             ContentView()
-        } else {
-            ConsentView(onAccept: { appState.hasConsented = true })
+                .environment(appModel)
         }
+        .defaultSize(CGSize(width: 600, height: 350))
+
+        ImmersiveSpace(id: appModel.immersiveSpaceId) {
+            ImmersiveView()
+                .environment(appModel)
+        }
+        .immersionStyle(selection: .constant(.mixed), in: .mixed)
     }
 }

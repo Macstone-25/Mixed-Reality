@@ -1,7 +1,7 @@
 import SwiftUI
 
 struct ConsentView: View {
-    let onAccept: () -> Void
+    let onAgree: () -> Void
 
     var body: some View {
         VStack(spacing: 24) {
@@ -19,17 +19,10 @@ This application will record and analyze audio conversations to provide conversa
                 .cornerRadius(12)
 
             Button("Agree") {
-                onAccept()
+                onAgree()
             }
             .buttonStyle(.borderedProminent)
             .padding(.top, 12)
-
-            Button("Exit App") {
-                // Exit the app immediately if user doesn't consent
-                exit(0)
-            }
-            .buttonStyle(.bordered)
-            .foregroundStyle(.red)
         }
         .padding(32)
     }
