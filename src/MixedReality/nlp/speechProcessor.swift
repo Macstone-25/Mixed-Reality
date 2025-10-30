@@ -1,7 +1,7 @@
 import AVFoundation
 import Starscream
-// TODO: Instead of printing use logging
-// TODO: Update processJSON() for better transcription
+import os
+// TODO: Update processJSON() for better transcription (accessible information for main functionality)
 
 // Formatting for the Deepgram response
 struct DeepgramResponse: Codable {
@@ -26,6 +26,8 @@ struct DeepgramResponse: Codable {
   - interleaved: Whether audio data is interleaved (true/false, default: true)
 */
 class SpeechProcessor: WebSocketDelegate {
+    // Logger setup
+    private let logger = Logger(subsystem: "MixedReality", category: "SpeechProcessor")
     // Audio properties
     private let audioEngine = AVAudioEngine()
     private let converterNode = AVAudioMixerNode()
@@ -94,8 +96,9 @@ class SpeechProcessor: WebSocketDelegate {
         
         do {
         try audioEngine.start()
+            logger.info("Audio engine started.")
         } catch {
-            print(error)
+            logger.error("Failed to start audio engine: \(error.localizedDescription, privacy: .public)")
         }
     }
     
@@ -110,16 +113,19 @@ class SpeechProcessor: WebSocketDelegate {
     func didReceive(event: Starscream.WebSocketEvent, client: any Starscream.WebSocketClient) {
         switch event {
         case .connected(let headers):
-            print("Connected: \(headers)")
+            logger.info("WebSocket connected with headers: \(headers, privacy: .public)")
         case .disconnected(let reason, let code):
-            print("Disconnected: \(reason) code: \(code)")
+            logger.info("WebSocket disconnected. Reason: \(reason, privacy: .public), code: \(code)")
         case .text(let text):
-            // Convert to type data for JSONDecoder
             if let data = text.data(using: .utf8) {
                 processJSON(data: data)
             }
         case .error(let error):
-            print("WebSocket error: \(String(describing: error))")
+            if let error = error {
+                logger.error("WebSocket error: \(error.localizedDescription, privacy: .public)")
+            } else {
+                logger.error("WebSocket error: unknown")
+            }
         default:
             break
         }
@@ -130,10 +136,10 @@ class SpeechProcessor: WebSocketDelegate {
         do {
             let response = try JSONDecoder().decode(DeepgramResponse.self, from: data)
             if let transcript = response.channel?.alternatives?.first?.transcript {
-                print("Transcript: \(transcript)")
+                logger.info("Transcript received: \(transcript, privacy: .public)")
             }
         } catch {
-            print("Failed to decode Deepgram JSON: \(error)")
+            logger.error("Failed to decode Deepgram JSON: \(error.localizedDescription, privacy: .public)")
         }
     }
     
