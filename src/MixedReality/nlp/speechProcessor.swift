@@ -1,19 +1,19 @@
 import AVFoundation
 import Starscream
 import os
-// TODO: Update processJSON() for better transcription (accessible information for main functionality)
 
 // Formatting for the Deepgram response
 struct DeepgramResponse: Codable {
-  let isFinal: Bool?
-  let channel: Channel?
+    let isFinal: Bool?
+    let channel: Channel?
 
   struct Channel: Codable {
-     let alternatives: [Alternatives]?
+      let alternatives: [Alternatives]?
   }
 
   struct Alternatives: Codable {
-     let transcript: String?
+      let transcript: String?
+      let speaker: String?
   }
 }
 
@@ -26,6 +26,8 @@ struct DeepgramResponse: Codable {
   - interleaved: Whether audio data is interleaved (true/false, default: true)
 */
 class SpeechProcessor: WebSocketDelegate {
+    // Keeps a running record of all transcripts per speaker
+    public private(set) var conversation: [String: [String]] = [:]
     // Logger setup
     private let logger = Logger(subsystem: "MixedReality", category: "SpeechProcessor")
     // Audio properties
@@ -135,8 +137,16 @@ class SpeechProcessor: WebSocketDelegate {
     private func processJSON(data: Data) {
         do {
             let response = try JSONDecoder().decode(DeepgramResponse.self, from: data)
-            if let transcript = response.channel?.alternatives?.first?.transcript {
-                logger.info("Transcript received: \(transcript, privacy: .public)")
+            guard let alternatives = response.channel?.alternatives else { return }
+
+            alternatives.forEach { alt in
+                let speaker = alt.speaker ?? "unknown"
+                let transcript = alt.transcript ?? ""
+                
+                // Append transcript using default to avoid if/else
+                conversation[speaker, default: []].append(transcript)
+                
+                logger.info("Speaker: \(speaker, privacy: .public), Transcript: \(transcript, privacy: .public)")
             }
         } catch {
             logger.error("Failed to decode Deepgram JSON: \(error.localizedDescription, privacy: .public)")
