@@ -7,14 +7,21 @@ struct DeepgramResponse: Codable {
     let isFinal: Bool?
     let channel: Channel?
 
-  struct Channel: Codable {
-      let alternatives: [Alternatives]?
-  }
+    struct Channel: Codable {
+        let alternatives: [Alternative]?
+    }
 
-  struct Alternatives: Codable {
-      let transcript: String?
-      let speaker: String?
-  }
+    struct Alternative: Codable {
+        let transcript: String?
+        let words: [Word]?
+    }
+
+    struct Word: Codable {
+        let word: String
+        let speaker: Int?
+        let start: Double?
+        let end: Double?
+    }
 }
 
 /*
@@ -52,7 +59,7 @@ class SpeechProcessor: WebSocketDelegate {
     private let deepgramKey: String
     private lazy var socket: Starscream.WebSocket = {
         // Build URL dynamically based on audio format
-        let urlString = "wss://api.deepgram.com/v1/listen?encoding=linear16&sample_rate=\(Int(sampleRate))&channels=\(channels)"
+        let urlString = "wss://api.deepgram.com/v1/listen?model=nova&diarize=true&punctuate=true&encoding=linear16&sample_rate=\(Int(sampleRate))&channels=\(channels)"
         guard let url = URL(string: urlString) else {
             fatalError("Invalid WebSocket URL")
         }
@@ -139,20 +146,40 @@ class SpeechProcessor: WebSocketDelegate {
             let response = try JSONDecoder().decode(DeepgramResponse.self, from: data)
             guard let alternatives = response.channel?.alternatives else { return }
 
-            alternatives.forEach { alt in
-                let speaker = alt.speaker ?? "unknown"
-                let transcript = alt.transcript ?? ""
-                
-                // Append transcript using default to avoid if/else
-                conversation[speaker, default: []].append(transcript)
-                
-                logger.info("Speaker: \(speaker, privacy: .public), Transcript: \(transcript, privacy: .public)")
+            for alt in alternatives {
+                // If word-level speaker info is available
+                if let words = alt.words, !words.isEmpty {
+                    var speakerSentences: [String: String] = [:]
+
+                    for wordInfo in words {
+                        let speakerID = wordInfo.speaker.map { "Speaker \($0)" } ?? "unknown"
+                        speakerSentences[speakerID, default: ""].append(wordInfo.word + " ")
+                    }
+
+                    // Trim trailing spaces and store in conversation
+                    for (speakerID, sentence) in speakerSentences {
+                        let trimmedSentence = sentence.trimmingCharacters(in: .whitespaces)
+                        guard !trimmedSentence.isEmpty else { continue }
+
+                        conversation[speakerID, default: []].append(trimmedSentence)
+                        logger.info("Speaker: \(speakerID, privacy: .public), Sentence: \(trimmedSentence, privacy: .public)")
+                    }
+
+                } else {
+                    // Fallback for unknown speaker
+                    let transcript = alt.transcript?.trimmingCharacters(in: .whitespaces) ?? ""
+                    guard !transcript.isEmpty else { continue }
+
+                    let speakerID = "unknown"
+                    conversation[speakerID, default: []].append(transcript)
+                    logger.info("Speaker: \(speakerID, privacy: .public), Sentence: \(transcript, privacy: .public)")
+                }
             }
         } catch {
             logger.error("Failed to decode Deepgram JSON: \(error.localizedDescription, privacy: .public)")
         }
     }
-    
+
     // Cleans up audio engine and WebSocket, stopping all streaming activity
     public func deconfigureAudioEngine() {
         audioEngine.reset() // Clears connections between nodes
