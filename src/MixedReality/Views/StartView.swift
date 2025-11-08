@@ -1,25 +1,20 @@
-import SwiftUI
-
 struct StartView: View {
     @Environment(AppModel.self) private var appModel
-    
     let onStart: () -> Void
-    
+
     var body: some View {
-        if appModel.isSessionActive {
-            Text("Starting session...")
-        } else {
-            Button("Start") {
+        VStack(spacing: 24) {
+            Text("Ready to begin?")
+                .font(.largeTitle).bold()
+                .multilineTextAlignment(.center)
+
+            Button("Start Session") {
                 onStart()
             }
             .buttonStyle(.borderedProminent)
-            .padding(.top, 12)
+            .controlSize(.large)
+            .accessibilityIdentifier("start-session-button")
         }
-    }
-}
-
-#Preview {
-    StartView {
-        print("Started")
+        .frame(maxWidth: .infinity, maxHeight: .infinity)
     }
 }
