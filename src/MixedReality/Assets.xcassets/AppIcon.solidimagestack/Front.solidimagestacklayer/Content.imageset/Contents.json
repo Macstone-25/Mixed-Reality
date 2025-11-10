@@ -1,6 +1,7 @@
 {
   "images" : [
     {
+      "filename" : "mcmaster_icon.png",
       "idiom" : "vision",
       "scale" : "2x"
     }
