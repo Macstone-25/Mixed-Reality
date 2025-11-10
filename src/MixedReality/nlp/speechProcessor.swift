@@ -68,6 +68,9 @@ class SpeechProcessor: WebSocketDelegate {
         return Starscream.WebSocket(request: urlRequest)
     }()
     
+    // Delegate property
+    weak var delegate: SpeechProcessorDelegate?
+    
     init(sampleRate: Double = 48000, channels: AVAudioChannelCount = 1, interleaved: Bool = true) {
         self.sampleRate = sampleRate
         self.channels = channels
@@ -140,38 +143,47 @@ class SpeechProcessor: WebSocketDelegate {
         }
     }
     
-    // Parses Deepgram JSON and prints the transcript if present
-    private func processJSON(data: Data) {
+    // Parses Deepgram JSON and sends transcript chunks to delegate
+    public func processJSON(data: Data) {
         do {
             let response = try JSONDecoder().decode(DeepgramResponse.self, from: data)
             guard let alternatives = response.channel?.alternatives else { return }
 
             for alt in alternatives {
-                // If word-level speaker info is available
                 if let words = alt.words, !words.isEmpty {
-                    var speakerSentences: [String: String] = [:]
+                    // Build sentences per speaker with start/end timestamps
+                    var speakerSentences: [String: (text: String, start: Double?, end: Double?)] = [:]
 
                     for wordInfo in words {
-                        let speakerID = wordInfo.speaker.map { "Speaker \($0)" } ?? "unknown"
-                        speakerSentences[speakerID, default: ""].append(wordInfo.word + " ")
+                        let speakerID = wordInfo.speaker.map { "spk_\($0)" } ?? "user"
+                        
+                        if var entry = speakerSentences[speakerID] {
+                            entry.text += wordInfo.word + " "
+                            entry.end = wordInfo.end
+                            speakerSentences[speakerID] = entry
+                        } else {
+                            speakerSentences[speakerID] = (text: wordInfo.word + " ", start: wordInfo.start, end: wordInfo.end)
+                        }
                     }
 
-                    // Trim trailing spaces and store in conversation
-                    for (speakerID, sentence) in speakerSentences {
-                        let trimmedSentence = sentence.trimmingCharacters(in: .whitespaces)
-                        guard !trimmedSentence.isEmpty else { continue }
+                    for (speakerID, entry) in speakerSentences {
+                        let trimmedText = entry.text.trimmingCharacters(in: .whitespaces)
+                        guard !trimmedText.isEmpty else { continue }
 
-                        conversation[speakerID, default: []].append(trimmedSentence)
-                        logger.info("Speaker: \(speakerID, privacy: .public), Sentence: \(trimmedSentence, privacy: .public)")
+                        conversation[speakerID, default: []].append(trimmedText)
+
+                        // Notify delegate
+                        let chunk = TranscriptChunk(speakerID: speakerID, start_time: entry.start, end_time: entry.end, text: trimmedText)
+                        delegate?.speechProcessor(self, didReceiveChunk: chunk)
+                        logger.info("Speaker: \(speakerID, privacy: .public), Sentence: \(trimmedText, privacy: .public)")
                     }
 
-                } else {
-                    // Fallback for unknown speaker
-                    let transcript = alt.transcript?.trimmingCharacters(in: .whitespaces) ?? ""
-                    guard !transcript.isEmpty else { continue }
-
-                    let speakerID = "unknown"
+                } else if let transcript = alt.transcript?.trimmingCharacters(in: .whitespaces), !transcript.isEmpty {
+                    let speakerID = "user"
                     conversation[speakerID, default: []].append(transcript)
+
+                    let chunk = TranscriptChunk(speakerID: speakerID, start_time: nil, end_time: nil, text: transcript)
+                    delegate?.speechProcessor(self, didReceiveChunk: chunk)
                     logger.info("Speaker: \(speakerID, privacy: .public), Sentence: \(transcript, privacy: .public)")
                 }
             }
