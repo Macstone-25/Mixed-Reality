@@ -87,3 +87,8 @@ fastlane/report.xml
 fastlane/Preview.html
 fastlane/screenshots/**/*.png
 fastlane/test_output
+
+.env
+__pycache__/
+*.pyc
+.env.*
