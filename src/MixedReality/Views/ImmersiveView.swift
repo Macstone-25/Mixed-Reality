@@ -32,9 +32,7 @@ struct ImmersiveView: View {
                 )
             }
             Attachment(id: "prompts") {
-                if appModel.prompt != "LISTENING" {
-                    PromptView()
-                }
+                PromptView()
             }
         }
         .onAppear {

@@ -63,7 +63,6 @@ class SpeechProcessor: WebSocketDelegate {
             "wss://api.deepgram.com/v1/listen" +
             "?model=nova-2" +
             "&diarize=true" +
-            "&language=zh" +
             "&punctuate=true" +
             "&filler_words=true" +                      // <-- keep filler words like "um", "uh"
             "&encoding=linear16" +

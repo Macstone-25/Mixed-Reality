@@ -28,7 +28,7 @@ class AppModel: SpeechProcessorDelegate {
     // MARK: - Prompt Generation
     // FIXME: code smells all over this
     private var promptGenerator: PromptGenerator!
-    var prompt: String = "LISTENING"
+    var prompt: String = ""
 
     // MARK: - Deepgram speech processor (created lazily)
     private var speechProcessor: SpeechProcessor?
@@ -41,7 +41,9 @@ class AppModel: SpeechProcessorDelegate {
         // 3) Wire trigger service callback after promptGenerator exists.
         triggerService.setOnEvent { [weak self] evt in
             guard let self else { return }
-            self.promptGenerator.generate(chunks: evt.context)
+            Task {
+                await self.promptGenerator.generate(evt: evt)
+            }
         }
     }
 
@@ -65,7 +67,7 @@ class AppModel: SpeechProcessorDelegate {
         speechProcessor?.deconfigureAudioEngine()
         speechProcessor = nil
         triggerService.reset()
-        prompt = "LISTENING"
+        prompt = ""
         print("🛑 Session ended.")
     }
 

@@ -13,6 +13,8 @@ final class TriggerDemoService: ObservableObject {
     private var llmEnabled: Bool
     
     private var onEvent: ((InterventionEvent) -> Void)?
+    
+    private let startTime = Date.now
 
     init(primaryID: String = "user", useLLM: Bool = false) {
         self.primaryID = primaryID
@@ -37,9 +39,10 @@ final class TriggerDemoService: ObservableObject {
             .receive(on: DispatchQueue.main)
             .sink { [weak self] evt in
                 self?.eventsLog.append(evt)
-                print("⚡️ Intervention @ \(evt.at) — \(evt.reasonSummary)")
+                print("⚡️ Intervention \(evt.id) @ \(evt.at) — \(evt.reasonSummary)")
                 evt.context.forEach { c in
-                    print("   [\(c.speakerID)] \(c.text)")
+                    guard let startTime = self?.startTime else { return }
+                    print("   [\(c.speakerID)] (\(c.startAt.timeIntervalSince(startTime)) - \(c.endAt.timeIntervalSince(startTime))) \(c.text)")
                 }
                 self?.onEvent?(evt)
             }
