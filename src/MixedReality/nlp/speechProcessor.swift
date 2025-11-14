@@ -36,7 +36,7 @@ class SpeechProcessor: WebSocketDelegate {
     // Keeps a running record of all transcripts per speaker
     public private(set) var conversation: [String: [String]] = [:]
     // Logger setup
-    private let logger = Logger(subsystem: "MixedReality", category: "SpeechProcessor")
+    private let logger = Logger(subsystem: "NLP", category: "SpeechProcessor")
     // Audio properties
     private let audioEngine = AVAudioEngine()
     private let converterNode = AVAudioMixerNode()
@@ -63,6 +63,7 @@ class SpeechProcessor: WebSocketDelegate {
             "wss://api.deepgram.com/v1/listen" +
             "?model=nova-2" +
             "&diarize=true" +
+            "&language=zh" +
             "&punctuate=true" +
             "&filler_words=true" +                      // <-- keep filler words like "um", "uh"
             "&encoding=linear16" +
@@ -320,6 +321,7 @@ class SpeechProcessor: WebSocketDelegate {
 
     // Cleans up audio engine and WebSocket, stopping all streaming activity
     public func deconfigureAudioEngine() {
+        conversation.removeAll()
         audioEngine.reset() // Clears connections between nodes
         audioEngine.stop()
         converterNode.removeTap(onBus: 0)

@@ -14,9 +14,14 @@ struct ImmersiveView: View {
             let headAnchor = AnchorEntity(.head)
             headAnchor.anchoring.trackingMode = .continuous
             content.add(headAnchor)
-
+            
             if let uiAttachmentEntity = attachments.entity(for: "sessionControls") {
                 uiAttachmentEntity.transform.translation = [0, -0.25, -0.70]
+                headAnchor.addChild(uiAttachmentEntity)
+            }
+            
+            if let uiAttachmentEntity = attachments.entity(for: "prompts") {
+                uiAttachmentEntity.transform.translation = [0, 0.25, -0.70]
                 headAnchor.addChild(uiAttachmentEntity)
             }
         } attachments: {
@@ -25,6 +30,11 @@ struct ImmersiveView: View {
                     elapsedTime: elapsedTime,
                     onStop: endSession
                 )
+            }
+            Attachment(id: "prompts") {
+                if appModel.prompt != "LISTENING" {
+                    PromptView()
+                }
             }
         }
         .onAppear {

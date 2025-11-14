@@ -11,6 +11,8 @@ final class TriggerDemoService: ObservableObject {
 
     private(set) var primaryID: String        // exposed to the demo view
     private var llmEnabled: Bool
+    
+    private var onEvent: ((InterventionEvent) -> Void)?
 
     init(primaryID: String = "user", useLLM: Bool = false) {
         self.primaryID = primaryID
@@ -22,7 +24,7 @@ final class TriggerDemoService: ObservableObject {
             graceForOthers: 2.0,
             mode: useLLM ? .llmAugmented : .ruleBased,
             llm: useLLM ? HeuristicLLM() : nil,
-            contextWindow: 8
+            contextWindow: 30
         )
 
         attach()
@@ -39,8 +41,14 @@ final class TriggerDemoService: ObservableObject {
                 evt.context.forEach { c in
                     print("   [\(c.speakerID)] \(c.text)")
                 }
+                self?.onEvent?(evt)
             }
             .store(in: &bag)
+    }
+
+    // Allow updating the event callback after initialization
+    func setOnEvent(_ handler: @escaping (InterventionEvent) -> Void) {
+        self.onEvent = handler
     }
 
     // MARK: - Configuration
