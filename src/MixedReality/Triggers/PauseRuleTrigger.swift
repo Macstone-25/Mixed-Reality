@@ -1,123 +1,129 @@
-//
-//  PauseRuleTrigger.swift
-//  
-//
-//  Created by Mayowa Adesanya on 2025-11-05.
-//
-// MixedReality — Criteria 2: simple pause-based detection
-//
-// Lightweight rule that fires an intervention when the *primary user*
-// has been silent longer than a threshold, with an optional grace period
-// if someone else spoke after the primary user (to avoid interrupting turn-taking).
+// PauseRuleTrigger.swift
 
 import Foundation
 import Combine
 
-/// Fires `.longPause` when the primary user has been silent past a threshold.
-final class PauseRuleTrigger {
-    // MARK: - Configuration
-    private let primaryUserID: String
+public final class PauseRuleTrigger {
+    // MARK: - Inputs / config
+    private var primaryUserID: String
     private let silenceThreshold: TimeInterval
     private let graceForOthers: TimeInterval
-    private let tickInterval: TimeInterval
-    private let cooldownAfterFire: TimeInterval
-
-    // MARK: - Outputs
-    private let eventsSubject = PassthroughSubject<InterventionEvent, Never>()
-    var events: AnyPublisher<InterventionEvent, Never> { eventsSubject.eraseToAnyPublisher() }
 
     // MARK: - State
-    private var lastPrimarySpeechAt: Date?
-    private var lastAnySpeechAt: Date?
-    private var lastFiredAt: Date?
-    private var timer: Timer?
+    private var lastPrimarySpeechEnd: Date?
+    private var lastSpeakerID: String?
 
-    // MARK: - Init
-    /// - Parameters:
-    ///   - primaryUserID: The diarization ID treated as the main participant to monitor.
-    ///   - silenceThreshold: Seconds of silence from the primary user to trigger.
-    ///   - graceForOthers: Extra seconds added to the threshold if others have spoken after the primary user.
-    ///   - tickInterval: How often to evaluate silence.
-    ///   - cooldownAfterFire: Minimum seconds between consecutive fires; re-arms sooner if the user speaks.
-    init(
-        primaryUserID: String,
-        silenceThreshold: TimeInterval,
-        graceForOthers: TimeInterval,
-        tickInterval: TimeInterval = 0.5,
-        cooldownAfterFire: TimeInterval = 3.0
-    ) {
+    // One-shot timer machinery
+    private var fireTimer: DispatchSourceTimer?
+    private let timerQueue = DispatchQueue(label: "PauseRuleTrigger.timer")
+    private var dueAt: Date?
+    private var firedForCurrentSilence = false
+
+    // MARK: - Output
+    private let eventsSubject = PassthroughSubject<InterventionEvent, Never>()
+    public var events: AnyPublisher<InterventionEvent, Never> { eventsSubject.eraseToAnyPublisher() }
+
+    public init(primaryUserID: String,
+                silenceThreshold: TimeInterval,
+                graceForOthers: TimeInterval) {
         self.primaryUserID = primaryUserID
         self.silenceThreshold = silenceThreshold
         self.graceForOthers = graceForOthers
-        self.tickInterval = tickInterval
-        self.cooldownAfterFire = cooldownAfterFire
-        startTimer()
     }
 
-    deinit { timer?.invalidate() }
+    deinit { cancelTimer() }
 
-    // MARK: - Input
-    func receive(_ chunk: TranscriptChunk) {
-        // Update the "any speech" clock on any non-empty text.
-        if !chunk.isEmptyText {
-            lastAnySpeechAt = max(lastAnySpeechAt ?? chunk.endAt, chunk.endAt)
-            // Update the primary clock only when the primary user speaks with non-empty text.
-            if chunk.speakerID == primaryUserID {
-                lastPrimarySpeechAt = max(lastPrimarySpeechAt ?? chunk.endAt, chunk.endAt)
+    // MARK: - Public API
+
+    public func updatePrimaryUserID(_ id: String) {
+        primaryUserID = id
+        // Changing who we watch → clear current silence state
+        cancelTimer()
+        firedForCurrentSilence = false
+        lastPrimarySpeechEnd = nil
+        lastSpeakerID = nil
+        dueAt = nil
+    }
+
+    public func receive(_ chunk: TranscriptChunk) {
+        guard chunk.isFinal else { return } // only react to final segments
+
+        lastSpeakerID = chunk.speakerID
+
+        if chunk.speakerID == primaryUserID {
+            // Primary spoke → reset baseline and arm a new one-shot timer
+            lastPrimarySpeechEnd = chunk.endAt
+            firedForCurrentSilence = false
+            armTimer(after: silenceThreshold, baseline: chunk.endAt)
+        } else {
+            // Someone else spoke; if we’re currently waiting to fire, extend with grace
+            if let currentDue = dueAt, !firedForCurrentSilence {
+                let newDue = currentDue.addingTimeInterval(graceForOthers)
+                reschedule(to: newDue)
             }
         }
-        // Re-arm immediately after the primary user speaks again
-        // (so we can detect the next silence without waiting for cooldown).
-        if chunk.speakerID == primaryUserID, !chunk.isEmptyText {
-            lastFiredAt = nil
-        }
     }
 
-    func reset() {
-        lastPrimarySpeechAt = nil
-        lastAnySpeechAt = nil
-        lastFiredAt = nil
+    public func reset() {
+        cancelTimer()
+        firedForCurrentSilence = false
+        lastPrimarySpeechEnd = nil
+        lastSpeakerID = nil
+        dueAt = nil
     }
 
-    // MARK: - Timer loop
-    private func startTimer() {
-        timer?.invalidate()
-        timer = Timer.scheduledTimer(withTimeInterval: tickInterval, repeats: true) { [weak self] _ in
-            self?.tick()
+    // MARK: - Timer helpers
+
+    private func armTimer(after delay: TimeInterval, baseline: Date) {
+        cancelTimer()
+        let fireDate = baseline.addingTimeInterval(delay)
+        dueAt = fireDate
+
+        let t = DispatchSource.makeTimerSource(queue: timerQueue)
+        t.schedule(deadline: .now() + max(0, fireDate.timeIntervalSinceNow))
+        t.setEventHandler { [weak self] in
+            guard let self = self else { return }
+            if self.firedForCurrentSilence { return } // only once per silence
+            self.firedForCurrentSilence = true
+
+            let now = Date()
+            let elapsed = now.timeIntervalSince(baseline)
+            let reason: InterventionReason = .longPause(duration: elapsed)
+            let evt = InterventionEvent(at: now, reason: reason, context: [])
+
+            DispatchQueue.main.async { self.eventsSubject.send(evt) }
         }
-        if let timer { RunLoop.main.add(timer, forMode: .common) }
+        fireTimer = t
+        t.resume()
     }
 
-    private func tick() {
-        let now = Date()
+    private func reschedule(to newDue: Date) {
+        dueAt = newDue
+        // Recreate timer with new remaining time
+        cancelTimer()
+        let remaining = max(0, newDue.timeIntervalSinceNow)
+        let t = DispatchSource.makeTimerSource(queue: timerQueue)
+        t.schedule(deadline: .now() + remaining)
+        t.setEventHandler { [weak self] in
+            guard let self = self else { return }
+            if self.firedForCurrentSilence { return }
+            self.firedForCurrentSilence = true
 
-        // Require at least one primary utterance before we begin monitoring.
-        guard let lastPrimary = lastPrimarySpeechAt else { return }
+            let now = Date()
+            let baseline = self.lastPrimarySpeechEnd ?? now
+            let elapsed = now.timeIntervalSince(baseline)
+            let reason: InterventionReason = .longPause(duration: elapsed)
+            let evt = InterventionEvent(at: now, reason: reason, context: [])
 
-        // Respect cooldown between fires unless the user has spoken again (handled in receive()).
-        if let lastFiredAt, now.timeIntervalSince(lastFiredAt) < cooldownAfterFire { return }
-
-        // If someone else spoke after the primary user's last utterance, extend the threshold.
-        var effectiveThreshold = silenceThreshold
-        if let lastAny = lastAnySpeechAt, lastAny > lastPrimary {
-            effectiveThreshold += graceForOthers
+            DispatchQueue.main.async { self.eventsSubject.send(evt) }
         }
+        fireTimer = t
+        t.resume()
+    }
 
-        let silence = now.timeIntervalSince(lastPrimary)
-        guard silence >= effectiveThreshold else { return }
-
-        // Fire an intervention event and enter cooldown; will re-arm on next primary speech.
-        lastFiredAt = now
-        let event = InterventionEvent(
-            at: now,
-            reason: .longPause(duration: silence),
-            context: [] // The orchestrating engine attaches recent context.
-        )
-        eventsSubject.send(event)
-
-        // Optional: require the primary user to speak again before we consider another "silence".
-        // This helps prevent repeated nudges during a single long quiet stretch.
-        lastPrimarySpeechAt = nil
+    private func cancelTimer() {
+        fireTimer?.setEventHandler {}
+        fireTimer?.cancel()
+        fireTimer = nil
     }
 }
-

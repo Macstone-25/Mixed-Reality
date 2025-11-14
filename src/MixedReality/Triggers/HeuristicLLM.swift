@@ -19,7 +19,9 @@ public struct HeuristicLLM: LLMEvaluator {
 
     // Filler / hesitation tokens (case-insensitive).
     private let hesitationTokens: [String] = [
-        "um", "uh", "erm", "hmm", "mm", "like", "you know", "uhh", "umm"
+        "uh", "um", "mhmm", "mm-mm", "uh-uh", "uh-huh", "nuh-uh",
+        // optional extras you already had, if you still want them:
+        "erm", "hmm", "mm", "like", "you know", "uhh", "umm"
     ]
 
     public func shouldIntervene(
@@ -81,15 +83,24 @@ public struct HeuristicLLM: LLMEvaluator {
 
     private func containsHesitation(in texts: [String]) -> Bool {
         let lower = texts.joined(separator: " ").lowercased()
-        // Quick check for tokens or trailing ellipsis.
+
+        // Quick check for ellipsis
         if lower.contains("...") { return true }
+
+        // Tokenize into words
+        let words = lower
+            .split { $0.isWhitespace || $0.isNewline }
+            .map(String.init)
+
         for token in hesitationTokens {
-            if lower.contains(" \(token) ") || lower.hasPrefix(token + " ") || lower.hasSuffix(" " + token) {
+            if words.contains(token) {
                 return true
             }
         }
         return false
     }
+
+
 
     private func buildReason(
         endsWithQuestion: Bool,

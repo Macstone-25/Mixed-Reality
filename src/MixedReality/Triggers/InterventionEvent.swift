@@ -1,6 +1,6 @@
 //
 //  InterventionEvent.swift
-//  
+//
 //
 //  Created by Mayowa Adesanya on 2025-11-05.
 //
@@ -28,7 +28,10 @@ public enum InterventionReason: Sendable, Codable, Hashable {
 }
 
 /// An intervention decision emitted by the trigger engine.
-public struct InterventionEvent: Sendable, Codable, Hashable {
+public struct InterventionEvent: Identifiable, Sendable, Codable, Hashable {
+    /// Stable identity for SwiftUI lists, logging, etc.
+    public let id: UUID
+
     /// Wall-clock time when the decision was made.
     public let at: Date
     /// The reason behind the decision.
@@ -36,7 +39,13 @@ public struct InterventionEvent: Sendable, Codable, Hashable {
     /// Recent transcript context (last N chunks) to aid prompt generation and UI.
     public let context: [TranscriptChunk]
 
-    public init(at: Date, reason: InterventionReason, context: [TranscriptChunk]) {
+    public init(
+        id: UUID = UUID(),
+        at: Date,
+        reason: InterventionReason,
+        context: [TranscriptChunk]
+    ) {
+        self.id = id
         self.at = at
         self.reason = reason
         self.context = context
@@ -45,4 +54,3 @@ public struct InterventionEvent: Sendable, Codable, Hashable {
     /// Convenience accessor for logging/telemetry.
     public var reasonSummary: String { reason.summary }
 }
-

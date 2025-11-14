@@ -1,6 +1,6 @@
 //
 //  TranscriptChunk.swift
-//  
+//
 //
 //  Created by Mayowa Adesanya on 2025-11-05.
 //

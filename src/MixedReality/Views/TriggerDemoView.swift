@@ -27,6 +27,7 @@ struct TriggerDemoView: View {
                     Text("Primary speaker (monitor for pauses)")
                         .font(.caption)
                         .foregroundStyle(.secondary)
+
                     HStack(spacing: 8) {
                         Picker("", selection: $selectedPrimary) {
                             Text("user").tag("user")
@@ -40,6 +41,7 @@ struct TriggerDemoView: View {
                             svc.setPrimaryUserID(selectedPrimary)
                         }
                     }
+
                     Text("Current: \(svc.primaryID)")
                         .font(.caption2)
                         .foregroundStyle(.secondary)
@@ -60,9 +62,12 @@ struct TriggerDemoView: View {
                 Button("User: short 'um'") { svc.userSays("um") }
                 Button("User: question?") { svc.userSays("should we try this?") }
             }
+
             HStack {
                 Button("Other: okay") { svc.otherSays("okay") }
-                Button("Other: long reply") { svc.otherSays("that sounds good, we could try option A first") }
+                Button("Other: long reply") {
+                    svc.otherSays("that sounds good, we could try option A first")
+                }
             }
 
             // Instructions for triggering a pause
@@ -75,10 +80,11 @@ struct TriggerDemoView: View {
             Divider().padding(.vertical, 6)
 
             // Events log
-            List(svc.eventsLog.reversed(), id: \.at) { evt in
+            List(svc.eventsLog.reversed(), id: \.id) { evt in
                 VStack(alignment: .leading, spacing: 4) {
                     Text(evt.reasonSummary)
                         .font(.headline)
+
                     Text(evt.at.formatted(date: .omitted, time: .standard))
                         .font(.caption)
                         .foregroundStyle(.secondary)

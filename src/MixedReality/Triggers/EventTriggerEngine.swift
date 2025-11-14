@@ -1,9 +1,4 @@
 // EventTriggerEngine.swift
-//
-// MixedReality — Criteria 1: orchestrator + public API
-//
-// Consumes transcript chunks, runs the pause rule, and (optionally) confirms
-// with an LLM layer before emitting intervention events to subscribers.
 
 import Foundation
 import Combine
@@ -12,32 +7,27 @@ public final class EventTriggerEngine: InterventionTriggering {
     // MARK: - Modes
     public enum Mode { case ruleBased, llmAugmented }
 
-    // MARK: - Dependencies
-    private let primaryUserID: String
-    private let mode: Mode
-    private let llm: LLMEvaluator?
+    // MARK: - Dependencies / config
+    private var primaryUserID: String          // <-- var
+    private var mode: Mode                     // <-- var
+    private var llm: LLMEvaluator?             // <-- var
     private let rule: PauseRuleTrigger
 
     // MARK: - Context buffer
-    /// How many recent chunks to keep for context/LLM.
     private let contextWindow: Int
     private var buffer: [TranscriptChunk] = []
     private let bufferQueue = DispatchQueue(label: "EventTriggerEngine.buffer")
 
     // MARK: - Outputs
     private let eventsSubject = PassthroughSubject<InterventionEvent, Never>()
-    public var events: AnyPublisher<InterventionEvent, Never> { eventsSubject.eraseToAnyPublisher() }
+    public var events: AnyPublisher<InterventionEvent, Never> {
+        eventsSubject.eraseToAnyPublisher()
+    }
 
     private var cancellables = Set<AnyCancellable>()
 
     // MARK: - Init
-    /// - Parameters:
-    ///   - primaryUserID: diarization ID treated as the main participant to monitor
-    ///   - silenceThreshold: seconds of silence from the primary user to trigger
-    ///   - graceForOthers: extra seconds added when others spoke after the primary user
-    ///   - mode: `.ruleBased` (fast) or `.llmAugmented` (rule + LLM confirmation)
-    ///   - llm: LLM evaluator used only when `mode == .llmAugmented`
-    ///   - contextWindow: how many recent chunks to attach to events and send to LLM
+
     public init(
         primaryUserID: String,
         silenceThreshold: TimeInterval = 4.0,
@@ -46,38 +36,54 @@ public final class EventTriggerEngine: InterventionTriggering {
         llm: LLMEvaluator? = nil,
         contextWindow: Int = 8
     ) {
-        self.primaryUserID = primaryUserID
+        // Validate & normalise primary ID so we never end up with an "invisible" primary user.
+        let trimmedID = primaryUserID.trimmingCharacters(in: .whitespacesAndNewlines)
+        precondition(
+            !trimmedID.isEmpty,
+            "primaryUserID must be non-empty and not just whitespace"
+        )
+
+        self.primaryUserID = trimmedID
         self.mode = mode
         self.llm = llm
         self.contextWindow = max(1, contextWindow)
         self.rule = PauseRuleTrigger(
-            primaryUserID: primaryUserID,
+            primaryUserID: trimmedID,
             silenceThreshold: silenceThreshold,
             graceForOthers: graceForOthers
         )
 
-        // Subscribe to rule events and optionally pass through an LLM gate.
         rule.events
             .sink { [weak self] evt in
+//                guard let self else { return }
+//                let ctx = self.snapshotContext()
                 guard let self else { return }
+                
+                print("🧩 TriggerEngine fired rule event: \(evt.reasonSummary)")
+
                 let ctx = self.snapshotContext()
 
                 switch self.mode {
                 case .ruleBased:
-                    // Attach context and forward immediately.
                     let enriched = InterventionEvent(at: evt.at, reason: evt.reason, context: ctx)
-                    self.eventsSubject.send(enriched)
+                    // Always publish on main to keep Combine / UI happy
+                    DispatchQueue.main.async { [weak self] in
+                        self?.eventsSubject.send(enriched)
+                    }
 
                 case .llmAugmented:
-                    // Confirm with LLM (non-blocking). If LLM is absent, fall back to send.
+                    // If no LLM is wired, fall back to rule-based behaviour.
                     guard let llm = self.llm else {
                         let enriched = InterventionEvent(at: evt.at, reason: evt.reason, context: ctx)
-                        self.eventsSubject.send(enriched)
+                        DispatchQueue.main.async { [weak self] in
+                            self?.eventsSubject.send(enriched)
+                        }
                         return
                     }
-                    Task {
+                    Task { [weak self] in
+                        guard let self else { return }
                         do {
-                            let verdict: LLMVerdict = try await llm.shouldIntervene(
+                            let verdict = try await llm.shouldIntervene(
                                 context: ctx,
                                 primaryUserID: self.primaryUserID
                             )
@@ -86,11 +92,15 @@ public final class EventTriggerEngine: InterventionTriggering {
                                 summary: verdict.reason ?? "LLM confirmed intervention."
                             )
                             let enriched = InterventionEvent(at: Date(), reason: reason, context: ctx)
-                            self.eventsSubject.send(enriched)
+                            DispatchQueue.main.async { [weak self] in
+                                self?.eventsSubject.send(enriched)
+                            }
                         } catch {
-                            // On failure, be conservative: forward the original event with context.
+                            // On failure, be conservative and forward the original rule event.
                             let enriched = InterventionEvent(at: evt.at, reason: evt.reason, context: ctx)
-                            self.eventsSubject.send(enriched)
+                            DispatchQueue.main.async { [weak self] in
+                                self?.eventsSubject.send(enriched)
+                            }
                         }
                     }
                 }
@@ -98,18 +108,44 @@ public final class EventTriggerEngine: InterventionTriggering {
             .store(in: &cancellables)
     }
 
-    deinit { cancellables.removeAll() }
+    deinit {
+        cancellables.removeAll()
+    }
+
+    // MARK: - Reconfiguration
+
+    /// Enable/disable LLM gating without resetting pause state / context.
+    public func updateLLMMode(enabled: Bool, llm evaluator: LLMEvaluator?) {
+        if enabled {
+            mode = .llmAugmented
+            llm = evaluator
+        } else {
+            mode = .ruleBased
+            llm = nil
+        }
+    }
+
+    /// Change which diarized speaker ID is treated as the "primary" user.
+    /// Keeps pause timer and context buffer intact.
+    public func updatePrimaryUserID(_ id: String) {
+        let trimmed = id.trimmingCharacters(in: .whitespacesAndNewlines)
+        // Ignore empty / whitespace-only IDs, or re-setting to the same ID.
+        guard !trimmed.isEmpty, trimmed != primaryUserID else { return }
+
+        primaryUserID = trimmed
+        rule.updatePrimaryUserID(trimmed)
+    }
 
     // MARK: - Public API
+
     public func receive(_ chunk: TranscriptChunk) {
-        // Track context window
         bufferQueue.sync {
             buffer.append(chunk)
-            // Keep up to 2x the window to give LLM a bit more history without growing unbounded.
             let cap = max(contextWindow * 2, contextWindow)
-            if buffer.count > cap { buffer.removeFirst(buffer.count - cap) }
+            if buffer.count > cap {
+                buffer.removeFirst(buffer.count - cap)
+            }
         }
-        // Update rule
         rule.receive(chunk)
     }
 
@@ -119,6 +155,7 @@ public final class EventTriggerEngine: InterventionTriggering {
     }
 
     // MARK: - Helpers
+
     private func snapshotContext() -> [TranscriptChunk] {
         bufferQueue.sync {
             let n = min(contextWindow, buffer.count)

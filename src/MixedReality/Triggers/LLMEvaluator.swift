@@ -1,6 +1,6 @@
 //
 //  LLMEvaluator.swift
-//  
+//
 //
 //  Created by Mayowa Adesanya on 2025-11-05.
 //
@@ -40,5 +40,3 @@ public enum LLMEvaluatorError: Error {
     case transportFailure(underlying: Error)
     case invalidResponse
 }
-
-

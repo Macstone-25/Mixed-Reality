@@ -4,7 +4,7 @@ import os
 
 // Formatting for the Deepgram response
 struct DeepgramResponse: Codable {
-    let isFinal: Bool?
+    // NOTE: We don't rely on isFinal anymore; timing is handled on our side.
     let channel: Channel?
 
     struct Channel: Codable {
@@ -59,7 +59,16 @@ class SpeechProcessor: WebSocketDelegate {
     private let deepgramKey: String
     private lazy var socket: Starscream.WebSocket = {
         // Build URL dynamically based on audio format
-        let urlString = "wss://api.deepgram.com/v1/listen?model=nova&diarize=true&punctuate=true&encoding=linear16&sample_rate=\(Int(sampleRate))&channels=\(channels)"
+        let urlString =
+            "wss://api.deepgram.com/v1/listen" +
+            "?model=nova" +
+            "&diarize=true" +
+            "&punctuate=true" +
+            "&filler_words=true" +                      // <-- keep filler words like "um", "uh"
+            "&encoding=linear16" +
+            "&sample_rate=\(Int(sampleRate))" +
+            "&channels=\(channels)"
+
         guard let url = URL(string: urlString) else {
             fatalError("Invalid WebSocket URL")
         }
@@ -107,7 +116,7 @@ class SpeechProcessor: WebSocketDelegate {
         audioEngine.prepare()
         
         do {
-        try audioEngine.start()
+            try audioEngine.start()
             logger.info("Audio engine started.")
         } catch {
             logger.error("Failed to start audio engine: \(error.localizedDescription, privacy: .public)")
@@ -162,7 +171,11 @@ class SpeechProcessor: WebSocketDelegate {
                             entry.end = wordInfo.end
                             speakerSentences[speakerID] = entry
                         } else {
-                            speakerSentences[speakerID] = (text: wordInfo.word + " ", start: wordInfo.start, end: wordInfo.end)
+                            speakerSentences[speakerID] = (
+                                text: wordInfo.word + " ",
+                                start: wordInfo.start,
+                                end: wordInfo.end
+                            )
                         }
                     }
 
@@ -172,17 +185,30 @@ class SpeechProcessor: WebSocketDelegate {
 
                         conversation[speakerID, default: []].append(trimmedText)
 
-                        // Notify delegate
-                        let chunk = TranscriptChunk(speakerID: speakerID, start_time: entry.start, end_time: entry.end, text: trimmedText)
+                        // Notify delegate – treat every sentence as final
+                        let chunk = DeepgramTranscriptChunk(
+                            speakerID: speakerID,
+                            start_time: entry.start,
+                            end_time: entry.end,
+                            text: trimmedText,
+                            isFinal: true
+                        )
                         delegate?.speechProcessor(self, didReceiveChunk: chunk)
                         logger.info("Speaker: \(speakerID, privacy: .public), Sentence: \(trimmedText, privacy: .public)")
                     }
 
-                } else if let transcript = alt.transcript?.trimmingCharacters(in: .whitespaces), !transcript.isEmpty {
+                } else if let transcript = alt.transcript?.trimmingCharacters(in: .whitespaces),
+                          !transcript.isEmpty {
                     let speakerID = "user"
                     conversation[speakerID, default: []].append(transcript)
 
-                    let chunk = TranscriptChunk(speakerID: speakerID, start_time: nil, end_time: nil, text: transcript)
+                    let chunk = DeepgramTranscriptChunk(
+                        speakerID: speakerID,
+                        start_time: nil,
+                        end_time: nil,
+                        text: transcript,
+                        isFinal: true
+                    )
                     delegate?.speechProcessor(self, didReceiveChunk: chunk)
                     logger.info("Speaker: \(speakerID, privacy: .public), Sentence: \(transcript, privacy: .public)")
                 }
