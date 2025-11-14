@@ -12,8 +12,7 @@ struct ContentView: View {
             }
         } else {
             StartView {
-                print("Starting session...")
-                appModel.isSessionActive = true
+                appModel.startSession()
                 Task {
                     let result = await openImmersiveSpace(id: appModel.immersiveSpaceId)
                     switch result {

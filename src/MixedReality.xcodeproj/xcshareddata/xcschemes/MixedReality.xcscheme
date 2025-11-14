@@ -50,6 +50,13 @@
             ReferencedContainer = "container:MixedReality.xcodeproj">
          </BuildableReference>
       </BuildableProductRunnable>
+      <EnvironmentVariables>
+         <EnvironmentVariable
+            key = "DEEPGRAM_API_KEY"
+            value = "f9adfa2699bc1a291406442dd23a3b8352d2b47b"
+            isEnabled = "YES">
+         </EnvironmentVariable>
+      </EnvironmentVariables>
    </LaunchAction>
    <ProfileAction
       buildConfiguration = "Release"

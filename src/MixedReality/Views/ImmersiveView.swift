@@ -44,7 +44,7 @@ struct ImmersiveView: View {
         print("Ending session...")
         timer?.invalidate()
         timer = nil
-        appModel.isSessionActive = false
+        appModel.endSession()
         Task {
             await dismissImmersiveSpace()
             openWindow(id: appModel.windowGroupId)
