@@ -1,3 +1,5 @@
+import SwiftUI
+
 struct StartView: View {
     @Environment(AppModel.self) private var appModel
     let onStart: () -> Void

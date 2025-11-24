@@ -36,7 +36,7 @@ class SpeechProcessor: WebSocketDelegate {
     // Keeps a running record of all transcripts per speaker
     public private(set) var conversation: [String: [String]] = [:]
     // Logger setup
-    private let logger = Logger(subsystem: "MixedReality", category: "SpeechProcessor")
+    private let logger = Logger(subsystem: "NLP", category: "SpeechProcessor")
     // Audio properties
     private let audioEngine = AVAudioEngine()
     private let converterNode = AVAudioMixerNode()
@@ -61,7 +61,7 @@ class SpeechProcessor: WebSocketDelegate {
         // Build URL dynamically based on audio format
         let urlString =
             "wss://api.deepgram.com/v1/listen" +
-            "?model=nova" +
+            "?model=nova-2" +
             "&diarize=true" +
             "&punctuate=true" +
             "&filler_words=true" +                      // <-- keep filler words like "um", "uh"
@@ -92,7 +92,7 @@ class SpeechProcessor: WebSocketDelegate {
         }
         
         socket.delegate = self // Allow SpeechProcessor to receive WebSocket information
-        configureAudioEngine()
+        configureAudioSession()
         socket.connect()
     }
     
@@ -105,14 +105,14 @@ class SpeechProcessor: WebSocketDelegate {
         audioEngine.attach(sinkNode)
         
         // Installing a "tap" allows us to read audio buffers in real-time as they pass through this node
-        converterNode.installTap(onBus: 0, bufferSize: 1024, format: outputFormat) { buffer, time in
+        converterNode.installTap(onBus: 0, bufferSize: 1024, format: inputFormat) { buffer, time in
             if let data = self.convertAudio(buffer: buffer) {
                 self.socket.write(data: data)
             }
         }
         
         audioEngine.connect(inputNode, to: converterNode, format: inputFormat)
-        audioEngine.connect(converterNode, to: sinkNode, format: outputFormat)
+        audioEngine.connect(converterNode, to: sinkNode, format: inputFormat)
         audioEngine.prepare()
         
         do {
@@ -122,6 +122,106 @@ class SpeechProcessor: WebSocketDelegate {
             logger.error("Failed to start audio engine: \(error.localizedDescription, privacy: .public)")
         }
     }
+
+    private func configureAudioSession() {
+        let session = AVAudioSession.sharedInstance()
+
+        // Request permission synchronously or handle the async result before proceeding
+        session.requestRecordPermission { granted in
+            if !granted {
+                self.logger.error("Microphone permission denied.")
+                return
+            }
+            DispatchQueue.main.async {
+                do {
+                    try session.setCategory(.playAndRecord,
+                                            options: [.duckOthers, .allowBluetooth])
+                    try session.setMode(.measurement) // or .voiceChat / .default per use-case
+                    // Optionally set preferred sample rate if you truly need it:
+                    // try session.setPreferredSampleRate(self.sampleRate)
+                    try session.setActive(true, options: [])
+                    self.prepareAudioGraphAfterSessionActivation()
+                } catch {
+                    self.logger.error("Failed to configure AVAudioSession: \(error.localizedDescription)")
+                }
+            }
+        }
+    }
+
+    // Called only after AVAudioSession is active
+    private func prepareAudioGraphAfterSessionActivation() {
+        let inputNode = audioEngine.inputNode
+
+        // Query the actual hardware format AFTER activation
+        let nativeFormat = inputNode.inputFormat(forBus: 0)
+        let channelCount = nativeFormat.channelCount
+        let sampleRate = nativeFormat.sampleRate
+
+        guard channelCount > 0, sampleRate > 0 else {
+            logger.error("Invalid native input format — channels: \(channelCount), sampleRate: \(sampleRate)")
+            // Consider fallback or retry after a short delay
+            return
+        }
+
+        audioEngine.attach(converterNode)
+        audioEngine.attach(sinkNode)
+
+        // Install the tap using the node's own format by passing `nil` or `nativeFormat`.
+        // Passing nil tells AVAudioNode to use its output format; both are acceptable.
+        converterNode.installTap(onBus: 0, bufferSize: 1024, format: nativeFormat) { buffer, when in
+            // Convert from whatever the device provides (likely Float32) to Int16 linear16
+            // and downmix channels to mono if Deepgram expects mono.
+            guard let pcmData = self.convertBufferToPCM16(buffer: buffer, targetChannelCount: 1) else { return }
+            self.socket.write(data: pcmData)
+        }
+
+        // Connect nodes using the same valid format — keep graph formats consistent
+        audioEngine.connect(inputNode, to: converterNode, format: nativeFormat)
+        audioEngine.connect(converterNode, to: sinkNode, format: nativeFormat)
+
+        do {
+            try audioEngine.start()
+            logger.info("Audio engine started.")
+        } catch {
+            logger.error("Failed to start audio engine: \(error.localizedDescription)")
+        }
+    }
+
+    // Convert Float32/Float64 buffer to PCM16 and downmix if needed
+    private func convertBufferToPCM16(buffer: AVAudioPCMBuffer, targetChannelCount: AVAudioChannelCount) -> Data? {
+        let format = buffer.format
+        let frameLength = Int(buffer.frameLength)
+        let channels = Int(format.channelCount)
+
+        // If format is already Int16 (rare), handle differently — typical is .pcmFormatFloat32
+        guard format.commonFormat == .pcmFormatFloat32,
+              let floatChannelData = buffer.floatChannelData else {
+            // Implement other conversions if needed
+            return nil
+        }
+
+        var interleavedMono = [Int16]()
+        interleavedMono.reserveCapacity(frameLength)
+
+        // Simple downmix: average channels into mono
+        for frameIndex in 0..<frameLength {
+            var sampleSum: Float = 0.0
+            for ch in 0..<channels {
+                sampleSum += floatChannelData[ch][frameIndex]
+            }
+            let avg = sampleSum / Float(channels)
+            // clamp and convert to Int16 little-endian
+            let clipped = max(-1.0, min(1.0, avg))
+            let intSample = Int16(clipped * Float(Int16.max))
+            interleavedMono.append(intSample)
+        }
+
+        // Create Data from Int16 array (little-endian)
+        return interleavedMono.withUnsafeBufferPointer { bufferPtr in
+            Data(buffer: bufferPtr)
+        }
+    }
+
     
     // Converts audio buffer to raw PCM16 data for streaming
     private func convertAudio(buffer: AVAudioPCMBuffer) -> Data? {
@@ -220,6 +320,7 @@ class SpeechProcessor: WebSocketDelegate {
 
     // Cleans up audio engine and WebSocket, stopping all streaming activity
     public func deconfigureAudioEngine() {
+        conversation.removeAll()
         audioEngine.reset() // Clears connections between nodes
         audioEngine.stop()
         converterNode.removeTap(onBus: 0)

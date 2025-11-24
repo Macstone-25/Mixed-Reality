@@ -50,18 +50,19 @@ public final class PauseRuleTrigger {
 
         lastSpeakerID = chunk.speakerID
 
-        if chunk.speakerID == primaryUserID {
+        // FIXME: if the secondary speaker has multiple chunks timer gets very long!
+//        if chunk.speakerID == primaryUserID {
             // Primary spoke → reset baseline and arm a new one-shot timer
             lastPrimarySpeechEnd = chunk.endAt
             firedForCurrentSilence = false
             armTimer(after: silenceThreshold, baseline: chunk.endAt)
-        } else {
-            // Someone else spoke; if we’re currently waiting to fire, extend with grace
-            if let currentDue = dueAt, !firedForCurrentSilence {
-                let newDue = currentDue.addingTimeInterval(graceForOthers)
-                reschedule(to: newDue)
-            }
-        }
+//        } else {
+//            // Someone else spoke; if we’re currently waiting to fire, extend with grace
+//            if let currentDue = dueAt, !firedForCurrentSilence {
+//                let newDue = currentDue.addingTimeInterval(graceForOthers)
+//                reschedule(to: newDue)
+//            }
+//        }
     }
 
     public func reset() {

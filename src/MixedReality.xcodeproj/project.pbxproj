@@ -8,8 +8,6 @@
 
 /* Begin PBXBuildFile section */
 		538161D52EC62A5C00C0F590 /* Starscream in Frameworks */ = {isa = PBXBuildFile; productRef = 538161D42EC62A5C00C0F590 /* Starscream */; };
-		538161F92EC640FB00C0F590 /* Starscream in Frameworks */ = {isa = PBXBuildFile; productRef = 538161F82EC640FB00C0F590 /* Starscream */; };
-		9B9B4CB82EB2E29700073840 /* RealityKitContent in Frameworks */ = {isa = PBXBuildFile; productRef = 9B9B4CB72EB2E29700073840 /* RealityKitContent */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXContainerItemProxy section */
@@ -22,24 +20,10 @@
 		};
 /* End PBXContainerItemProxy section */
 
-/* Begin PBXCopyFilesBuildPhase section */
-		538161D82EC63CEA00C0F590 /* CopyFiles */ = {
-			isa = PBXCopyFilesBuildPhase;
-			buildActionMask = 2147483647;
-			dstPath = /usr/share/man/man1/;
-			dstSubfolderSpec = 0;
-			files = (
-			);
-			runOnlyForDeploymentPostprocessing = 1;
-		};
-/* End PBXCopyFilesBuildPhase section */
-
 /* Begin PBXFileReference section */
 		9B64710C2ECD3D7B0032BC9D /* MixedReality.xcodeproj */ = {isa = PBXFileReference; lastKnownFileType = "wrapper.pb-project"; path = MixedReality.xcodeproj; sourceTree = "<group>"; };
 		9B64712C2ECD408D0032BC9D /* MixedRealityTests.xctest */ = {isa = PBXFileReference; explicitFileType = wrapper.cfbundle; includeInIndex = 0; path = MixedRealityTests.xctest; sourceTree = BUILT_PRODUCTS_DIR; };
-		538161DA2EC63CEA00C0F590 /* DeepgramTriggerTest */ = {isa = PBXFileReference; explicitFileType = "compiled.mach-o.executable"; includeInIndex = 0; path = DeepgramTriggerTest; sourceTree = BUILT_PRODUCTS_DIR; };
 		9B9B4CB22EB2E29700073840 /* MRCS.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = MRCS.app; sourceTree = BUILT_PRODUCTS_DIR; };
-		9B9B4CB62EB2E29700073840 /* RealityKitContent */ = {isa = PBXFileReference; lastKnownFileType = wrapper; path = RealityKitContent; sourceTree = "<group>"; };
 /* End PBXFileReference section */
 
 /* Begin PBXFileSystemSynchronizedBuildFileExceptionSet section */
@@ -56,11 +40,6 @@
 		9B64712D2ECD408D0032BC9D /* MixedRealityTests */ = {
 			isa = PBXFileSystemSynchronizedRootGroup;
 			path = MixedRealityTests;
-			sourceTree = "<group>";
-		};
-		538161DB2EC63CEA00C0F590 /* DeepgramTriggerTest */ = {
-			isa = PBXFileSystemSynchronizedRootGroup;
-			path = DeepgramTriggerTest;
 			sourceTree = "<group>";
 		};
 		9B9B4CB42EB2E29700073840 /* MixedReality */ = {
@@ -81,19 +60,10 @@
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
-		538161D72EC63CEA00C0F590 /* Frameworks */ = {
-			isa = PBXFrameworksBuildPhase;
-			buildActionMask = 2147483647;
-			files = (
-				538161F92EC640FB00C0F590 /* Starscream in Frameworks */,
-			);
-			runOnlyForDeploymentPostprocessing = 0;
-		};
 		9B9B4CAF2EB2E29700073840 /* Frameworks */ = {
 			isa = PBXFrameworksBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
-				9B9B4CB82EB2E29700073840 /* RealityKitContent in Frameworks */,
 				538161D52EC62A5C00C0F590 /* Starscream in Frameworks */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
@@ -101,16 +71,16 @@
 /* End PBXFrameworksBuildPhase section */
 
 /* Begin PBXGroup section */
-		9B64710E2ECD3D7B0032BC9D /* Products */ = {
-			isa = PBXGroup;
-			name = Products;
-      sourceTree = "<group>";
-		};
 		538161F72EC640FB00C0F590 /* Frameworks */ = {
 			isa = PBXGroup;
 			children = (
 			);
 			name = Frameworks;
+			sourceTree = "<group>";
+		};
+		9B64710E2ECD3D7B0032BC9D /* Products */ = {
+			isa = PBXGroup;
+			name = Products;
 			sourceTree = "<group>";
 		};
 		9B9B4CA92EB2E29700073840 = {
@@ -119,7 +89,6 @@
 				9B9B4CB42EB2E29700073840 /* MixedReality */,
 				9B9B4CB52EB2E29700073840 /* Packages */,
 				9B64712D2ECD408D0032BC9D /* MixedRealityTests */,
-				538161DB2EC63CEA00C0F590 /* DeepgramTriggerTest */,
 				538161F72EC640FB00C0F590 /* Frameworks */,
 				9B9B4CB32EB2E29700073840 /* Products */,
 			);
@@ -130,7 +99,6 @@
 			children = (
 				9B9B4CB22EB2E29700073840 /* MRCS.app */,
 				9B64712C2ECD408D0032BC9D /* MixedRealityTests.xctest */,
-				538161DA2EC63CEA00C0F590 /* DeepgramTriggerTest */,
 			);
 			name = Products;
 			sourceTree = "<group>";
@@ -138,7 +106,6 @@
 		9B9B4CB52EB2E29700073840 /* Packages */ = {
 			isa = PBXGroup;
 			children = (
-				9B9B4CB62EB2E29700073840 /* RealityKitContent */,
 			);
 			path = Packages;
 			sourceTree = "<group>";
@@ -157,7 +124,7 @@
 			buildRules = (
 			);
 			dependencies = (
-      	9B6471312ECD408D0032BC9D /* PBXTargetDependency */,
+				9B6471312ECD408D0032BC9D /* PBXTargetDependency */,
 			);
 			fileSystemSynchronizedGroups = (
 				9B64712D2ECD408D0032BC9D /* MixedRealityTests */,
@@ -168,29 +135,6 @@
 			productName = MixedRealityTests;
 			productReference = 9B64712C2ECD408D0032BC9D /* MixedRealityTests.xctest */;
 			productType = "com.apple.product-type.bundle.unit-test";
-		};
-		538161D92EC63CEA00C0F590 /* DeepgramTriggerTest */ = {
-			isa = PBXNativeTarget;
-			buildConfigurationList = 538161DE2EC63CEA00C0F590 /* Build configuration list for PBXNativeTarget "DeepgramTriggerTest" */;
-			buildPhases = (
-				538161D62EC63CEA00C0F590 /* Sources */,
-				538161D72EC63CEA00C0F590 /* Frameworks */,
-				538161D82EC63CEA00C0F590 /* CopyFiles */,
-			);
-			buildRules = (
-			);
-			dependencies = (
-			);
-			fileSystemSynchronizedGroups = (
-				538161DB2EC63CEA00C0F590 /* DeepgramTriggerTest */,
-			);
-			name = DeepgramTriggerTest;
-			packageProductDependencies = (
-				538161F82EC640FB00C0F590 /* Starscream */,
-			);
-			productName = DeepgramTriggerTest;
-			productReference = 538161DA2EC63CEA00C0F590 /* DeepgramTriggerTest */;
-			productType = "com.apple.product-type.tool";
 		};
 		9B9B4CB12EB2E29700073840 /* MixedReality */ = {
 			isa = PBXNativeTarget;
@@ -209,7 +153,6 @@
 			);
 			name = MixedReality;
 			packageProductDependencies = (
-				9B9B4CB72EB2E29700073840 /* RealityKitContent */,
 				538161D42EC62A5C00C0F590 /* Starscream */,
 			);
 			productName = MixedReality;
@@ -229,9 +172,6 @@
 					9B64712B2ECD408D0032BC9D = {
 						CreatedOnToolsVersion = 26.1.1;
 						TestTargetID = 9B9B4CB12EB2E29700073840;
-					};
-					538161D92EC63CEA00C0F590 = {
-						CreatedOnToolsVersion = 26.0.1;
 					};
 					9B9B4CB12EB2E29700073840 = {
 						CreatedOnToolsVersion = 26.0.1;
@@ -263,7 +203,6 @@
 			targets = (
 				9B9B4CB12EB2E29700073840 /* MixedReality */,
 				9B64712B2ECD408D0032BC9D /* MixedRealityTests */,
-				538161D92EC63CEA00C0F590 /* DeepgramTriggerTest */,
 			);
 		};
 /* End PBXProject section */
@@ -287,13 +226,6 @@
 
 /* Begin PBXSourcesBuildPhase section */
 		9B6471282ECD408D0032BC9D /* Sources */ = {
-			isa = PBXSourcesBuildPhase;
-			buildActionMask = 2147483647;
-			files = (
-			);
-			runOnlyForDeploymentPostprocessing = 0;
-		};
-		538161D62EC63CEA00C0F590 /* Sources */ = {
 			isa = PBXSourcesBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
@@ -359,32 +291,6 @@
 				TARGETED_DEVICE_FAMILY = 7;
 				TEST_HOST = "$(BUILT_PRODUCTS_DIR)/MRCS.app/$(BUNDLE_EXECUTABLE_FOLDER_PATH)/MRCS";
 				XROS_DEPLOYMENT_TARGET = 26.1;
-			};
-			name = Release;
-		};
-		538161DF2EC63CEA00C0F590 /* Debug */ = {
-			isa = XCBuildConfiguration;
-			buildSettings = {
-				CODE_SIGN_STYLE = Automatic;
-				MACOSX_DEPLOYMENT_TARGET = 26.0;
-				PRODUCT_NAME = "$(TARGET_NAME)";
-				SDKROOT = macosx;
-				SWIFT_APPROACHABLE_CONCURRENCY = YES;
-				SWIFT_UPCOMING_FEATURE_MEMBER_IMPORT_VISIBILITY = YES;
-				SWIFT_VERSION = 5.0;
-			};
-			name = Debug;
-		};
-		538161E02EC63CEA00C0F590 /* Release */ = {
-			isa = XCBuildConfiguration;
-			buildSettings = {
-				CODE_SIGN_STYLE = Automatic;
-				MACOSX_DEPLOYMENT_TARGET = 26.0;
-				PRODUCT_NAME = "$(TARGET_NAME)";
-				SDKROOT = macosx;
-				SWIFT_APPROACHABLE_CONCURRENCY = YES;
-				SWIFT_UPCOMING_FEATURE_MEMBER_IMPORT_VISIBILITY = YES;
-				SWIFT_VERSION = 5.0;
 			};
 			name = Release;
 		};
@@ -575,15 +481,6 @@
 			defaultConfigurationIsVisible = 0;
 			defaultConfigurationName = Release;
 		};
-		538161DE2EC63CEA00C0F590 /* Build configuration list for PBXNativeTarget "DeepgramTriggerTest" */ = {
-			isa = XCConfigurationList;
-			buildConfigurations = (
-				538161DF2EC63CEA00C0F590 /* Debug */,
-				538161E02EC63CEA00C0F590 /* Release */,
-			);
-			defaultConfigurationIsVisible = 0;
-			defaultConfigurationName = Release;
-		};
 		9B9B4CAD2EB2E29700073840 /* Build configuration list for PBXProject "MixedReality" */ = {
 			isa = XCConfigurationList;
 			buildConfigurations = (
@@ -620,15 +517,6 @@
 			isa = XCSwiftPackageProductDependency;
 			package = 538161D32EC62A5C00C0F590 /* XCRemoteSwiftPackageReference "Starscream" */;
 			productName = Starscream;
-		};
-		538161F82EC640FB00C0F590 /* Starscream */ = {
-			isa = XCSwiftPackageProductDependency;
-			package = 538161D32EC62A5C00C0F590 /* XCRemoteSwiftPackageReference "Starscream" */;
-			productName = Starscream;
-		};
-		9B9B4CB72EB2E29700073840 /* RealityKitContent */ = {
-			isa = XCSwiftPackageProductDependency;
-			productName = RealityKitContent;
 		};
 /* End XCSwiftPackageProductDependency section */
 	};

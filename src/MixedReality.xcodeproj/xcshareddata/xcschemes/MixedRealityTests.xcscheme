@@ -1,27 +1,11 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <Scheme
-   LastUpgradeVersion = "2600"
+   LastUpgradeVersion = "2610"
    version = "1.7">
    <BuildAction
       parallelizeBuildables = "YES"
       buildImplicitDependencies = "YES"
       buildArchitectures = "Automatic">
-      <BuildActionEntries>
-         <BuildActionEntry
-            buildForTesting = "YES"
-            buildForRunning = "YES"
-            buildForProfiling = "YES"
-            buildForArchiving = "YES"
-            buildForAnalyzing = "YES">
-            <BuildableReference
-               BuildableIdentifier = "primary"
-               BlueprintIdentifier = "538161D92EC63CEA00C0F590"
-               BuildableName = "DeepgramTriggerTest"
-               BlueprintName = "DeepgramTriggerTest"
-               ReferencedContainer = "container:MixedReality.xcodeproj">
-            </BuildableReference>
-         </BuildActionEntry>
-      </BuildActionEntries>
    </BuildAction>
    <TestAction
       buildConfiguration = "Debug"
@@ -29,6 +13,19 @@
       selectedLauncherIdentifier = "Xcode.DebuggerFoundation.Launcher.LLDB"
       shouldUseLaunchSchemeArgsEnv = "YES"
       shouldAutocreateTestPlan = "YES">
+      <Testables>
+         <TestableReference
+            skipped = "NO"
+            parallelizable = "YES">
+            <BuildableReference
+               BuildableIdentifier = "primary"
+               BlueprintIdentifier = "9B64712B2ECD408D0032BC9D"
+               BuildableName = "MixedRealityTests.xctest"
+               BlueprintName = "MixedRealityTests"
+               ReferencedContainer = "container:MixedReality.xcodeproj">
+            </BuildableReference>
+         </TestableReference>
+      </Testables>
    </TestAction>
    <LaunchAction
       buildConfiguration = "Debug"
@@ -39,22 +36,26 @@
       ignoresPersistentStateOnLaunch = "NO"
       debugDocumentVersioning = "YES"
       debugServiceExtension = "internal"
-      allowLocationSimulation = "YES"
-      viewDebuggingEnabled = "No">
+      allowLocationSimulation = "YES">
       <BuildableProductRunnable
          runnableDebuggingMode = "0">
          <BuildableReference
             BuildableIdentifier = "primary"
-            BlueprintIdentifier = "538161D92EC63CEA00C0F590"
-            BuildableName = "DeepgramTriggerTest"
-            BlueprintName = "DeepgramTriggerTest"
+            BlueprintIdentifier = "9B9B4CB12EB2E29700073840"
+            BuildableName = "MRCS.app"
+            BlueprintName = "MixedReality"
             ReferencedContainer = "container:MixedReality.xcodeproj">
          </BuildableReference>
       </BuildableProductRunnable>
       <EnvironmentVariables>
          <EnvironmentVariable
             key = "DEEPGRAM_API_KEY"
-            value = "272c2a687bc6e9f41e4a524ebd7f1a6387689892"
+            value = "f9adfa2699bc1a291406442dd23a3b8352d2b47b"
+            isEnabled = "YES">
+         </EnvironmentVariable>
+         <EnvironmentVariable
+            key = "OPENAI_API_KEY"
+            value = "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"
             isEnabled = "YES">
          </EnvironmentVariable>
       </EnvironmentVariables>
@@ -65,16 +66,15 @@
       savedToolIdentifier = ""
       useCustomWorkingDirectory = "NO"
       debugDocumentVersioning = "YES">
-      <BuildableProductRunnable
-         runnableDebuggingMode = "0">
+      <MacroExpansion>
          <BuildableReference
             BuildableIdentifier = "primary"
-            BlueprintIdentifier = "538161D92EC63CEA00C0F590"
-            BuildableName = "DeepgramTriggerTest"
-            BlueprintName = "DeepgramTriggerTest"
+            BlueprintIdentifier = "9B9B4CB12EB2E29700073840"
+            BuildableName = "MRCS.app"
+            BlueprintName = "MixedReality"
             ReferencedContainer = "container:MixedReality.xcodeproj">
          </BuildableReference>
-      </BuildableProductRunnable>
+      </MacroExpansion>
    </ProfileAction>
    <AnalyzeAction
       buildConfiguration = "Debug">

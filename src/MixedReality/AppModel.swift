@@ -23,17 +23,36 @@ class AppModel: SpeechProcessorDelegate {
     var primarySpeakerID: String = "user"
 
     // MARK: - Trigger / intervention pipeline
-    let triggerService = TriggerDemoService(useLLM: false)
+    private var triggerService = TriggerDemoService(useLLM: false)
+    
+    // MARK: - Prompt Generation
+    // FIXME: code smells all over this
+    private var promptGenerator: PromptGenerator!
+    var prompt: String = ""
 
     // MARK: - Deepgram speech processor (created lazily)
     private var speechProcessor: SpeechProcessor?
+    
+    init() {
+        // 1) All stored properties above are initialized now.
+        // 2) It is now safe to create PromptGenerator with self.
+        self.promptGenerator = PromptGenerator(appModel: self)
+
+        // 3) Wire trigger service callback after promptGenerator exists.
+        triggerService.setOnEvent { [weak self] evt in
+            guard let self else { return }
+            Task {
+                await self.promptGenerator.generate(evt: evt)
+            }
+        }
+    }
 
     // MARK: - Session control
     func startSession() {
         guard !isSessionActive else { return }
         isSessionActive = true
         print("🎧 Session started. Listening…")
-
+        
         // Lazily create processor the first time we start a session
         if speechProcessor == nil {
             let sp = SpeechProcessor()
@@ -47,6 +66,8 @@ class AppModel: SpeechProcessorDelegate {
         isSessionActive = false
         speechProcessor?.deconfigureAudioEngine()
         speechProcessor = nil
+        triggerService.reset()
+        prompt = ""
         print("🛑 Session ended.")
     }
 
