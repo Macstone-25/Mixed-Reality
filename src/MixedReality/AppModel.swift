@@ -87,7 +87,7 @@ class AppModel: SpeechProcessorDelegate {
         // ✅ Convert Deepgram chunk → engine chunk
         let engineChunk = TranscriptChunk(from: chunk)
 
-        // ✅ Feed into EventTriggerEngine
+        // ✅ Feed into EventTriggerEngine (partials + finals)
         triggerService.receive(engineChunk)
     }
 }

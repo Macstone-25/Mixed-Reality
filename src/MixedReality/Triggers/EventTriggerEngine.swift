@@ -8,9 +8,9 @@ public final class EventTriggerEngine: InterventionTriggering {
     public enum Mode { case ruleBased, llmAugmented }
 
     // MARK: - Dependencies / config
-    private var primaryUserID: String          // <-- var
-    private var mode: Mode                     // <-- var
-    private var llm: LLMEvaluator?             // <-- var
+    private var primaryUserID: String          // <-- var so we can update at runtime
+    private var mode: Mode                     // <-- var so we can flip rule/LLM
+    private var llm: LLMEvaluator?             // <-- optional; nil in pure rule mode
     private let rule: PauseRuleTrigger
 
     // MARK: - Context buffer
@@ -36,7 +36,7 @@ public final class EventTriggerEngine: InterventionTriggering {
         llm: LLMEvaluator? = nil,
         contextWindow: Int = 8
     ) {
-        // Validate & normalise primary ID so we never end up with an "invisible" primary user.
+        // Normalise primary ID so we never end up with an "invisible" primary user.
         let trimmedID = primaryUserID.trimmingCharacters(in: .whitespacesAndNewlines)
         precondition(
             !trimmedID.isEmpty,
@@ -53,33 +53,56 @@ public final class EventTriggerEngine: InterventionTriggering {
             graceForOthers: graceForOthers
         )
 
+        // Wire low-level pause events → enriched interventions.
         rule.events
             .sink { [weak self] evt in
-//                guard let self else { return }
-//                let ctx = self.snapshotContext()
                 guard let self else { return }
-                
+
                 print("🧩 TriggerEngine fired rule event: \(evt.reasonSummary)")
 
                 let ctx = self.snapshotContext()
 
                 switch self.mode {
                 case .ruleBased:
-                    let enriched = InterventionEvent(at: evt.at, reason: evt.reason, context: ctx)
-                    // Always publish on main to keep Combine / UI happy
+                    // Pure rule-based: every rule event becomes an intervention.
+                    let enriched = InterventionEvent(
+                        at: evt.at,
+                        reason: evt.reason,
+                        context: ctx
+                    )
                     DispatchQueue.main.async { [weak self] in
                         self?.eventsSubject.send(enriched)
                     }
 
                 case .llmAugmented:
-                    // If no LLM is wired, fall back to rule-based behaviour.
-                    guard let llm = self.llm else {
-                        let enriched = InterventionEvent(at: evt.at, reason: evt.reason, context: ctx)
+                    // 🔴 IMPORTANT CHANGE:
+                    // For long-pause events, *always* surface an intervention.
+                    // We still use the rule's own reason instead of LLM text.
+                    if case .longPause = evt.reason {
+                        let enriched = InterventionEvent(
+                            at: evt.at,
+                            reason: evt.reason,
+                            context: ctx
+                        )
                         DispatchQueue.main.async { [weak self] in
                             self?.eventsSubject.send(enriched)
                         }
                         return
                     }
+
+                    // For any future rule types, we can still run through the LLM gate.
+                    guard let llm = self.llm else {
+                        let enriched = InterventionEvent(
+                            at: evt.at,
+                            reason: evt.reason,
+                            context: ctx
+                        )
+                        DispatchQueue.main.async { [weak self] in
+                            self?.eventsSubject.send(enriched)
+                        }
+                        return
+                    }
+
                     Task { [weak self] in
                         guard let self else { return }
                         do {
@@ -88,16 +111,25 @@ public final class EventTriggerEngine: InterventionTriggering {
                                 primaryUserID: self.primaryUserID
                             )
                             guard verdict.shouldIntervene else { return }
+
                             let reason = InterventionReason.llmSuggested(
                                 summary: verdict.reason ?? "LLM confirmed intervention."
                             )
-                            let enriched = InterventionEvent(at: Date(), reason: reason, context: ctx)
+                            let enriched = InterventionEvent(
+                                at: Date(),
+                                reason: reason,
+                                context: ctx
+                            )
                             DispatchQueue.main.async { [weak self] in
                                 self?.eventsSubject.send(enriched)
                             }
                         } catch {
-                            // On failure, be conservative and forward the original rule event.
-                            let enriched = InterventionEvent(at: evt.at, reason: evt.reason, context: ctx)
+                            // If the LLM errors, fall back to the raw rule event.
+                            let enriched = InterventionEvent(
+                                at: evt.at,
+                                reason: evt.reason,
+                                context: ctx
+                            )
                             DispatchQueue.main.async { [weak self] in
                                 self?.eventsSubject.send(enriched)
                             }
@@ -138,7 +170,9 @@ public final class EventTriggerEngine: InterventionTriggering {
 
     // MARK: - Public API
 
+    /// Feed a real ASR chunk into the trigger engine.
     public func receive(_ chunk: TranscriptChunk) {
+        // 1) Update rolling context buffer
         bufferQueue.sync {
             buffer.append(chunk)
             let cap = max(contextWindow * 2, contextWindow)
@@ -146,9 +180,12 @@ public final class EventTriggerEngine: InterventionTriggering {
                 buffer.removeFirst(buffer.count - cap)
             }
         }
+
+        // 2) Let the rule engine update its pause state.
         rule.receive(chunk)
     }
 
+    /// Clear pause state + context buffer.
     public func reset() {
         bufferQueue.sync { buffer.removeAll() }
         rule.reset()

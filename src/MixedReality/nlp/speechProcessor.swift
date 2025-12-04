@@ -2,9 +2,13 @@ import AVFoundation
 import Starscream
 import os
 
-// Formatting for the Deepgram response
+// MARK: - Deepgram response model
+
 struct DeepgramResponse: Codable {
-    // NOTE: We don't rely on isFinal anymore; timing is handled on our side.
+    // Endpointing / finality flags from Deepgram
+    let is_final: Bool?        // final transcript for this segment
+    let speech_final: Bool?    // Deepgram thinks speech ended
+
     let channel: Channel?
 
     struct Channel: Codable {
@@ -24,97 +28,156 @@ struct DeepgramResponse: Codable {
     }
 }
 
-/*
-  Handles audio format conversion, WebSocket lifecycle, and streaming.
+/// Lightweight envelope so we can ignore non-"Results" frames
+private struct DeepgramEnvelope: Decodable {
+    let type: String?
+}
 
-  Inputs:
-  - sampleRate: The audio sample rate in Hz (default: 48000)
-  - channels: Number of audio channels (default: 1)
-  - interleaved: Whether audio data is interleaved (true/false, default: true)
-*/
+// MARK: - SpeechProcessor (visionOS, AVAudioSession)
+
 class SpeechProcessor: WebSocketDelegate {
+
     // Keeps a running record of all transcripts per speaker
     public private(set) var conversation: [String: [String]] = [:]
-    // Logger setup
+
+    // Logger
     private let logger = Logger(subsystem: "NLP", category: "SpeechProcessor")
-    // Audio properties
+
+    // Audio engine graph
     private let audioEngine = AVAudioEngine()
     private let converterNode = AVAudioMixerNode()
     private let sinkNode = AVAudioMixerNode()
-    
-    // Audio format properties
+
+    // Audio format properties (what we *request* / tell Deepgram)
     private let sampleRate: Double
     private let channels: AVAudioChannelCount
     private let interleaved: Bool
-    private lazy var outputFormat: AVAudioFormat = {
-        AVAudioFormat(
-            commonFormat: .pcmFormatInt16,
-            sampleRate: sampleRate,
-            channels: channels,
-            interleaved: interleaved
-        )!
-    }()
 
-    // Deepgram properties
+    // Deepgram endpointing window in ms (e.g. 4 seconds)
+    private let endpointingMs: Int = 4000
+
+    // Deepgram WebSocket auth
     private let deepgramKey: String
+
+    // WebSocket configured with the same params you used in the CLI version
     private lazy var socket: Starscream.WebSocket = {
-        // Build URL dynamically based on audio format
         let urlString =
             "wss://api.deepgram.com/v1/listen" +
             "?model=nova-2" +
             "&diarize=true" +
             "&punctuate=true" +
-            "&filler_words=true" +                      // <-- keep filler words like "um", "uh"
+            "&filler_words=true" +
             "&encoding=linear16" +
+            "&interim_results=true" +                 // NEW: get partials
             "&sample_rate=\(Int(sampleRate))" +
-            "&channels=\(channels)"
+            "&channels=\(channels)" +
+            "&endpointing=\(endpointingMs)" +
+            "&vad_events=true"
 
         guard let url = URL(string: urlString) else {
             fatalError("Invalid WebSocket URL")
         }
-        var urlRequest = URLRequest(url: url)
-        urlRequest.setValue("Token \(deepgramKey)", forHTTPHeaderField: "Authorization")
-        return Starscream.WebSocket(request: urlRequest)
+
+        var request = URLRequest(url: url)
+        request.setValue("Token \(deepgramKey)", forHTTPHeaderField: "Authorization")
+        return Starscream.WebSocket(request: request)
     }()
-    
-    // Delegate property
+
     weak var delegate: SpeechProcessorDelegate?
-    
-    init(sampleRate: Double = 48000, channels: AVAudioChannelCount = 1, interleaved: Bool = true) {
+
+    // MARK: - Init
+
+    init(
+        sampleRate: Double = 48_000,
+        channels: AVAudioChannelCount = 1,
+        interleaved: Bool = true
+    ) {
         self.sampleRate = sampleRate
         self.channels = channels
         self.interleaved = interleaved
-        // Load Deepgram API key from environment variables
-        if let key = ProcessInfo.processInfo.environment["DEEPGRAM_API_KEY"] {
-            self.deepgramKey = key
-        } else {
+
+        // Load Deepgram API key from env (same as before)
+        guard let key = ProcessInfo.processInfo.environment["DEEPGRAM_API_KEY"] else {
             fatalError("Deepgram API Key not found.")
         }
-        
-        socket.delegate = self // Allow SpeechProcessor to receive WebSocket information
+        self.deepgramKey = key
+
+        socket.delegate = self
+
+        // visionOS: configure AVAudioSession first, then build audio graph
         configureAudioSession()
+
+        // Connect to Deepgram
         socket.connect()
     }
-    
-    // Sets up the audio engine and tap to capture and stream live audio
-    private func configureAudioEngine() {
-        let inputNode = audioEngine.inputNode
-        let inputFormat = inputNode.inputFormat(forBus: 0)
-        
-        audioEngine.attach(converterNode)
-        audioEngine.attach(sinkNode)
-        
-        // Installing a "tap" allows us to read audio buffers in real-time as they pass through this node
-        converterNode.installTap(onBus: 0, bufferSize: 1024, format: inputFormat) { buffer, time in
-            if let data = self.convertAudio(buffer: buffer) {
-                self.socket.write(data: data)
+
+    // MARK: - Audio engine (visionOS – AVAudioSession)
+
+    private func configureAudioSession() {
+        let session = AVAudioSession.sharedInstance()
+
+        session.requestRecordPermission { granted in
+            if !granted {
+                self.logger.error("Microphone permission denied.")
+                return
+            }
+
+            DispatchQueue.main.async {
+                do {
+                    try session.setCategory(
+                        .playAndRecord,
+                        options: [.duckOthers, .allowBluetooth]
+                    )
+                    try session.setMode(.measurement)
+
+                    // If you *really* want to enforce sample rate, you can uncomment:
+                    // try session.setPreferredSampleRate(self.sampleRate)
+
+                    try session.setActive(true, options: [])
+
+                    self.prepareAudioGraphAfterSessionActivation()
+                } catch {
+                    self.logger.error("Failed to configure AVAudioSession: \(error.localizedDescription, privacy: .public)")
+                }
             }
         }
-        
-        audioEngine.connect(inputNode, to: converterNode, format: inputFormat)
-        audioEngine.connect(converterNode, to: sinkNode, format: inputFormat)
-        audioEngine.prepare()
-        
+    }
+
+    /// Called once AVAudioSession is active and the hardware format is valid.
+    private func prepareAudioGraphAfterSessionActivation() {
+        let inputNode = audioEngine.inputNode
+
+        // Query the actual hardware format AFTER activation
+        let nativeFormat = inputNode.inputFormat(forBus: 0)
+        let channelCount = nativeFormat.channelCount
+        let hardwareSampleRate = nativeFormat.sampleRate
+
+        guard channelCount > 0, hardwareSampleRate > 0 else {
+            logger.error("Invalid native input format — channels: \(channelCount), sampleRate: \(hardwareSampleRate)")
+            return
+        }
+
+        audioEngine.attach(converterNode)
+        audioEngine.attach(sinkNode)
+
+        // Tap the converter node and convert Float32 → mono Int16 (linear16)
+        converterNode.installTap(
+            onBus: 0,
+            bufferSize: 1024,
+            format: nativeFormat
+        ) { [weak self] buffer, _ in
+            guard
+                let self = self,
+                let pcmData = self.convertBufferToPCM16(buffer: buffer, targetChannelCount: 1)
+            else { return }
+
+            self.socket.write(data: pcmData)
+        }
+
+        // Connect nodes using the native/hardware format
+        audioEngine.connect(inputNode, to: converterNode, format: nativeFormat)
+        audioEngine.connect(converterNode, to: sinkNode, format: nativeFormat)
+
         do {
             try audioEngine.start()
             logger.info("Audio engine started.")
@@ -123,149 +186,100 @@ class SpeechProcessor: WebSocketDelegate {
         }
     }
 
-    private func configureAudioSession() {
-        let session = AVAudioSession.sharedInstance()
-
-        // Request permission synchronously or handle the async result before proceeding
-        session.requestRecordPermission { granted in
-            if !granted {
-                self.logger.error("Microphone permission denied.")
-                return
-            }
-            DispatchQueue.main.async {
-                do {
-                    try session.setCategory(.playAndRecord,
-                                            options: [.duckOthers, .allowBluetooth])
-                    try session.setMode(.measurement) // or .voiceChat / .default per use-case
-                    // Optionally set preferred sample rate if you truly need it:
-                    // try session.setPreferredSampleRate(self.sampleRate)
-                    try session.setActive(true, options: [])
-                    self.prepareAudioGraphAfterSessionActivation()
-                } catch {
-                    self.logger.error("Failed to configure AVAudioSession: \(error.localizedDescription)")
-                }
-            }
-        }
-    }
-
-    // Called only after AVAudioSession is active
-    private func prepareAudioGraphAfterSessionActivation() {
-        let inputNode = audioEngine.inputNode
-
-        // Query the actual hardware format AFTER activation
-        let nativeFormat = inputNode.inputFormat(forBus: 0)
-        let channelCount = nativeFormat.channelCount
-        let sampleRate = nativeFormat.sampleRate
-
-        guard channelCount > 0, sampleRate > 0 else {
-            logger.error("Invalid native input format — channels: \(channelCount), sampleRate: \(sampleRate)")
-            // Consider fallback or retry after a short delay
-            return
-        }
-
-        audioEngine.attach(converterNode)
-        audioEngine.attach(sinkNode)
-
-        // Install the tap using the node's own format by passing `nil` or `nativeFormat`.
-        // Passing nil tells AVAudioNode to use its output format; both are acceptable.
-        converterNode.installTap(onBus: 0, bufferSize: 1024, format: nativeFormat) { buffer, when in
-            // Convert from whatever the device provides (likely Float32) to Int16 linear16
-            // and downmix channels to mono if Deepgram expects mono.
-            guard let pcmData = self.convertBufferToPCM16(buffer: buffer, targetChannelCount: 1) else { return }
-            self.socket.write(data: pcmData)
-        }
-
-        // Connect nodes using the same valid format — keep graph formats consistent
-        audioEngine.connect(inputNode, to: converterNode, format: nativeFormat)
-        audioEngine.connect(converterNode, to: sinkNode, format: nativeFormat)
-
-        do {
-            try audioEngine.start()
-            logger.info("Audio engine started.")
-        } catch {
-            logger.error("Failed to start audio engine: \(error.localizedDescription)")
-        }
-    }
-
-    // Convert Float32/Float64 buffer to PCM16 and downmix if needed
-    private func convertBufferToPCM16(buffer: AVAudioPCMBuffer, targetChannelCount: AVAudioChannelCount) -> Data? {
+    /// Convert Float32 buffer to mono PCM16 (little-endian) for Deepgram.
+    private func convertBufferToPCM16(
+        buffer: AVAudioPCMBuffer,
+        targetChannelCount: AVAudioChannelCount = 1
+    ) -> Data? {
         let format = buffer.format
         let frameLength = Int(buffer.frameLength)
         let channels = Int(format.channelCount)
 
-        // If format is already Int16 (rare), handle differently — typical is .pcmFormatFloat32
+        // Typical device format is .pcmFormatFloat32
         guard format.commonFormat == .pcmFormatFloat32,
-              let floatChannelData = buffer.floatChannelData else {
-            // Implement other conversions if needed
+              let floatChannelData = buffer.floatChannelData
+        else {
+            // If you ever see this, you can extend it to handle other formats.
             return nil
         }
 
         var interleavedMono = [Int16]()
         interleavedMono.reserveCapacity(frameLength)
 
-        // Simple downmix: average channels into mono
+        // Simple downmix: average all channels to mono
         for frameIndex in 0..<frameLength {
             var sampleSum: Float = 0.0
             for ch in 0..<channels {
                 sampleSum += floatChannelData[ch][frameIndex]
             }
             let avg = sampleSum / Float(channels)
-            // clamp and convert to Int16 little-endian
+
+            // Clamp to [-1, 1] and scale to Int16
             let clipped = max(-1.0, min(1.0, avg))
             let intSample = Int16(clipped * Float(Int16.max))
             interleavedMono.append(intSample)
         }
 
-        // Create Data from Int16 array (little-endian)
-        return interleavedMono.withUnsafeBufferPointer { bufferPtr in
-            Data(buffer: bufferPtr)
+        return interleavedMono.withUnsafeBufferPointer { ptr in
+            Data(buffer: ptr)
         }
     }
 
-    
-    // Converts audio buffer to raw PCM16 data for streaming
-    private func convertAudio(buffer: AVAudioPCMBuffer) -> Data? {
-        let audioBuffer = buffer.audioBufferList.pointee.mBuffers
-        guard let mData = audioBuffer.mData else { return nil } // mData may be nil, so safely unwrap
-        return Data(bytes: mData, count: Int(audioBuffer.mDataByteSize))
-    }
-    
-    // Handles WebSocket events: connection, disconnection, incoming messages, and errors
-    func didReceive(event: Starscream.WebSocketEvent, client: any Starscream.WebSocketClient) {
+    // MARK: - WebSocket delegate
+
+    func didReceive(event: Starscream.WebSocketEvent,
+                    client: any Starscream.WebSocketClient) {
         switch event {
         case .connected(let headers):
             logger.info("WebSocket connected with headers: \(headers, privacy: .public)")
+
         case .disconnected(let reason, let code):
             logger.info("WebSocket disconnected. Reason: \(reason, privacy: .public), code: \(code)")
+
         case .text(let text):
             if let data = text.data(using: .utf8) {
                 processJSON(data: data)
             }
+
         case .error(let error):
             if let error = error {
                 logger.error("WebSocket error: \(error.localizedDescription, privacy: .public)")
             } else {
                 logger.error("WebSocket error: unknown")
             }
+
         default:
             break
         }
     }
-    
-    // Parses Deepgram JSON and sends transcript chunks to delegate
+
+    // MARK: - Deepgram JSON → delegate chunks
+
     public func processJSON(data: Data) {
+        // 1) Cheap envelope check; ignore non-Results frames.
+        if let envelope = try? JSONDecoder().decode(DeepgramEnvelope.self, from: data),
+           let type = envelope.type,
+           type != "Results" {
+            // Metadata / SpeechStarted / UtteranceEnd / etc.
+            return
+        }
+
+        // 2) Decode actual Results into our richer model.
         do {
             let response = try JSONDecoder().decode(DeepgramResponse.self, from: data)
             guard let alternatives = response.channel?.alternatives else { return }
 
+            // Use Deepgram's speech_final as our "finality" hint
+            let finalFlag = response.speech_final ?? false
+
             for alt in alternatives {
                 if let words = alt.words, !words.isEmpty {
-                    // Build sentences per speaker with start/end timestamps
+                    // Group by speaker, build sentence + timestamps
                     var speakerSentences: [String: (text: String, start: Double?, end: Double?)] = [:]
 
                     for wordInfo in words {
                         let speakerID = wordInfo.speaker.map { "spk_\($0)" } ?? "user"
-                        
+
                         if var entry = speakerSentences[speakerID] {
                             entry.text += wordInfo.word + " "
                             entry.end = wordInfo.end
@@ -280,25 +294,26 @@ class SpeechProcessor: WebSocketDelegate {
                     }
 
                     for (speakerID, entry) in speakerSentences {
-                        let trimmedText = entry.text.trimmingCharacters(in: .whitespaces)
-                        guard !trimmedText.isEmpty else { continue }
+                        let trimmed = entry.text.trimmingCharacters(in: .whitespaces)
+                        guard !trimmed.isEmpty else { continue }
 
-                        conversation[speakerID, default: []].append(trimmedText)
+                        conversation[speakerID, default: []].append(trimmed)
 
-                        // Notify delegate – treat every sentence as final
                         let chunk = DeepgramTranscriptChunk(
                             speakerID: speakerID,
                             start_time: entry.start,
                             end_time: entry.end,
-                            text: trimmedText,
-                            isFinal: true
+                            text: trimmed,
+                            isFinal: finalFlag
                         )
+
                         delegate?.speechProcessor(self, didReceiveChunk: chunk)
-                        logger.info("Speaker: \(speakerID, privacy: .public), Sentence: \(trimmedText, privacy: .public)")
+                        logger.info("Speaker: \(speakerID, privacy: .public), Sentence: \(trimmed, privacy: .public)")
                     }
 
                 } else if let transcript = alt.transcript?.trimmingCharacters(in: .whitespaces),
                           !transcript.isEmpty {
+
                     let speakerID = "user"
                     conversation[speakerID, default: []].append(transcript)
 
@@ -307,8 +322,9 @@ class SpeechProcessor: WebSocketDelegate {
                         start_time: nil,
                         end_time: nil,
                         text: transcript,
-                        isFinal: true
+                        isFinal: finalFlag
                     )
+
                     delegate?.speechProcessor(self, didReceiveChunk: chunk)
                     logger.info("Speaker: \(speakerID, privacy: .public), Sentence: \(transcript, privacy: .public)")
                 }
@@ -318,10 +334,11 @@ class SpeechProcessor: WebSocketDelegate {
         }
     }
 
-    // Cleans up audio engine and WebSocket, stopping all streaming activity
+    // MARK: - Teardown
+
     public func deconfigureAudioEngine() {
         conversation.removeAll()
-        audioEngine.reset() // Clears connections between nodes
+        audioEngine.reset()
         audioEngine.stop()
         converterNode.removeTap(onBus: 0)
         socket.disconnect(closeCode: 1000)

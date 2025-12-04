@@ -8,6 +8,7 @@
 
 /* Begin PBXBuildFile section */
 		538161D52EC62A5C00C0F590 /* Starscream in Frameworks */ = {isa = PBXBuildFile; productRef = 538161D42EC62A5C00C0F590 /* Starscream */; };
+		539266F72EDA886300F2F988 /* Starscream in Frameworks */ = {isa = PBXBuildFile; productRef = 539266F62EDA886300F2F988 /* Starscream */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXContainerItemProxy section */
@@ -20,7 +21,20 @@
 		};
 /* End PBXContainerItemProxy section */
 
+/* Begin PBXCopyFilesBuildPhase section */
+		539266D42EDA86DD00F2F988 /* CopyFiles */ = {
+			isa = PBXCopyFilesBuildPhase;
+			buildActionMask = 2147483647;
+			dstPath = /usr/share/man/man1/;
+			dstSubfolderSpec = 0;
+			files = (
+			);
+			runOnlyForDeploymentPostprocessing = 1;
+		};
+/* End PBXCopyFilesBuildPhase section */
+
 /* Begin PBXFileReference section */
+		539266D62EDA86DD00F2F988 /* Event_Trigger_Issues1 */ = {isa = PBXFileReference; explicitFileType = "compiled.mach-o.executable"; includeInIndex = 0; path = Event_Trigger_Issues1; sourceTree = BUILT_PRODUCTS_DIR; };
 		9B64710C2ECD3D7B0032BC9D /* MixedReality.xcodeproj */ = {isa = PBXFileReference; lastKnownFileType = "wrapper.pb-project"; path = MixedReality.xcodeproj; sourceTree = "<group>"; };
 		9B64712C2ECD408D0032BC9D /* MixedRealityTests.xctest */ = {isa = PBXFileReference; explicitFileType = wrapper.cfbundle; includeInIndex = 0; path = MixedRealityTests.xctest; sourceTree = BUILT_PRODUCTS_DIR; };
 		9B9B4CB22EB2E29700073840 /* MRCS.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = MRCS.app; sourceTree = BUILT_PRODUCTS_DIR; };
@@ -53,6 +67,14 @@
 /* End PBXFileSystemSynchronizedRootGroup section */
 
 /* Begin PBXFrameworksBuildPhase section */
+		539266D32EDA86DD00F2F988 /* Frameworks */ = {
+			isa = PBXFrameworksBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+				539266F72EDA886300F2F988 /* Starscream in Frameworks */,
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
 		9B6471292ECD408D0032BC9D /* Frameworks */ = {
 			isa = PBXFrameworksBuildPhase;
 			buildActionMask = 2147483647;
@@ -99,6 +121,7 @@
 			children = (
 				9B9B4CB22EB2E29700073840 /* MRCS.app */,
 				9B64712C2ECD408D0032BC9D /* MixedRealityTests.xctest */,
+				539266D62EDA86DD00F2F988 /* Event_Trigger_Issues1 */,
 			);
 			name = Products;
 			sourceTree = "<group>";
@@ -113,6 +136,26 @@
 /* End PBXGroup section */
 
 /* Begin PBXNativeTarget section */
+		539266D52EDA86DD00F2F988 /* Event_Trigger_Issues1 */ = {
+			isa = PBXNativeTarget;
+			buildConfigurationList = 539266DA2EDA86DD00F2F988 /* Build configuration list for PBXNativeTarget "Event_Trigger_Issues1" */;
+			buildPhases = (
+				539266D22EDA86DD00F2F988 /* Sources */,
+				539266D32EDA86DD00F2F988 /* Frameworks */,
+				539266D42EDA86DD00F2F988 /* CopyFiles */,
+			);
+			buildRules = (
+			);
+			dependencies = (
+			);
+			name = Event_Trigger_Issues1;
+			packageProductDependencies = (
+				539266F62EDA886300F2F988 /* Starscream */,
+			);
+			productName = Event_Trigger_Issues1;
+			productReference = 539266D62EDA86DD00F2F988 /* Event_Trigger_Issues1 */;
+			productType = "com.apple.product-type.tool";
+		};
 		9B64712B2ECD408D0032BC9D /* MixedRealityTests */ = {
 			isa = PBXNativeTarget;
 			buildConfigurationList = 9B6471322ECD408D0032BC9D /* Build configuration list for PBXNativeTarget "MixedRealityTests" */;
@@ -166,9 +209,12 @@
 			isa = PBXProject;
 			attributes = {
 				BuildIndependentTargetsInParallel = 1;
-				LastSwiftUpdateCheck = 2610;
+				LastSwiftUpdateCheck = 2600;
 				LastUpgradeCheck = 2600;
 				TargetAttributes = {
+					539266D52EDA86DD00F2F988 = {
+						CreatedOnToolsVersion = 26.0.1;
+					};
 					9B64712B2ECD408D0032BC9D = {
 						CreatedOnToolsVersion = 26.1.1;
 						TestTargetID = 9B9B4CB12EB2E29700073840;
@@ -203,6 +249,7 @@
 			targets = (
 				9B9B4CB12EB2E29700073840 /* MixedReality */,
 				9B64712B2ECD408D0032BC9D /* MixedRealityTests */,
+				539266D52EDA86DD00F2F988 /* Event_Trigger_Issues1 */,
 			);
 		};
 /* End PBXProject section */
@@ -225,6 +272,13 @@
 /* End PBXResourcesBuildPhase section */
 
 /* Begin PBXSourcesBuildPhase section */
+		539266D22EDA86DD00F2F988 /* Sources */ = {
+			isa = PBXSourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
 		9B6471282ECD408D0032BC9D /* Sources */ = {
 			isa = PBXSourcesBuildPhase;
 			buildActionMask = 2147483647;
@@ -250,6 +304,32 @@
 /* End PBXTargetDependency section */
 
 /* Begin XCBuildConfiguration section */
+		539266DB2EDA86DD00F2F988 /* Debug */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				CODE_SIGN_STYLE = Automatic;
+				MACOSX_DEPLOYMENT_TARGET = 26.0;
+				PRODUCT_NAME = "$(TARGET_NAME)";
+				SDKROOT = macosx;
+				SWIFT_APPROACHABLE_CONCURRENCY = YES;
+				SWIFT_UPCOMING_FEATURE_MEMBER_IMPORT_VISIBILITY = YES;
+				SWIFT_VERSION = 5.0;
+			};
+			name = Debug;
+		};
+		539266DC2EDA86DD00F2F988 /* Release */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				CODE_SIGN_STYLE = Automatic;
+				MACOSX_DEPLOYMENT_TARGET = 26.0;
+				PRODUCT_NAME = "$(TARGET_NAME)";
+				SDKROOT = macosx;
+				SWIFT_APPROACHABLE_CONCURRENCY = YES;
+				SWIFT_UPCOMING_FEATURE_MEMBER_IMPORT_VISIBILITY = YES;
+				SWIFT_VERSION = 5.0;
+			};
+			name = Release;
+		};
 		9B6471332ECD408D0032BC9D /* Debug */ = {
 			isa = XCBuildConfiguration;
 			buildSettings = {
@@ -472,6 +552,15 @@
 /* End XCBuildConfiguration section */
 
 /* Begin XCConfigurationList section */
+		539266DA2EDA86DD00F2F988 /* Build configuration list for PBXNativeTarget "Event_Trigger_Issues1" */ = {
+			isa = XCConfigurationList;
+			buildConfigurations = (
+				539266DB2EDA86DD00F2F988 /* Debug */,
+				539266DC2EDA86DD00F2F988 /* Release */,
+			);
+			defaultConfigurationIsVisible = 0;
+			defaultConfigurationName = Release;
+		};
 		9B6471322ECD408D0032BC9D /* Build configuration list for PBXNativeTarget "MixedRealityTests" */ = {
 			isa = XCConfigurationList;
 			buildConfigurations = (
@@ -514,6 +603,11 @@
 
 /* Begin XCSwiftPackageProductDependency section */
 		538161D42EC62A5C00C0F590 /* Starscream */ = {
+			isa = XCSwiftPackageProductDependency;
+			package = 538161D32EC62A5C00C0F590 /* XCRemoteSwiftPackageReference "Starscream" */;
+			productName = Starscream;
+		};
+		539266F62EDA886300F2F988 /* Starscream */ = {
 			isa = XCSwiftPackageProductDependency;
 			package = 538161D32EC62A5C00C0F590 /* XCRemoteSwiftPackageReference "Starscream" */;
 			productName = Starscream;
