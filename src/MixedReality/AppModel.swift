@@ -18,6 +18,9 @@ class AppModel: SpeechProcessorDelegate {
     // MARK: - State
     var hasConsent = false
     var isSessionActive = false
+    
+    var lastSessionError: String?
+
 
     // MARK: - Auto primary detection
     var primarySpeakerID: String = "user"
