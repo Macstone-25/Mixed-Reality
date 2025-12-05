@@ -96,6 +96,7 @@ final class PromptGenerator {
             let output = try await callOpenAI(systemPrompt: systemPrompt, userPrompt: userPrompt)
             self.appModel.prompt = output
             logger.info("💡 Generated prompt \(evt.id): \(output)")
+            self.appModel.getArtifactCollector().logEvent(type: "Prompt", message: "(\(evt.id)) \"\(output)\"")
         } catch {
             logger.error("OpenAI call failed: \(error.localizedDescription)")
             self.appModel.prompt = ""
