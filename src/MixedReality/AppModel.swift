@@ -100,12 +100,14 @@ class AppModel: SpeechProcessorDelegate {
                          didReceiveChunk chunk: DeepgramTranscriptChunk) {
         print("🎤 Deepgram → Engine: [\(chunk.speakerID)] \(chunk.text)")
         
-        let start = String(format: "%.2f", chunk.start_time ?? 0)
-        let end   = String(format: "%.2f", chunk.end_time ?? 0)
-        self.getArtifactCollector().logEvent(
-            type: "Transcript",
-            message: "(\(start)-\(end)) \(chunk.speakerID): \"\(chunk.text)\""
-        )
+        if (chunk.isFinal ?? true) {
+            let start = String(format: "%.2f", chunk.start_time ?? 0)
+            let end   = String(format: "%.2f", chunk.end_time ?? 0)
+            self.getArtifactCollector().logEvent(
+                type: "Transcript",
+                message: "(\(start)-\(end)) \(chunk.speakerID): \"\(chunk.text)\""
+            )
+        }
 
         // ✅ Auto-select first speaker as primary
         if primarySpeakerID == "user" {

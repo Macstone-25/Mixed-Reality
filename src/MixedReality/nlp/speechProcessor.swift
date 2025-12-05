@@ -270,7 +270,7 @@ class SpeechProcessor: WebSocketDelegate {
             guard let alternatives = response.channel?.alternatives else { return }
 
             // Use Deepgram's speech_final as our "finality" hint
-            let finalFlag = response.speech_final ?? false
+            let finalFlag = response.is_final ?? false
 
             for alt in alternatives {
                 if let words = alt.words, !words.isEmpty {
