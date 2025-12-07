@@ -18,15 +18,15 @@ final class ArtifactCollector {
 
     init(id: String) throws {
         let docs = FileManager.default.urls(for: .documentDirectory, in: .userDomainMask)[0]
-        let timestamp = Int(Date().timeIntervalSince1970)
-        self.rootFolder = docs.appendingPathComponent("\(id)-\(timestamp)", isDirectory: true)
+        let uuid = UUID().uuidString
+        self.rootFolder = docs.appendingPathComponent("\(id)-\(uuid)", isDirectory: true)
         try FileManager.default.createDirectory(at: rootFolder, withIntermediateDirectories: true)
         logger.info("🗂️ Opened artifact collection at \(self.rootFolder.path())")
     }
 
     func getFileHandle(name: String) throws -> FileHandle {
         guard finalized == false else {
-            throw NSError(domain: "ArtifactCollector", code: 1)
+            throw NSError(domain: "ArtifactCollector", code: 1, userInfo: [NSLocalizedDescriptionKey: "Cannot create file handle after artifact collection has been finalized"])
         }
 
         let fileId = handles.count
@@ -70,7 +70,7 @@ final class ArtifactCollector {
         }
 
         handles.removeAll()
-        logger.info("🗂️ Closed artifact collection at \(self.rootFolder.path)")
+        logger.info("🗂️ Closed artifact collection at \(self.rootFolder.path())")
     }
     
     deinit {
