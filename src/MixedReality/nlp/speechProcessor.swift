@@ -28,7 +28,7 @@ struct DeepgramResponse: Codable {
   Handles audio format conversion, WebSocket lifecycle, and streaming.
 
   Inputs:
-  - sampleRate: The audio sample rate in Hz (default: 48000)
+  - sampleRate: The audio sample rate in Hz (default: 16,000)
   - channels: Number of audio channels (default: 1)
   - interleaved: Whether audio data is interleaved (true/false, default: true)
 */
@@ -72,7 +72,9 @@ class SpeechProcessor: WebSocketDelegate {
             "&filler_words=true" +                      // <-- keep filler words like "um", "uh"
             "&encoding=linear16" +
             "&sample_rate=\(Int(sampleRate))" +
-            "&channels=\(channels)"
+            "&channels=\(channels)" +
+            "&diarize_speakers=2"
+
 
         guard let url = URL(string: urlString) else {
             fatalError("Invalid WebSocket URL")
@@ -85,7 +87,7 @@ class SpeechProcessor: WebSocketDelegate {
     // Delegate property
     weak var delegate: SpeechProcessorDelegate?
     
-    init(sampleRate: Double = 48000, channels: AVAudioChannelCount = 1, interleaved: Bool = true) {
+    init(sampleRate: Double = 16000, channels: AVAudioChannelCount = 1, interleaved: Bool = true) {
         self.sampleRate = sampleRate
         self.channels = channels
         self.interleaved = interleaved

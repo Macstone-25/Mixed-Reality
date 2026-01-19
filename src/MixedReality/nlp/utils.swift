@@ -18,8 +18,6 @@ public func getNewRecordingFile() -> URL {
     return docs.appendingPathComponent("Recording_\(timestamp).m4a")
 }
 
-import AVFoundation
-
 public func cmSampleBufferFromPCM(_ pcmBuffer: AVAudioPCMBuffer) -> CMSampleBuffer? {
     let format = pcmBuffer.format
     let frameCount = pcmBuffer.frameLength
