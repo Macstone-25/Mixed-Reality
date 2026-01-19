@@ -123,10 +123,33 @@ class SpeechProcessor: WebSocketDelegate {
         }
     }
 
+    // Configure audio based on device. MacOS is only used for certain testing purposes.
     private func configureAudioSession() {
+        #if os(macOS)
+        // macOS: Use AVCaptureDevice to check for microphone permissions
+        let status = AVCaptureDevice.authorizationStatus(for: .audio)
+        
+        switch status {
+        case .authorized:
+            self.prepareAudioGraphAfterSessionActivation()
+        case .notDetermined:
+            AVCaptureDevice.requestAccess(for: .audio) { granted in
+                if granted {
+                    DispatchQueue.main.async {
+                        self.prepareAudioGraphAfterSessionActivation()
+                    }
+                } else {
+                    self.logger.error("Microphone permission denied on macOS.")
+                }
+            }
+        default:
+            self.logger.error("Microphone permission denied or restricted on macOS.")
+        }
+
+        #else
+        // visionOS / iOS: Use AVAudioSession
         let session = AVAudioSession.sharedInstance()
 
-        // Request permission synchronously or handle the async result before proceeding
         session.requestRecordPermission { granted in
             if !granted {
                 self.logger.error("Microphone permission denied.")
@@ -136,33 +159,30 @@ class SpeechProcessor: WebSocketDelegate {
                 do {
                     try session.setCategory(.playAndRecord,
                                             options: [.duckOthers, .allowBluetooth])
-                    try session.setMode(.measurement) // or .voiceChat / .default per use-case
-                    // Optionally set preferred sample rate if you truly need it:
-                    // try session.setPreferredSampleRate(self.sampleRate)
+                    try session.setMode(.measurement)
                     try session.setActive(true, options: [])
+                    
+                    // On visionOS, once the session is active, we prepare the graph
                     self.prepareAudioGraphAfterSessionActivation()
                 } catch {
                     self.logger.error("Failed to configure AVAudioSession: \(error.localizedDescription)")
                 }
             }
         }
+        #endif
     }
 
     // Called only after AVAudioSession is active
     private func prepareAudioGraphAfterSessionActivation() {
         let inputNode = audioEngine.inputNode
-
-        // Query the actual hardware format AFTER activation
         let nativeFormat = inputNode.inputFormat(forBus: 0)
-        let channelCount = nativeFormat.channelCount
-        let sampleRate = nativeFormat.sampleRate
 
-        guard channelCount > 0, sampleRate > 0 else {
-            logger.error("Invalid native input format — channels: \(channelCount), sampleRate: \(sampleRate)")
-            // Consider fallback or retry after a short delay
+        // Ensure we have a valid format before proceeding
+        guard nativeFormat.channelCount > 0, nativeFormat.sampleRate > 0 else {
+            logger.error("Invalid native input format.")
             return
         }
-
+        
         audioEngine.attach(converterNode)
         audioEngine.attach(sinkNode)
 
