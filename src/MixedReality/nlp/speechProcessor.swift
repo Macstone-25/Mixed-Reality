@@ -54,6 +54,11 @@ class SpeechProcessor: WebSocketDelegate {
             interleaved: interleaved
         )!
     }()
+    
+    // Audio writing properties
+    private var assetWriter: AVAssetWriter?
+    private var assetWriterInput: AVAssetWriterInput?
+    private var isRecording = false
 
     // Deepgram properties
     private let deepgramKey: String
@@ -106,7 +111,7 @@ class SpeechProcessor: WebSocketDelegate {
         
         // Installing a "tap" allows us to read audio buffers in real-time as they pass through this node
         converterNode.installTap(onBus: 0, bufferSize: 1024, format: inputFormat) { buffer, time in
-            if let data = self.convertAudio(buffer: buffer) {
+            if let data = convertAudio(buffer: buffer) {
                 self.socket.write(data: data)
             }
         }
@@ -171,6 +176,31 @@ class SpeechProcessor: WebSocketDelegate {
         }
         #endif
     }
+    
+    private func configureAssetWriter(inputFormat: AVAudioFormat) {
+        let fileURL = getNewRecordingFile()
+        do {
+            assetWriter = try AVAssetWriter(outputURL: fileURL, fileType: .m4a)
+            
+            let outputSettings: [String: Any] = [
+                AVFormatIDKey: kAudioFormatMPEG4AAC,
+                AVSampleRateKey: inputFormat.sampleRate,
+                AVNumberOfChannelsKey: inputFormat.channelCount,
+                AVEncoderBitRateKey: 128000
+            ]
+            
+            assetWriterInput = AVAssetWriterInput(mediaType: .audio, outputSettings: outputSettings)
+            assetWriterInput?.expectsMediaDataInRealTime = true
+            
+            if let input = assetWriterInput, assetWriter!.canAdd(input) {
+                assetWriter!.add(input)
+            }
+            
+            isRecording = true
+        } catch {
+            logger.error("AssetWriter setup failed: \(error.localizedDescription)")
+        }
+    }
 
     // Called only after AVAudioSession is active
     private func prepareAudioGraphAfterSessionActivation() {
@@ -185,14 +215,36 @@ class SpeechProcessor: WebSocketDelegate {
         
         audioEngine.attach(converterNode)
         audioEngine.attach(sinkNode)
+        
+        configureAssetWriter(inputFormat: nativeFormat)
 
         // Install the tap using the node's own format by passing `nil` or `nativeFormat`.
         // Passing nil tells AVAudioNode to use its output format; both are acceptable.
-        converterNode.installTap(onBus: 0, bufferSize: 1024, format: nativeFormat) { buffer, when in
-            // Convert from whatever the device provides (likely Float32) to Int16 linear16
-            // and downmix channels to mono if Deepgram expects mono.
-            guard let pcmData = self.convertBufferToPCM16(buffer: buffer, targetChannelCount: 1) else { return }
-            self.socket.write(data: pcmData)
+        converterNode.installTap(onBus: 0, bufferSize: 1024, format: nativeFormat) { [weak self] buffer, time in
+            guard let self = self, self.isRecording else { return }
+
+            // WebSocket streaming
+            if let pcmData = self.convertBufferToPCM16(buffer: buffer, targetChannelCount: 1) {
+                self.socket.write(data: pcmData)
+            }
+
+            // Local file writing
+            guard let sampleBuffer = cmSampleBufferFromPCM(buffer) else { return }
+            
+            // Ensure the writer is ready
+            guard let writer = self.assetWriter, let input = self.assetWriterInput else { return }
+
+            if writer.status == .unknown {
+                // Start the writer only when the first buffer arrives
+                let startTime = CMSampleBufferGetPresentationTimeStamp(sampleBuffer)
+                if writer.startWriting() {
+                    writer.startSession(atSourceTime: startTime)
+                }
+            }
+
+            if writer.status == .writing && input.isReadyForMoreMediaData {
+                input.append(sampleBuffer)
+            }
         }
 
         // Connect nodes using the same valid format — keep graph formats consistent
@@ -240,14 +292,6 @@ class SpeechProcessor: WebSocketDelegate {
         return interleavedMono.withUnsafeBufferPointer { bufferPtr in
             Data(buffer: bufferPtr)
         }
-    }
-
-    
-    // Converts audio buffer to raw PCM16 data for streaming
-    private func convertAudio(buffer: AVAudioPCMBuffer) -> Data? {
-        let audioBuffer = buffer.audioBufferList.pointee.mBuffers
-        guard let mData = audioBuffer.mData else { return nil } // mData may be nil, so safely unwrap
-        return Data(bytes: mData, count: Int(audioBuffer.mDataByteSize))
     }
     
     // Handles WebSocket events: connection, disconnection, incoming messages, and errors
@@ -337,14 +381,48 @@ class SpeechProcessor: WebSocketDelegate {
             logger.error("Failed to decode Deepgram JSON: \(error.localizedDescription, privacy: .public)")
         }
     }
-
-    // Cleans up audio engine and WebSocket, stopping all streaming activity
-    public func deconfigureAudioEngine() {
+    
+    private func cleanupEngine() {
         conversation.removeAll()
-        audioEngine.reset() // Clears connections between nodes
-        audioEngine.stop()
+        
+        if audioEngine.isRunning {
+            audioEngine.stop()
+        }
+        
+        // Remove the tap from the node where it was installed
         converterNode.removeTap(onBus: 0)
+        
+        // Reset engine to clear the internal graph connections
+        audioEngine.reset()
+        
         socket.disconnect(closeCode: 1000)
         socket.delegate = nil
+        logger.info("Audio engine and WebSocket fully deconfigured.")
+    }
+
+    // Cleans up audio engine and WebSocket, stopping all streaming activity
+    public func deconfigureAudioEngine(completion: @escaping () -> Void) {
+        // Stop accepting new data immediately
+        isRecording = false
+        
+        // Mark the input as finished so the writer knows no more data is coming
+        assetWriterInput?.markAsFinished()
+        
+        // Trigger the finish asynchronously
+        assetWriter?.finishWriting { [weak self] in
+            guard let self = self else { return }
+            
+            if let error = self.assetWriter?.error {
+                print("Writer Error: \(error.localizedDescription)")
+            } else {
+                print("File finalized successfully.")
+            }
+            
+            // Now it is safe to tear down the audio engine
+            self.cleanupEngine()
+            
+            // Finally, exit the script/process
+            completion()
+        }
     }
 }
