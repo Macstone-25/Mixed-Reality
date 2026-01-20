@@ -28,7 +28,7 @@ struct DeepgramResponse: Codable {
   Handles audio format conversion, WebSocket lifecycle, and streaming.
 
   Inputs:
-  - sampleRate: The audio sample rate in Hz (default: 16,000)
+  - sampleRate: The audio sample rate in Hz (default: 48,000)
   - channels: Number of audio channels (default: 1)
   - interleaved: Whether audio data is interleaved (true/false, default: true)
 */
@@ -59,6 +59,9 @@ class SpeechProcessor: WebSocketDelegate {
     private var assetWriter: AVAssetWriter?
     private var assetWriterInput: AVAssetWriterInput?
     private var isRecording = false
+    private let artifacts: ArtifactCollector
+    private var eventsHandle: FileHandle?
+    private let processingQueue = DispatchQueue(label: "com.speech.processor.write", qos: .userInitiated)
 
     // Deepgram properties
     private let deepgramKey: String
@@ -72,8 +75,7 @@ class SpeechProcessor: WebSocketDelegate {
             "&filler_words=true" +                      // <-- keep filler words like "um", "uh"
             "&encoding=linear16" +
             "&sample_rate=\(Int(sampleRate))" +
-            "&channels=\(channels)" +
-            "&diarize_speakers=2"
+            "&channels=\(channels)"
 
 
         guard let url = URL(string: urlString) else {
@@ -87,7 +89,8 @@ class SpeechProcessor: WebSocketDelegate {
     // Delegate property
     weak var delegate: SpeechProcessorDelegate?
     
-    init(sampleRate: Double = 16000, channels: AVAudioChannelCount = 1, interleaved: Bool = true) {
+    init(artifacts: ArtifactCollector, sampleRate: Double = 48000, channels: AVAudioChannelCount = 1, interleaved: Bool = true) {
+        self.artifacts = artifacts
         self.sampleRate = sampleRate
         self.channels = channels
         self.interleaved = interleaved
@@ -101,33 +104,8 @@ class SpeechProcessor: WebSocketDelegate {
         socket.delegate = self // Allow SpeechProcessor to receive WebSocket information
         configureAudioSession()
         socket.connect()
-    }
-    
-    // Sets up the audio engine and tap to capture and stream live audio
-    private func configureAudioEngine() {
-        let inputNode = audioEngine.inputNode
-        let inputFormat = inputNode.inputFormat(forBus: 0)
         
-        audioEngine.attach(converterNode)
-        audioEngine.attach(sinkNode)
-        
-        // Installing a "tap" allows us to read audio buffers in real-time as they pass through this node
-        converterNode.installTap(onBus: 0, bufferSize: 1024, format: inputFormat) { buffer, time in
-            if let data = convertAudio(buffer: buffer) {
-                self.socket.write(data: data)
-            }
-        }
-        
-        audioEngine.connect(inputNode, to: converterNode, format: inputFormat)
-        audioEngine.connect(converterNode, to: sinkNode, format: inputFormat)
-        audioEngine.prepare()
-        
-        do {
-            try audioEngine.start()
-            logger.info("Audio engine started.")
-        } catch {
-            logger.error("Failed to start audio engine: \(error.localizedDescription, privacy: .public)")
-        }
+        artifacts.logEvent(type: "INFO", message: "SpeechProcessor initialized with sampleRate: \(sampleRate)")
     }
 
     // Configure audio based on device. MacOS is only used for certain testing purposes.
@@ -180,8 +158,11 @@ class SpeechProcessor: WebSocketDelegate {
     }
     
     private func configureAssetWriter(inputFormat: AVAudioFormat) {
-        let fileURL = getNewRecordingFile()
+        let timestamp = getTimestamp()
+        let fileName = "conversation_\(timestamp).m4a"
+        
         do {
+            let fileURL = try artifacts.getFileURL(name: fileName)
             assetWriter = try AVAssetWriter(outputURL: fileURL, fileType: .m4a)
             
             let outputSettings: [String: Any] = [
@@ -199,17 +180,17 @@ class SpeechProcessor: WebSocketDelegate {
             }
             
             isRecording = true
+            artifacts.logEvent(type: "AUDIO", message: "AssetWriter configured at \(fileURL.lastPathComponent)")
         } catch {
             logger.error("AssetWriter setup failed: \(error.localizedDescription)")
+            artifacts.logEvent(type: "ERROR", message: "AssetWriter failed: \(error.localizedDescription)")
         }
     }
 
-    // Called only after AVAudioSession is active
     private func prepareAudioGraphAfterSessionActivation() {
         let inputNode = audioEngine.inputNode
         let nativeFormat = inputNode.inputFormat(forBus: 0)
 
-        // Ensure we have a valid format before proceeding
         guard nativeFormat.channelCount > 0, nativeFormat.sampleRate > 0 else {
             logger.error("Invalid native input format.")
             return
@@ -217,39 +198,37 @@ class SpeechProcessor: WebSocketDelegate {
         
         audioEngine.attach(converterNode)
         audioEngine.attach(sinkNode)
-        
         configureAssetWriter(inputFormat: nativeFormat)
 
-        // Install the tap using the node's own format by passing `nil` or `nativeFormat`.
-        // Passing nil tells AVAudioNode to use its output format; both are acceptable.
-        converterNode.installTap(onBus: 0, bufferSize: 1024, format: nativeFormat) { [weak self] buffer, time in
+        // TAP ON INPUT NODE INSTEAD OF CONVERTER
+        inputNode.installTap(onBus: 0, bufferSize: 1024, format: nativeFormat) { [weak self] buffer, time in
             guard let self = self, self.isRecording else { return }
 
-            // WebSocket streaming
-            if let pcmData = self.convertBufferToPCM16(buffer: buffer, targetChannelCount: 1) {
-                self.socket.write(data: pcmData)
-            }
-
-            // Local file writing
-            guard let sampleBuffer = cmSampleBufferFromPCM(buffer) else { return }
-            
-            // Ensure the writer is ready
-            guard let writer = self.assetWriter, let input = self.assetWriterInput else { return }
-
-            if writer.status == .unknown {
-                // Start the writer only when the first buffer arrives
-                let startTime = CMSampleBufferGetPresentationTimeStamp(sampleBuffer)
-                if writer.startWriting() {
-                    writer.startSession(atSourceTime: startTime)
+            // Offload ALL processing to the background queue
+            self.processingQueue.async {
+                // 1. Handle WebSocket
+                if let pcmData = self.convertBufferToPCM16(buffer: buffer, targetChannelCount: 1) {
+                    self.socket.write(data: pcmData)
                 }
-            }
 
-            if writer.status == .writing && input.isReadyForMoreMediaData {
-                input.append(sampleBuffer)
+                // 2. Handle File Writing
+                guard let sampleBuffer = cmSampleBufferFromPCM(buffer),
+                      let writer = self.assetWriter,
+                      let input = self.assetWriterInput else { return }
+
+                if writer.status == .unknown {
+                    let startTime = CMSampleBufferGetPresentationTimeStamp(sampleBuffer)
+                    if writer.startWriting() {
+                        writer.startSession(atSourceTime: startTime)
+                    }
+                }
+
+                if writer.status == .writing && input.isReadyForMoreMediaData {
+                    input.append(sampleBuffer)
+                }
             }
         }
 
-        // Connect nodes using the same valid format — keep graph formats consistent
         audioEngine.connect(inputNode, to: converterNode, format: nativeFormat)
         audioEngine.connect(converterNode, to: sinkNode, format: nativeFormat)
 
@@ -348,7 +327,8 @@ class SpeechProcessor: WebSocketDelegate {
                     for (speakerID, entry) in speakerSentences {
                         let trimmedText = entry.text.trimmingCharacters(in: .whitespaces)
                         guard !trimmedText.isEmpty else { continue }
-
+                        
+                        artifacts.logEvent(type: "TRANSCRIPT", message: "[\(speakerID)] \(trimmedText)")
                         conversation[speakerID, default: []].append(trimmedText)
 
                         // Notify delegate – treat every sentence as final
@@ -380,19 +360,13 @@ class SpeechProcessor: WebSocketDelegate {
                 }
             }
         } catch {
+            artifacts.logEvent(type: "ERROR", message: "JSON Decoding failed")
             logger.error("Failed to decode Deepgram JSON: \(error.localizedDescription, privacy: .public)")
         }
     }
     
     private func cleanupEngine() {
         conversation.removeAll()
-        
-        if audioEngine.isRunning {
-            audioEngine.stop()
-        }
-        
-        // Remove the tap from the node where it was installed
-        converterNode.removeTap(onBus: 0)
         
         // Reset engine to clear the internal graph connections
         audioEngine.reset()
@@ -406,9 +380,21 @@ class SpeechProcessor: WebSocketDelegate {
     public func deconfigureAudioEngine(completion: @escaping () -> Void) {
         // Stop accepting new data immediately
         isRecording = false
+        artifacts.logEvent(type: "INFO", message: "Deconfiguring Audio Engine...")
+        
+        converterNode.removeTap(onBus: 0)
+        
+        if audioEngine.isRunning {
+            audioEngine.stop()
+        }
         
         // Mark the input as finished so the writer knows no more data is coming
-        assetWriterInput?.markAsFinished()
+        guard let _ = assetWriter,
+            let _ = assetWriterInput else {
+            cleanupEngine()
+            completion()
+            return
+        }
         
         // Trigger the finish asynchronously
         assetWriter?.finishWriting { [weak self] in
@@ -428,3 +414,4 @@ class SpeechProcessor: WebSocketDelegate {
         }
     }
 }
+

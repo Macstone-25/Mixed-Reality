@@ -7,6 +7,7 @@ final class ArtifactCollector {
     private let rootFolder: URL
     private var handles: [FileHandle] = []
     private var finalized = false
+    private var id = 0
     
     private lazy var eventsHandle: FileHandle = {
         do {
@@ -18,10 +19,15 @@ final class ArtifactCollector {
 
     init(id: String) throws {
         let docs = FileManager.default.urls(for: .documentDirectory, in: .userDomainMask)[0]
-        let uuid = UUID().uuidString
-        self.rootFolder = docs.appendingPathComponent("\(id)-\(uuid)", isDirectory: true)
+        let timestamp = getTimestamp()
+        self.rootFolder = docs.appendingPathComponent("\(id)-\(timestamp)", isDirectory: true)
         try FileManager.default.createDirectory(at: rootFolder, withIntermediateDirectories: true)
         logger.info("🗂️ Opened artifact collection at \(self.rootFolder.path())")
+    }
+
+    func nextId() -> Int {
+        defer { self.id += 1 }
+        return self.id
     }
 
     func getFileHandle(name: String) throws -> FileHandle {
@@ -29,7 +35,7 @@ final class ArtifactCollector {
             throw NSError(domain: "ArtifactCollector", code: 1, userInfo: [NSLocalizedDescriptionKey: "Cannot create file handle after artifact collection has been finalized"])
         }
 
-        let fileId = handles.count
+        let fileId = nextId()
         let fileName = "\(fileId)-\(name)"
 
         let url = rootFolder.appendingPathComponent(fileName)
@@ -42,6 +48,31 @@ final class ArtifactCollector {
         handles.append(handle)
         return handle
     }
+    
+    // For AVAssetWriter
+    func getFileURL(name: String) throws -> URL {
+        guard finalized == false else {
+            throw NSError(
+                domain: "ArtifactCollector",
+                code: 1,
+                userInfo: [NSLocalizedDescriptionKey:
+                    "Cannot create file URL after artifact collection has been finalized"]
+            )
+        }
+
+        let fileId = nextId()
+        let fileName = "\(fileId)-\(name)"
+        let url = rootFolder.appendingPathComponent(fileName)
+
+        // AVAssetWriter requires the file to not exist
+        if FileManager.default.fileExists(atPath: url.path) {
+            try FileManager.default.removeItem(at: url)
+        }
+
+        logger.info("🎙️ Creating audio file at \(url.path)")
+        return url
+    }
+
 
     func logEvent(type: String, message: String) {
         let timestamp = Int(Date().timeIntervalSince1970)

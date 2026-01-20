@@ -9,13 +9,11 @@ public func convertAudio(buffer: AVAudioPCMBuffer) -> Data? {
     return Data(bytes: mData, count: Int(audioBuffer.mDataByteSize))
 }
 
-public func getNewRecordingFile() -> URL {
+public func getTimestamp() -> String {
     let formatter = DateFormatter()
     formatter.dateFormat = "yyyyMMdd_HHmmss"
     let timestamp = formatter.string(from: Date())
-    
-    let docs = FileManager.default.urls(for: .documentDirectory, in: .userDomainMask)[0]
-    return docs.appendingPathComponent("Recording_\(timestamp).m4a")
+    return timestamp
 }
 
 public func cmSampleBufferFromPCM(_ pcmBuffer: AVAudioPCMBuffer) -> CMSampleBuffer? {
