@@ -7,7 +7,6 @@ final class ArtifactCollector {
     private let rootFolder: URL
     private var handles: [FileHandle] = []
     private var finalized = false
-    private var id = 0
     
     private lazy var eventsHandle: FileHandle = {
         do {
@@ -25,17 +24,12 @@ final class ArtifactCollector {
         logger.info("🗂️ Opened artifact collection at \(self.rootFolder.path())")
     }
 
-    func nextId() -> Int {
-        defer { self.id += 1 }
-        return self.id
-    }
-
     func getFileHandle(name: String) throws -> FileHandle {
         guard finalized == false else {
             throw NSError(domain: "ArtifactCollector", code: 1, userInfo: [NSLocalizedDescriptionKey: "Cannot create file handle after artifact collection has been finalized"])
         }
 
-        let fileId = nextId()
+        let fileId = handles.count
         let fileName = "\(fileId)-\(name)"
 
         let url = rootFolder.appendingPathComponent(fileName)
@@ -49,7 +43,6 @@ final class ArtifactCollector {
         return handle
     }
     
-    // For AVAssetWriter
     func getFileURL(name: String) throws -> URL {
         guard finalized == false else {
             throw NSError(
@@ -60,16 +53,15 @@ final class ArtifactCollector {
             )
         }
 
-        let fileId = nextId()
+        let fileId = handles.count
         let fileName = "\(fileId)-\(name)"
         let url = rootFolder.appendingPathComponent(fileName)
 
-        // AVAssetWriter requires the file to not exist
         if FileManager.default.fileExists(atPath: url.path) {
             try FileManager.default.removeItem(at: url)
         }
 
-        logger.info("🎙️ Creating audio file at \(url.path)")
+        logger.info("🗂️ Provisioned artifact file URL \(url.path)")
         return url
     }
 

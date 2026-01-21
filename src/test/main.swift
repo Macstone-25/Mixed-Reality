@@ -1,7 +1,8 @@
 import Foundation
 
 let task_ns = 15 * 1_000_000_000
-let processor = SpeechProcessor()
+let artifact = try ArtifactCollector(id: "0")
+let processor = SpeechProcessor(artifacts: artifact)
 print("starting test...")
 
 Task {

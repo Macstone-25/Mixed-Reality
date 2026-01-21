@@ -36,7 +36,6 @@ public func cmSampleBufferFromPCM(_ pcmBuffer: AVAudioPCMBuffer) -> CMSampleBuff
     // Wrap the PCM data in a CMBlockBuffer
     // We use the AudioBufferList directly from the pcmBuffer
     var blockBuffer: CMBlockBuffer?
-    _ = MemoryLayout<AudioBufferList>.size
     
     // Create block buffer from the memory of the pcmBuffer
     let blockStatus = CMBlockBufferCreateWithMemoryBlock(

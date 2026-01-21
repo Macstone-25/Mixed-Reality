@@ -28,6 +28,7 @@ struct DeepgramResponse: Codable {
   Handles audio format conversion, WebSocket lifecycle, and streaming.
 
   Inputs:
+  - artifacts: The instance of the ArtifactCollector class
   - sampleRate: The audio sample rate in Hz (default: 48,000)
   - channels: Number of audio channels (default: 1)
   - interleaved: Whether audio data is interleaved (true/false, default: true)
@@ -59,7 +60,7 @@ class SpeechProcessor: WebSocketDelegate {
     private var assetWriter: AVAssetWriter?
     private var assetWriterInput: AVAssetWriterInput?
     private var isRecording = false
-    private let artifacts: ArtifactCollector
+    private let artifacts: ArtifactCollector?
     private var eventsHandle: FileHandle?
     private let processingQueue = DispatchQueue(label: "com.speech.processor.write", qos: .userInitiated)
 
@@ -89,7 +90,7 @@ class SpeechProcessor: WebSocketDelegate {
     // Delegate property
     weak var delegate: SpeechProcessorDelegate?
     
-    init(artifacts: ArtifactCollector, sampleRate: Double = 48000, channels: AVAudioChannelCount = 1, interleaved: Bool = true) {
+    init(artifacts: ArtifactCollector? = nil, sampleRate: Double = 48000, channels: AVAudioChannelCount = 1, interleaved: Bool = true) {
         self.artifacts = artifacts
         self.sampleRate = sampleRate
         self.channels = channels
@@ -105,7 +106,7 @@ class SpeechProcessor: WebSocketDelegate {
         configureAudioSession()
         socket.connect()
         
-        artifacts.logEvent(type: "INFO", message: "SpeechProcessor initialized with sampleRate: \(sampleRate)")
+        artifacts?.logEvent(type: "INFO", message: "SpeechProcessor initialized with sampleRate: \(sampleRate)")
     }
 
     // Configure audio based on device. MacOS is only used for certain testing purposes.
@@ -158,8 +159,13 @@ class SpeechProcessor: WebSocketDelegate {
     }
     
     private func configureAssetWriter(inputFormat: AVAudioFormat) {
-        let timestamp = getTimestamp()
-        let fileName = "conversation_\(timestamp).m4a"
+        // If no artifacts collector, skip file writing entirely
+        guard let artifacts = artifacts else {
+            logger.info("No artifacts collector provided. File recording disabled.")
+            return
+        }
+        
+        let fileName = "conversation.m4a"
         
         do {
             let fileURL = try artifacts.getFileURL(name: fileName)
@@ -200,34 +206,34 @@ class SpeechProcessor: WebSocketDelegate {
         audioEngine.attach(sinkNode)
         configureAssetWriter(inputFormat: nativeFormat)
 
-        // TAP ON INPUT NODE INSTEAD OF CONVERTER
         inputNode.installTap(onBus: 0, bufferSize: 1024, format: nativeFormat) { [weak self] buffer, time in
-            guard let self = self, self.isRecording else { return }
+                    guard let self = self else { return }
 
-            // Offload ALL processing to the background queue
-            self.processingQueue.async {
-                // 1. Handle WebSocket
-                if let pcmData = self.convertBufferToPCM16(buffer: buffer, targetChannelCount: 1) {
-                    self.socket.write(data: pcmData)
-                }
+                    self.processingQueue.async {
+                        // Deepgram logic
+                        if let pcmData = self.convertBufferToPCM16(buffer: buffer, targetChannelCount: 1) {
+                            self.socket.write(data: pcmData)
+                        }
 
-                // 2. Handle File Writing
-                guard let sampleBuffer = cmSampleBufferFromPCM(buffer),
-                      let writer = self.assetWriter,
-                      let input = self.assetWriterInput else { return }
+                        // File writing logic
+                        if self.isRecording,
+                           let sampleBuffer = cmSampleBufferFromPCM(buffer),
+                           let writer = self.assetWriter,
+                           let input = self.assetWriterInput {
+                            
+                            if writer.status == .unknown {
+                                let startTime = CMSampleBufferGetPresentationTimeStamp(sampleBuffer)
+                                if writer.startWriting() {
+                                    writer.startSession(atSourceTime: startTime)
+                                }
+                            }
 
-                if writer.status == .unknown {
-                    let startTime = CMSampleBufferGetPresentationTimeStamp(sampleBuffer)
-                    if writer.startWriting() {
-                        writer.startSession(atSourceTime: startTime)
+                            if writer.status == .writing && input.isReadyForMoreMediaData {
+                                input.append(sampleBuffer)
+                            }
+                        }
                     }
                 }
-
-                if writer.status == .writing && input.isReadyForMoreMediaData {
-                    input.append(sampleBuffer)
-                }
-            }
-        }
 
         audioEngine.connect(inputNode, to: converterNode, format: nativeFormat)
         audioEngine.connect(converterNode, to: sinkNode, format: nativeFormat)
@@ -239,23 +245,23 @@ class SpeechProcessor: WebSocketDelegate {
             logger.error("Failed to start audio engine: \(error.localizedDescription)")
         }
     }
-
+            
     // Convert Float32/Float64 buffer to PCM16 and downmix if needed
     private func convertBufferToPCM16(buffer: AVAudioPCMBuffer, targetChannelCount: AVAudioChannelCount) -> Data? {
         let format = buffer.format
         let frameLength = Int(buffer.frameLength)
         let channels = Int(format.channelCount)
-
+        
         // If format is already Int16 (rare), handle differently — typical is .pcmFormatFloat32
         guard format.commonFormat == .pcmFormatFloat32,
-              let floatChannelData = buffer.floatChannelData else {
+            let floatChannelData = buffer.floatChannelData else {
             // Implement other conversions if needed
             return nil
         }
-
+        
         var interleavedMono = [Int16]()
         interleavedMono.reserveCapacity(frameLength)
-
+        
         // Simple downmix: average channels into mono
         for frameIndex in 0..<frameLength {
             var sampleSum: Float = 0.0
@@ -268,13 +274,13 @@ class SpeechProcessor: WebSocketDelegate {
             let intSample = Int16(clipped * Float(Int16.max))
             interleavedMono.append(intSample)
         }
-
+        
         // Create Data from Int16 array (little-endian)
         return interleavedMono.withUnsafeBufferPointer { bufferPtr in
             Data(buffer: bufferPtr)
         }
     }
-    
+            
     // Handles WebSocket events: connection, disconnection, incoming messages, and errors
     func didReceive(event: Starscream.WebSocketEvent, client: any Starscream.WebSocketClient) {
         switch event {
@@ -296,18 +302,18 @@ class SpeechProcessor: WebSocketDelegate {
             break
         }
     }
-    
+            
     // Parses Deepgram JSON and sends transcript chunks to delegate
     public func processJSON(data: Data) {
         do {
             let response = try JSONDecoder().decode(DeepgramResponse.self, from: data)
             guard let alternatives = response.channel?.alternatives else { return }
-
+            
             for alt in alternatives {
                 if let words = alt.words, !words.isEmpty {
                     // Build sentences per speaker with start/end timestamps
                     var speakerSentences: [String: (text: String, start: Double?, end: Double?)] = [:]
-
+                    
                     for wordInfo in words {
                         let speakerID = wordInfo.speaker.map { "spk_\($0)" } ?? "user"
                         
@@ -323,14 +329,14 @@ class SpeechProcessor: WebSocketDelegate {
                             )
                         }
                     }
-
+                    
                     for (speakerID, entry) in speakerSentences {
                         let trimmedText = entry.text.trimmingCharacters(in: .whitespaces)
                         guard !trimmedText.isEmpty else { continue }
                         
-                        artifacts.logEvent(type: "TRANSCRIPT", message: "[\(speakerID)] \(trimmedText)")
+                        artifacts?.logEvent(type: "TRANSCRIPT", message: "[\(speakerID)] \(trimmedText)")
                         conversation[speakerID, default: []].append(trimmedText)
-
+                        
                         // Notify delegate – treat every sentence as final
                         let chunk = DeepgramTranscriptChunk(
                             speakerID: speakerID,
@@ -342,12 +348,12 @@ class SpeechProcessor: WebSocketDelegate {
                         delegate?.speechProcessor(self, didReceiveChunk: chunk)
                         logger.info("Speaker: \(speakerID, privacy: .public), Sentence: \(trimmedText, privacy: .public)")
                     }
-
+                    
                 } else if let transcript = alt.transcript?.trimmingCharacters(in: .whitespaces),
                           !transcript.isEmpty {
                     let speakerID = "user"
                     conversation[speakerID, default: []].append(transcript)
-
+                    
                     let chunk = DeepgramTranscriptChunk(
                         speakerID: speakerID,
                         start_time: nil,
@@ -360,11 +366,11 @@ class SpeechProcessor: WebSocketDelegate {
                 }
             }
         } catch {
-            artifacts.logEvent(type: "ERROR", message: "JSON Decoding failed")
+            artifacts?.logEvent(type: "ERROR", message: "JSON Decoding failed")
             logger.error("Failed to decode Deepgram JSON: \(error.localizedDescription, privacy: .public)")
         }
     }
-    
+            
     private func cleanupEngine() {
         conversation.removeAll()
         
@@ -375,43 +381,43 @@ class SpeechProcessor: WebSocketDelegate {
         socket.delegate = nil
         logger.info("Audio engine and WebSocket fully deconfigured.")
     }
-
+            
     // Cleans up audio engine and WebSocket, stopping all streaming activity
-    public func deconfigureAudioEngine(completion: @escaping () -> Void) {
-        // Stop accepting new data immediately
+    public func deconfigureAudioEngine(completion: @escaping () -> Void = {}) {
         isRecording = false
-        artifacts.logEvent(type: "INFO", message: "Deconfiguring Audio Engine...")
-        
-        converterNode.removeTap(onBus: 0)
-        
+        artifacts?.logEvent(type: "INFO", message: "Deconfiguring Audio Engine...")
+
+        audioEngine.inputNode.removeTap(onBus: 0)
+
         if audioEngine.isRunning {
             audioEngine.stop()
         }
-        
-        // Mark the input as finished so the writer knows no more data is coming
-        guard let _ = assetWriter,
-            let _ = assetWriterInput else {
+
+        guard let writer = assetWriter,
+              let writerInput = assetWriterInput else {
             cleanupEngine()
             completion()
             return
         }
-        
-        // Trigger the finish asynchronously
-        assetWriter?.finishWriting { [weak self] in
-            guard let self = self else { return }
-            
-            if let error = self.assetWriter?.error {
-                print("Writer Error: \(error.localizedDescription)")
-            } else {
-                print("File finalized successfully.")
+
+        if writer.status == .writing {
+            writerInput.markAsFinished()
+            writer.finishWriting { [weak self] in
+                guard let self = self else { return }
+
+                if let error = self.assetWriter?.error {
+                    logger.error("Writer Error: \(error.localizedDescription)")
+                } else {
+                    logger.info("File finalized successfully.")
+                }
+
+                cleanupEngine()
+                completion()
             }
-            
-            // Now it is safe to tear down the audio engine
-            self.cleanupEngine()
-            
-            // Finally, exit the script/process
+        } else {
+            // Writer never started, nothing to finish
+            cleanupEngine()
             completion()
         }
     }
 }
-
