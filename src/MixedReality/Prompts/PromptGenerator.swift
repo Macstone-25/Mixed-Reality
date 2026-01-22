@@ -130,7 +130,6 @@ final class PromptGenerator {
             ])
         }
 
-        // Decode minimal subset of API response
         struct ChatCompletionResponse: Decodable {
             struct Choice: Decodable {
                 struct Message: Decodable { let content: String? }
@@ -148,10 +147,11 @@ final class PromptGenerator {
     // ----------------------------------------
 
     private func assembleRecentUtterances(chunks: [TranscriptChunk]) -> String {
-        let primary = appModel.primarySpeakerID
-
+        // Include non-final chunks too (finals may be sparse with interim_results=true),
+        // but cap to the last 12 lines to avoid noisy repetition.
         let filtered = chunks
-            .filter { $0.isFinal && !$0.isEmptyText }
+            .filter { !$0.isEmptyText }
+            .suffix(12)
             .map { "[\($0.speakerID)] \($0.text.trimmingCharacters(in: .whitespacesAndNewlines))" }
 
         if filtered.isEmpty { return "" }

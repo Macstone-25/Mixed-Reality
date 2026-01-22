@@ -8,6 +8,7 @@
 //
 // Represents a single chunk/utterance coming from the ASR pipeline.
 // Keep this type lightweight; it’s passed across services and into the trigger engine.
+//
 
 import Foundation
 
@@ -44,5 +45,62 @@ public struct TranscriptChunk: Sendable, Codable, Hashable {
     /// True if the (trimmed) text is empty.
     public var isEmptyText: Bool {
         text.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
+    }
+
+    /// Lowercased, trimmed form of the text for lightweight analysis.
+    public var normalizedText: String {
+        text
+            .lowercased()
+            .trimmingCharacters(in: .whitespacesAndNewlines)
+    }
+
+    /// Number of words (simple whitespace split).
+    public var wordCount: Int {
+        let parts = normalizedText.split { $0 == " " || $0 == "\n" || $0 == "\t" }
+        return parts.count
+    }
+
+    /// Heuristic: whether the chunk is basically just a filler / hesitation.
+    public var isFillerOrHesitation: Bool {
+        let t = normalizedText
+        if t.isEmpty { return false }
+
+        let simpleFillers: Set<String> = [
+            "um", "uh", "umm", "hmm", "er", "ah", "like", "you know", "huh"
+        ]
+
+        if simpleFillers.contains(t) {
+            return true
+        }
+
+        let fillerChars = CharacterSet(charactersIn: "umh.er!?,… ")
+        if t.unicodeScalars.allSatisfy({ fillerChars.contains($0) }) {
+            return true
+        }
+
+        return false
+    }
+
+    /// True if the chunk ends with a filler token (e.g., "um", "uh", "hmm").
+    public var endsWithFiller: Bool {
+        let t = normalizedText
+        if t.isEmpty { return false }
+
+        let fillerEndings: Set<String> = [
+            "um", "uh", "umm", "hmm", "er", "ah", "like", "you know", "huh"
+        ]
+
+        // Split by whitespace and punctuation, check last token
+        let tokens = t
+            .components(separatedBy: CharacterSet.whitespacesAndNewlines.union(.punctuationCharacters))
+            .filter { !$0.isEmpty }
+
+        guard let last = tokens.last else { return false }
+        return fillerEndings.contains(last)
+    }
+
+    /// True if this chunk actually carries content (non-empty and not just filler).
+    public var isContentful: Bool {
+        !isEmptyText && !isFillerOrHesitation
     }
 }
