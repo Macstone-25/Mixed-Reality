@@ -7,6 +7,7 @@ final class ArtifactCollector {
     private let rootFolder: URL
     private var handles: [FileHandle] = []
     private var finalized = false
+    private var id = 0
     
     private lazy var eventsHandle: FileHandle = {
         do {
@@ -23,37 +24,23 @@ final class ArtifactCollector {
         try FileManager.default.createDirectory(at: rootFolder, withIntermediateDirectories: true)
         logger.info("🗂️ Opened artifact collection at \(self.rootFolder.path())")
     }
-
-    func getFileHandle(name: String) throws -> FileHandle {
-        guard finalized == false else {
-            throw NSError(domain: "ArtifactCollector", code: 1, userInfo: [NSLocalizedDescriptionKey: "Cannot create file handle after artifact collection has been finalized"])
-        }
-
-        let fileId = handles.count
-        let fileName = "\(fileId)-\(name)"
-
-        let url = rootFolder.appendingPathComponent(fileName)
-        logger.info("🗂️ Opening file handle for \(url.path)")
-        if !FileManager.default.fileExists(atPath: url.path) {
-            FileManager.default.createFile(atPath: url.path, contents: nil)
-        }
-
-        let handle = try FileHandle(forWritingTo: url)
-        handles.append(handle)
-        return handle
-    }
     
-    func getFileURL(name: String) throws -> URL {
+    private func nextId() -> Int {
+        defer { self.id += 1 }
+        return self.id
+    }
+
+    private func provisionFileURL(name: String, createIfNeeded: Bool) throws -> URL {
         guard finalized == false else {
             throw NSError(
                 domain: "ArtifactCollector",
                 code: 1,
                 userInfo: [NSLocalizedDescriptionKey:
-                    "Cannot create file URL after artifact collection has been finalized"]
+                    "Cannot create artifacts after artifact collection has been finalized"]
             )
         }
 
-        let fileId = handles.count
+        let fileId = nextId()
         let fileName = "\(fileId)-\(name)"
         let url = rootFolder.appendingPathComponent(fileName)
 
@@ -61,10 +48,24 @@ final class ArtifactCollector {
             try FileManager.default.removeItem(at: url)
         }
 
-        logger.info("🗂️ Provisioned artifact file URL \(url.path)")
+        if createIfNeeded {
+            FileManager.default.createFile(atPath: url.path, contents: nil)
+        }
+
+        logger.info("🗂️ Provisioned artifact file \(url.path)")
         return url
     }
+    
+    func getFileURL(name: String) throws -> URL {
+        try provisionFileURL(name: name, createIfNeeded: false)
+    }
 
+    func getFileHandle(name: String) throws -> FileHandle {
+        let url = try provisionFileURL(name: name, createIfNeeded: true)
+        let handle = try FileHandle(forWritingTo: url)
+        handles.append(handle)
+        return handle
+    }
 
     func logEvent(type: String, message: String) {
         let timestamp = Int(Date().timeIntervalSince1970)
