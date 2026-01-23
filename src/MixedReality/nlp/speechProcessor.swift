@@ -24,11 +24,18 @@ struct DeepgramResponse: Codable {
     }
 }
 
+// Proper formatting for the optional audio anonymization
+enum AudioAnonymizationPolicy {
+    case none
+    case pitchShift(semitones: Float, deleteOriginal: Bool)
+}
+
 /*
   Handles audio format conversion, WebSocket lifecycle, and streaming.
 
   Inputs:
   - artifacts: The instance of the ArtifactCollector class
+  - anonymizationPolicy: The toggle for audio anonymization
   - sampleRate: The audio sample rate in Hz (default: 48,000)
   - channels: Number of audio channels (default: 1)
   - interleaved: Whether audio data is interleaved (true/false, default: true)
@@ -63,6 +70,8 @@ class SpeechProcessor: WebSocketDelegate {
     private let artifacts: ArtifactCollector?
     private var eventsHandle: FileHandle?
     private let processingQueue = DispatchQueue(label: "com.speech.processor.write", qos: .userInitiated)
+    private var conversationFileURL: URL?
+    private let anonymizationPolicy: AudioAnonymizationPolicy
 
     // Deepgram properties
     private let deepgramKey: String
@@ -90,11 +99,20 @@ class SpeechProcessor: WebSocketDelegate {
     // Delegate property
     weak var delegate: SpeechProcessorDelegate?
     
-    init(artifacts: ArtifactCollector? = nil, sampleRate: Double = 48000, channels: AVAudioChannelCount = 1, interleaved: Bool = true) {
+    init(
+        artifacts: ArtifactCollector? = nil,
+        anonymizationPolicy: AudioAnonymizationPolicy = .pitchShift(
+            semitones: 3.0,
+            deleteOriginal: true
+        ),
+        sampleRate: Double = 48000,
+        channels: AVAudioChannelCount = 1,
+        interleaved: Bool = true) {
         self.artifacts = artifacts
         self.sampleRate = sampleRate
         self.channels = channels
         self.interleaved = interleaved
+        self.anonymizationPolicy = anonymizationPolicy
         // Load Deepgram API key from environment variables
         if let key = ProcessInfo.processInfo.environment["DEEPGRAM_API_KEY"] {
             self.deepgramKey = key
@@ -170,6 +188,7 @@ class SpeechProcessor: WebSocketDelegate {
         do {
             let fileURL = try artifacts.getFileURL(name: fileName)
             assetWriter = try AVAssetWriter(outputURL: fileURL, fileType: .m4a)
+            conversationFileURL = fileURL
             
             let outputSettings: [String: Any] = [
                 AVFormatIDKey: kAudioFormatMPEG4AAC,
@@ -409,6 +428,37 @@ class SpeechProcessor: WebSocketDelegate {
                     logger.error("Writer Error: \(error.localizedDescription)")
                 } else {
                     logger.info("File finalized successfully.")
+                }
+                
+                if let artifacts = self.artifacts,
+                   let originalURL = self.conversationFileURL {
+
+                    switch self.anonymizationPolicy {
+                    case .none:
+                        artifacts.logEvent(
+                            type: "AUDIO",
+                            message: "Audio anonymization disabled"
+                        )
+
+                    case .pitchShift(let semitones, let deleteOriginal):
+                        do {
+                            let anonymizedURL = try artifacts.anonymizeAudioFile(
+                                inputURL: originalURL,
+                                pitchSemitones: semitones,
+                                deleteOriginal: deleteOriginal
+                            )
+
+                            artifacts.logEvent(
+                                type: "AUDIO",
+                                message: "Anonymized audio created: \(anonymizedURL.lastPathComponent)"
+                            )
+                        } catch {
+                            artifacts.logEvent(
+                                type: "ERROR",
+                                message: "Audio anonymization failed: \(error.localizedDescription)"
+                            )
+                        }
+                    }
                 }
 
                 cleanupEngine()
