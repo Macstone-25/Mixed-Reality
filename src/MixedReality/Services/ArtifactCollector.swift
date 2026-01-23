@@ -30,7 +30,7 @@ final class ArtifactCollector {
         return self.id
     }
 
-    private func provisionFileURL(name: String, createIfNeeded: Bool) throws -> URL {
+    func getFileURL(name: String) throws -> URL {
         guard finalized == false else {
             throw NSError(
                 domain: "ArtifactCollector",
@@ -48,20 +48,13 @@ final class ArtifactCollector {
             try FileManager.default.removeItem(at: url)
         }
 
-        if createIfNeeded {
-            FileManager.default.createFile(atPath: url.path, contents: nil)
-        }
-
-        logger.info("🗂️ Provisioned artifact file \(url.path)")
+        logger.info("🗂️ Provisioned artifact file path \(url.path)")
         return url
-    }
-    
-    func getFileURL(name: String) throws -> URL {
-        try provisionFileURL(name: name, createIfNeeded: false)
     }
 
     func getFileHandle(name: String) throws -> FileHandle {
-        let url = try provisionFileURL(name: name, createIfNeeded: true)
+        let url = try getFileURL(name: name)
+        FileManager.default.createFile(atPath: url.path, contents: nil)
         let handle = try FileHandle(forWritingTo: url)
         handles.append(handle)
         return handle
