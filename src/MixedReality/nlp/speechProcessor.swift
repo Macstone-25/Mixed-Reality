@@ -322,7 +322,7 @@ class SpeechProcessor: WebSocketDelegate {
             let response = try JSONDecoder().decode(DeepgramResponse.self, from: data)
             guard let alternatives = response.channel?.alternatives else { return }
 
-            let finalFlag = response.speech_final ?? response.is_final ?? false
+            let finalFlag = response.is_final ?? false
 
             for alt in alternatives {
                 if let words = alt.words, !words.isEmpty {
@@ -343,8 +343,6 @@ class SpeechProcessor: WebSocketDelegate {
                     for (speakerID, entry) in speakerSentences {
                         let trimmedText = entry.text.trimmingCharacters(in: .whitespaces)
                         guard !trimmedText.isEmpty else { continue }
-                        
-                        artifacts?.logEvent(type: "TRANSCRIPT", message: "[\(speakerID)] \(trimmedText)")
                         conversation[speakerID, default: []].append(trimmedText)
                         
                         // Notify delegate – treat every sentence as final
