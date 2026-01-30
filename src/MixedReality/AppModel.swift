@@ -16,7 +16,6 @@ class AppModel: SpeechProcessorDelegate {
     let windowGroupId = "DefaultWindowGroup"
 
     // MARK: - State
-    var hasConsent = false
     var isSessionActive = false
     
     var lastSessionError: String?
