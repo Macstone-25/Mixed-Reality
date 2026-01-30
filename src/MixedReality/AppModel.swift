@@ -102,10 +102,13 @@ class AppModel: SpeechProcessorDelegate {
         
         let start = String(format: "%.2f", chunk.start_time ?? 0)
         let end   = String(format: "%.2f", chunk.end_time ?? 0)
-        self.getArtifactCollector().logEvent(
-            type: "Transcript",
-            message: "(\(start)-\(end)) \(chunk.speakerID): \"\(chunk.text)\""
-        )
+        
+        if (chunk.isFinal ?? true) {
+            self.getArtifactCollector().logEvent(
+                type: "Transcript",
+                message: "(\(start)-\(end)) \(chunk.speakerID): \"\(chunk.text)\""
+            )
+        }
 
         // ✅ Auto-select first speaker as primary
         if primarySpeakerID == "user" {

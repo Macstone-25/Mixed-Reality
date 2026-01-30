@@ -4,22 +4,18 @@ import Foundation
 import Combine
 
 public final class PauseRuleTrigger {
-    // MARK: - Inputs / config
     private var primaryUserID: String
     private let silenceThreshold: TimeInterval
     private let graceForOthers: TimeInterval
 
-    // MARK: - State
     private var lastPrimarySpeechEnd: Date?
     private var lastSpeakerID: String?
 
-    // One-shot timer machinery
     private var fireTimer: DispatchSourceTimer?
     private let timerQueue = DispatchQueue(label: "PauseRuleTrigger.timer")
     private var dueAt: Date?
     private var firedForCurrentSilence = false
 
-    // MARK: - Output
     private let eventsSubject = PassthroughSubject<InterventionEvent, Never>()
     public var events: AnyPublisher<InterventionEvent, Never> { eventsSubject.eraseToAnyPublisher() }
 
@@ -33,11 +29,8 @@ public final class PauseRuleTrigger {
 
     deinit { cancelTimer() }
 
-    // MARK: - Public API
-
     public func updatePrimaryUserID(_ id: String) {
         primaryUserID = id
-        // Changing who we watch → clear current silence state
         cancelTimer()
         firedForCurrentSilence = false
         lastPrimarySpeechEnd = nil
@@ -46,23 +39,35 @@ public final class PauseRuleTrigger {
     }
 
     public func receive(_ chunk: TranscriptChunk) {
-        guard chunk.isFinal else { return } // only react to final segments
-
         lastSpeakerID = chunk.speakerID
 
-        // FIXME: if the secondary speaker has multiple chunks timer gets very long!
-//        if chunk.speakerID == primaryUserID {
-            // Primary spoke → reset baseline and arm a new one-shot timer
+        // Any non-final chunk means "speech is ongoing" → push deadline out.
+        if !chunk.isFinal {
+            firedForCurrentSilence = false
+            let newDue = chunk.endAt.addingTimeInterval(silenceThreshold)
+            reschedule(to: newDue)
+            return
+        }
+
+        // For final chunks, only start/reset the baseline on meaningful content.
+        let isMeaningful =
+            chunk.isContentful &&
+            chunk.wordCount >= 3 &&
+            !chunk.endsWithFiller
+
+        if isMeaningful {
             lastPrimarySpeechEnd = chunk.endAt
             firedForCurrentSilence = false
             armTimer(after: silenceThreshold, baseline: chunk.endAt)
-//        } else {
-//            // Someone else spoke; if we’re currently waiting to fire, extend with grace
-//            if let currentDue = dueAt, !firedForCurrentSilence {
-//                let newDue = currentDue.addingTimeInterval(graceForOthers)
-//                reschedule(to: newDue)
-//            }
-//        }
+            return
+        }
+
+        // Final filler / short / trailing-filler chunk:
+        // treat as continued speech by pushing the deadline out *if a timer exists*.
+        if let _ = dueAt, !firedForCurrentSilence {
+            let newDue = chunk.endAt.addingTimeInterval(silenceThreshold)
+            reschedule(to: newDue)
+        }
     }
 
     public func reset() {
@@ -73,8 +78,6 @@ public final class PauseRuleTrigger {
         dueAt = nil
     }
 
-    // MARK: - Timer helpers
-
     private func armTimer(after delay: TimeInterval, baseline: Date) {
         cancelTimer()
         let fireDate = baseline.addingTimeInterval(delay)
@@ -83,30 +86,30 @@ public final class PauseRuleTrigger {
         let t = DispatchSource.makeTimerSource(queue: timerQueue)
         t.schedule(deadline: .now() + max(0, fireDate.timeIntervalSinceNow))
         t.setEventHandler { [weak self] in
-            guard let self = self else { return }
-            if self.firedForCurrentSilence { return } // only once per silence
+            guard let self else { return }
+            if self.firedForCurrentSilence { return }
             self.firedForCurrentSilence = true
 
             let now = Date()
             let elapsed = now.timeIntervalSince(baseline)
             let reason: InterventionReason = .longPause(duration: elapsed)
             let evt = InterventionEvent(at: now, reason: reason, context: [])
-
             DispatchQueue.main.async { self.eventsSubject.send(evt) }
         }
+
         fireTimer = t
         t.resume()
     }
 
     private func reschedule(to newDue: Date) {
         dueAt = newDue
-        // Recreate timer with new remaining time
         cancelTimer()
+
         let remaining = max(0, newDue.timeIntervalSinceNow)
         let t = DispatchSource.makeTimerSource(queue: timerQueue)
         t.schedule(deadline: .now() + remaining)
         t.setEventHandler { [weak self] in
-            guard let self = self else { return }
+            guard let self else { return }
             if self.firedForCurrentSilence { return }
             self.firedForCurrentSilence = true
 
@@ -115,9 +118,9 @@ public final class PauseRuleTrigger {
             let elapsed = now.timeIntervalSince(baseline)
             let reason: InterventionReason = .longPause(duration: elapsed)
             let evt = InterventionEvent(at: now, reason: reason, context: [])
-
             DispatchQueue.main.async { self.eventsSubject.send(evt) }
         }
+
         fireTimer = t
         t.resume()
     }

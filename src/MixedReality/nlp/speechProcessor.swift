@@ -2,9 +2,11 @@ import AVFoundation
 import Starscream
 import os
 
-// Formatting for the Deepgram response
+// MARK: - Deepgram response model
+
 struct DeepgramResponse: Codable {
-    // NOTE: We don't rely on isFinal anymore; timing is handled on our side.
+    let is_final: Bool?
+    let speech_final: Bool?
     let channel: Channel?
 
     struct Channel: Codable {
@@ -24,9 +26,12 @@ struct DeepgramResponse: Codable {
     }
 }
 
-/*
-  Handles audio format conversion, WebSocket lifecycle, and streaming.
+/// Lightweight envelope so we can ignore non-"Results" frames
+private struct DeepgramEnvelope: Decodable {
+    let type: String?
+}
 
+/*
   Inputs:
   - artifacts: The instance of the ArtifactCollector class
   - sampleRate: The audio sample rate in Hz (default: 48,000)
@@ -34,19 +39,20 @@ struct DeepgramResponse: Codable {
   - interleaved: Whether audio data is interleaved (true/false, default: true)
 */
 class SpeechProcessor: WebSocketDelegate {
-    // Keeps a running record of all transcripts per speaker
     public private(set) var conversation: [String: [String]] = [:]
-    // Logger setup
     private let logger = Logger(subsystem: "NLP", category: "SpeechProcessor")
-    // Audio properties
+
     private let audioEngine = AVAudioEngine()
     private let converterNode = AVAudioMixerNode()
     private let sinkNode = AVAudioMixerNode()
-    
-    // Audio format properties
+
     private let sampleRate: Double
     private let channels: AVAudioChannelCount
     private let interleaved: Bool
+
+    // Tune this (ms). Smaller -> finals arrive faster.
+    private let endpointingMs: Int = 1500
+
     private lazy var outputFormat: AVAudioFormat = {
         AVAudioFormat(
             commonFormat: .pcmFormatInt16,
@@ -66,15 +72,18 @@ class SpeechProcessor: WebSocketDelegate {
 
     // Deepgram properties
     private let deepgramKey: String
+
     private lazy var socket: Starscream.WebSocket = {
-        // Build URL dynamically based on audio format
         let urlString =
             "wss://api.deepgram.com/v1/listen" +
             "?model=nova-2" +
             "&diarize=true" +
             "&punctuate=true" +
-            "&filler_words=true" +                      // <-- keep filler words like "um", "uh"
+            "&filler_words=true" +
             "&encoding=linear16" +
+            "&interim_results=true" +
+            "&endpointing=\(endpointingMs)" +
+            "&vad_events=true" +
             "&sample_rate=\(Int(sampleRate))" +
             "&channels=\(channels)"
 
@@ -82,12 +91,12 @@ class SpeechProcessor: WebSocketDelegate {
         guard let url = URL(string: urlString) else {
             fatalError("Invalid WebSocket URL")
         }
-        var urlRequest = URLRequest(url: url)
-        urlRequest.setValue("Token \(deepgramKey)", forHTTPHeaderField: "Authorization")
-        return Starscream.WebSocket(request: urlRequest)
+
+        var request = URLRequest(url: url)
+        request.setValue("Token \(deepgramKey)", forHTTPHeaderField: "Authorization")
+        return Starscream.WebSocket(request: request)
     }()
-    
-    // Delegate property
+
     weak var delegate: SpeechProcessorDelegate?
     
     init(artifacts: ArtifactCollector? = nil, sampleRate: Double = 48000, channels: AVAudioChannelCount = 1, interleaved: Bool = true) {
@@ -95,14 +104,13 @@ class SpeechProcessor: WebSocketDelegate {
         self.sampleRate = sampleRate
         self.channels = channels
         self.interleaved = interleaved
-        // Load Deepgram API key from environment variables
-        if let key = ProcessInfo.processInfo.environment["DEEPGRAM_API_KEY"] {
-            self.deepgramKey = key
-        } else {
+
+        guard let key = ProcessInfo.processInfo.environment["DEEPGRAM_API_KEY"] else {
             fatalError("Deepgram API Key not found.")
         }
-        
-        socket.delegate = self // Allow SpeechProcessor to receive WebSocket information
+        self.deepgramKey = key
+
+        socket.delegate = self
         configureAudioSession()
         socket.connect()
         
@@ -143,8 +151,7 @@ class SpeechProcessor: WebSocketDelegate {
             }
             DispatchQueue.main.async {
                 do {
-                    try session.setCategory(.playAndRecord,
-                                            options: [.duckOthers, .allowBluetooth])
+                    try session.setCategory(.playAndRecord, options: [.duckOthers, .allowBluetooth])
                     try session.setMode(.measurement)
                     try session.setActive(true, options: [])
                     
@@ -197,8 +204,10 @@ class SpeechProcessor: WebSocketDelegate {
         let inputNode = audioEngine.inputNode
         let nativeFormat = inputNode.inputFormat(forBus: 0)
 
-        guard nativeFormat.channelCount > 0, nativeFormat.sampleRate > 0 else {
-            logger.error("Invalid native input format.")
+        let channelCount = nativeFormat.channelCount
+        let sr = nativeFormat.sampleRate
+        guard channelCount > 0, sr > 0 else {
+            logger.error("Invalid native input format — channels: \(channelCount), sampleRate: \(sr)")
             return
         }
         
@@ -251,8 +260,7 @@ class SpeechProcessor: WebSocketDelegate {
         let format = buffer.format
         let frameLength = Int(buffer.frameLength)
         let channels = Int(format.channelCount)
-        
-        // If format is already Int16 (rare), handle differently — typical is .pcmFormatFloat32
+
         guard format.commonFormat == .pcmFormatFloat32,
             let floatChannelData = buffer.floatChannelData else {
             // Implement other conversions if needed
@@ -269,15 +277,13 @@ class SpeechProcessor: WebSocketDelegate {
                 sampleSum += floatChannelData[ch][frameIndex]
             }
             let avg = sampleSum / Float(channels)
-            // clamp and convert to Int16 little-endian
             let clipped = max(-1.0, min(1.0, avg))
             let intSample = Int16(clipped * Float(Int16.max))
             interleavedMono.append(intSample)
         }
-        
-        // Create Data from Int16 array (little-endian)
-        return interleavedMono.withUnsafeBufferPointer { bufferPtr in
-            Data(buffer: bufferPtr)
+
+        return interleavedMono.withUnsafeBufferPointer { ptr in
+            Data(buffer: ptr)
         }
     }
             
@@ -305,13 +311,21 @@ class SpeechProcessor: WebSocketDelegate {
             
     // Parses Deepgram JSON and sends transcript chunks to delegate
     public func processJSON(data: Data) {
+        // ✅ Ignore non-Results frames so we don't spam decode errors and lose context.
+        if let envelope = try? JSONDecoder().decode(DeepgramEnvelope.self, from: data),
+           let type = envelope.type,
+           type != "Results" {
+            return
+        }
+
         do {
             let response = try JSONDecoder().decode(DeepgramResponse.self, from: data)
             guard let alternatives = response.channel?.alternatives else { return }
-            
+
+            let finalFlag = response.is_final ?? false
+
             for alt in alternatives {
                 if let words = alt.words, !words.isEmpty {
-                    // Build sentences per speaker with start/end timestamps
                     var speakerSentences: [String: (text: String, start: Double?, end: Double?)] = [:]
                     
                     for wordInfo in words {
@@ -322,19 +336,13 @@ class SpeechProcessor: WebSocketDelegate {
                             entry.end = wordInfo.end
                             speakerSentences[speakerID] = entry
                         } else {
-                            speakerSentences[speakerID] = (
-                                text: wordInfo.word + " ",
-                                start: wordInfo.start,
-                                end: wordInfo.end
-                            )
+                            speakerSentences[speakerID] = (text: wordInfo.word + " ", start: wordInfo.start, end: wordInfo.end)
                         }
                     }
                     
                     for (speakerID, entry) in speakerSentences {
                         let trimmedText = entry.text.trimmingCharacters(in: .whitespaces)
                         guard !trimmedText.isEmpty else { continue }
-                        
-                        artifacts?.logEvent(type: "TRANSCRIPT", message: "[\(speakerID)] \(trimmedText)")
                         conversation[speakerID, default: []].append(trimmedText)
                         
                         // Notify delegate – treat every sentence as final
@@ -343,7 +351,7 @@ class SpeechProcessor: WebSocketDelegate {
                             start_time: entry.start,
                             end_time: entry.end,
                             text: trimmedText,
-                            isFinal: true
+                            isFinal: finalFlag
                         )
                         delegate?.speechProcessor(self, didReceiveChunk: chunk)
                         logger.info("Speaker: \(speakerID, privacy: .public), Sentence: \(trimmedText, privacy: .public)")
@@ -359,7 +367,7 @@ class SpeechProcessor: WebSocketDelegate {
                         start_time: nil,
                         end_time: nil,
                         text: transcript,
-                        isFinal: true
+                        isFinal: finalFlag
                     )
                     delegate?.speechProcessor(self, didReceiveChunk: chunk)
                     logger.info("Speaker: \(speakerID, privacy: .public), Sentence: \(transcript, privacy: .public)")
