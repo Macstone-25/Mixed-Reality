@@ -150,8 +150,7 @@ final class PromptGenerator {
         // Include non-final chunks too (finals may be sparse with interim_results=true),
         // but cap to the last 12 lines to avoid noisy repetition.
         let filtered = chunks
-            .filter { !$0.isEmptyText }
-            .suffix(12)
+            .filter { $0.isFinal && !$0.isEmptyText }
             .map { "[\($0.speakerID)] \($0.text.trimmingCharacters(in: .whitespacesAndNewlines))" }
 
         if filtered.isEmpty { return "" }
