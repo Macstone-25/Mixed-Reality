@@ -1,0 +1,36 @@
+//
+//  LLMServiceProtocol.swift
+//  MixedReality
+//
+//  Created by William Clubine on 2026-01-30.
+//
+
+import Foundation
+import OSLog
+
+class LLMService : LLMGenerator {
+    private let artifacts: ArtifactService
+    private let experiment: ExperimentModel
+    private let llmProvider: any LLMProvider
+    
+    private let logger = Logger(subsystem: "LLMService", category: "Services")
+    
+    init(artifacts: ArtifactService, experiment: ExperimentModel) {
+        self.artifacts = artifacts
+        self.experiment = experiment
+        
+        switch experiment.llm {
+        case .openAI(let model):
+            self.llmProvider = OpenAIProvider(artifacts: artifacts, experiment: experiment, model: model)
+        }
+    }
+    
+    func generate(systemPrompt: String, userPrompt: String) async throws -> String {
+        do {
+            return try await llmProvider.generate(systemPrompt: systemPrompt, userPrompt: userPrompt)
+        } catch {
+            await artifacts.logEvent(type: "LLM", message: "Error: \(error.localizedDescription)")
+            throw error
+        }
+    }
+}

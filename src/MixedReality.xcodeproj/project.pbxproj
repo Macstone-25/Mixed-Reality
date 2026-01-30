@@ -8,6 +8,8 @@
 
 /* Begin PBXBuildFile section */
 		538161D52EC62A5C00C0F590 /* Starscream in Frameworks */ = {isa = PBXBuildFile; productRef = 538161D42EC62A5C00C0F590 /* Starscream */; };
+		FA989BCD2F2D6DC0004C4180 /* Collections in Frameworks */ = {isa = PBXBuildFile; productRef = FA989BCC2F2D6DC0004C4180 /* Collections */; };
+		FA989BCF2F2D6DC0004C4180 /* DequeModule in Frameworks */ = {isa = PBXBuildFile; productRef = FA989BCE2F2D6DC0004C4180 /* DequeModule */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXContainerItemProxy section */
@@ -64,20 +66,15 @@
 			isa = PBXFrameworksBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
+				FA989BCD2F2D6DC0004C4180 /* Collections in Frameworks */,
 				538161D52EC62A5C00C0F590 /* Starscream in Frameworks */,
+				FA989BCF2F2D6DC0004C4180 /* DequeModule in Frameworks */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
 /* End PBXFrameworksBuildPhase section */
 
 /* Begin PBXGroup section */
-		538161F72EC640FB00C0F590 /* Frameworks */ = {
-			isa = PBXGroup;
-			children = (
-			);
-			name = Frameworks;
-			sourceTree = "<group>";
-		};
 		9B64710E2ECD3D7B0032BC9D /* Products */ = {
 			isa = PBXGroup;
 			name = Products;
@@ -87,9 +84,7 @@
 			isa = PBXGroup;
 			children = (
 				9B9B4CB42EB2E29700073840 /* MixedReality */,
-				9B9B4CB52EB2E29700073840 /* Packages */,
 				9B64712D2ECD408D0032BC9D /* MixedRealityTests */,
-				538161F72EC640FB00C0F590 /* Frameworks */,
 				9B9B4CB32EB2E29700073840 /* Products */,
 			);
 			sourceTree = "<group>";
@@ -101,13 +96,6 @@
 				9B64712C2ECD408D0032BC9D /* MixedRealityTests.xctest */,
 			);
 			name = Products;
-			sourceTree = "<group>";
-		};
-		9B9B4CB52EB2E29700073840 /* Packages */ = {
-			isa = PBXGroup;
-			children = (
-			);
-			path = Packages;
 			sourceTree = "<group>";
 		};
 /* End PBXGroup section */
@@ -154,6 +142,8 @@
 			name = MixedReality;
 			packageProductDependencies = (
 				538161D42EC62A5C00C0F590 /* Starscream */,
+				FA989BCC2F2D6DC0004C4180 /* Collections */,
+				FA989BCE2F2D6DC0004C4180 /* DequeModule */,
 			);
 			productName = MixedReality;
 			productReference = 9B9B4CB22EB2E29700073840 /* MRCS.app */;
@@ -189,6 +179,7 @@
 			minimizedProjectReferenceProxies = 1;
 			packageReferences = (
 				538161D32EC62A5C00C0F590 /* XCRemoteSwiftPackageReference "Starscream" */,
+				FA989BCB2F2D6DC0004C4180 /* XCRemoteSwiftPackageReference "swift-collections" */,
 			);
 			preferredProjectObjectVersion = 77;
 			productRefGroup = 9B9B4CB32EB2E29700073840 /* Products */;
@@ -510,6 +501,14 @@
 				minimumVersion = 4.0.8;
 			};
 		};
+		FA989BCB2F2D6DC0004C4180 /* XCRemoteSwiftPackageReference "swift-collections" */ = {
+			isa = XCRemoteSwiftPackageReference;
+			repositoryURL = "https://github.com/apple/swift-collections.git";
+			requirement = {
+				kind = upToNextMajorVersion;
+				minimumVersion = 1.3.0;
+			};
+		};
 /* End XCRemoteSwiftPackageReference section */
 
 /* Begin XCSwiftPackageProductDependency section */
@@ -517,6 +516,16 @@
 			isa = XCSwiftPackageProductDependency;
 			package = 538161D32EC62A5C00C0F590 /* XCRemoteSwiftPackageReference "Starscream" */;
 			productName = Starscream;
+		};
+		FA989BCC2F2D6DC0004C4180 /* Collections */ = {
+			isa = XCSwiftPackageProductDependency;
+			package = FA989BCB2F2D6DC0004C4180 /* XCRemoteSwiftPackageReference "swift-collections" */;
+			productName = Collections;
+		};
+		FA989BCE2F2D6DC0004C4180 /* DequeModule */ = {
+			isa = XCSwiftPackageProductDependency;
+			package = FA989BCB2F2D6DC0004C4180 /* XCRemoteSwiftPackageReference "swift-collections" */;
+			productName = DequeModule;
 		};
 /* End XCSwiftPackageProductDependency section */
 	};

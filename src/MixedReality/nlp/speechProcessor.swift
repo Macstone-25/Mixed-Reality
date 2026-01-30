@@ -66,7 +66,7 @@ class SpeechProcessor: WebSocketDelegate {
     private var assetWriter: AVAssetWriter?
     private var assetWriterInput: AVAssetWriterInput?
     private var isRecording = false
-    private let artifacts: ArtifactCollector?
+    private let artifacts: ArtifactService?
     private var eventsHandle: FileHandle?
     private let processingQueue = DispatchQueue(label: "com.speech.processor.write", qos: .userInitiated)
 
@@ -99,7 +99,7 @@ class SpeechProcessor: WebSocketDelegate {
 
     weak var delegate: SpeechProcessorDelegate?
     
-    init(artifacts: ArtifactCollector? = nil, sampleRate: Double = 48000, channels: AVAudioChannelCount = 1, interleaved: Bool = true) {
+    init(artifacts: ArtifactService? = nil, sampleRate: Double = 48000, channels: AVAudioChannelCount = 1, interleaved: Bool = true) {
         self.artifacts = artifacts
         self.sampleRate = sampleRate
         self.channels = channels

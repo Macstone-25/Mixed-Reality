@@ -20,10 +20,6 @@ class AppModel: SpeechProcessorDelegate {
     
     var lastSessionError: String?
 
-
-    // MARK: - Auto primary detection
-    var primarySpeakerID: String = "user"
-
     // MARK: - Trigger / intervention pipeline
     private var triggerService = TriggerDemoService(useLLM: false)
     
