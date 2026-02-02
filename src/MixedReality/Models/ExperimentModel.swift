@@ -7,6 +7,7 @@ import Foundation
 
 enum ExperimentError: Error {
     case insufficientOptions(String)
+    case jsonError(String)
 }
 
 struct ExperimentModel: Encodable {
@@ -62,6 +63,13 @@ struct ExperimentModel: Encodable {
         self.triggerDelayMs = Int.random(in: (config.minTriggerDelayMs...config.maxTriggerDelayMs))
         self.triggerCooldown = Double(Int.random(in: (config.minTriggerCooldownMs...config.maxTriggerCooldownMs))) / 1000
         self.pauseDurationMs = Int.random(in: (config.minPauseDetectionMs...config.maxPauseDetectionMs))
+    }
+    
+    func toJsonData() throws -> Data {
+        let encoder = JSONEncoder()
+        encoder.keyEncodingStrategy = .convertToSnakeCase
+        encoder.outputFormatting = [.prettyPrinted, .sortedKeys]
+        return try encoder.encode(self)
     }
 }
 
