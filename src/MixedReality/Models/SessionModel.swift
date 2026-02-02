@@ -4,6 +4,7 @@
 //
 
 import Foundation
+import Combine
 import OSLog
 
 class SessionModel {
@@ -19,6 +20,8 @@ class SessionModel {
     private let triggerService: TriggerService
     private let promptService: PromptService
     
+    private var sinks = Set<AnyCancellable>()
+    
     var onPrompt: ((String) -> (Void))?
     
     init(config: ConfigModel) async throws {
@@ -32,21 +35,42 @@ class SessionModel {
         self.llm = LLMService(artifacts: self.artifacts, experiment: experiment, llm: experiment.llm)
         self.miniLLM = LLMService(artifacts: self.artifacts, experiment: experiment, llm: experiment.miniLLM)
         self.speechService = try await SpeechService(artifacts: self.artifacts, experiment: experiment, config: DeepgramConfig())
-        self.triggerService = TriggerService(artifacts: self.artifacts, experiment: experiment, speechService: self.speechService, miniLLM: self.miniLLM)
+        self.triggerService = await TriggerService(artifacts: self.artifacts, experiment: experiment, speechService: self.speechService, miniLLM: self.miniLLM)
         self.promptService = PromptService(artifacts: self.artifacts, experiment: experiment, llm: self.llm, speechService: self.speechService)
-        
+    }
+    
+    func start() async throws {
         await self.artifacts.logEvent(type: "Session", message: "Session starting...")
         await self.artifacts.logEvent(type: "Experiment", message: "\(experiment)")
+
+        // Connect TriggerService to SpeechService
+        sinks.insert(
+            speechService.transcriptChunkEvent
+                .sink { chunk in
+                    Task { [weak self] in
+                        guard let self = self else { return }
+                        await self.triggerService.handleTranscriptChunk(chunk: chunk)
+                    }
+                }
+        )
         
-        self.triggerService.onTrigger = { [weak self] event in
-            guard let self = self, let onPrompt = self.onPrompt else {
-                self?.logger.warning("Dropping trigger \(event.id), no prompt callback set")
-                return
-            }
-            
+        // Connect PromptService to TriggerService
+        await self.triggerService.setOnTrigger { [weak self] event in
             Task {
-                onPrompt(await self.promptService.generatePrompt(eventId: event.id))
+                guard let self = self else { return }
+                
                 // TODO: Automatically clear prompt (#53) - make sure to use eventId to avoid clearing prompts overwriting this one
+                let prompt = await self.promptService.generatePrompt(eventId: event.id)
+                
+                await MainActor.run { [weak self] in
+                    guard let self = self else { return }
+                    guard let onPrompt = self.onPrompt else {
+                        self.logger.warning("Dropping trigger \(event.id), no prompt callback set")
+                        return
+                    }
+                    
+                    onPrompt(prompt)
+                }
             }
         }
         

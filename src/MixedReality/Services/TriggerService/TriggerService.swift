@@ -14,7 +14,7 @@ enum TriggerEvaluationStrategy: Hashable, Encodable {
     // TODO: support llm evaluation (use experiment.miniLLM)
 }
 
-class TriggerService {
+actor TriggerService {
     private let logger = Logger(subsystem: "TriggerService", category: "Services")
     
     private let artifacts: ArtifactService
@@ -25,35 +25,38 @@ class TriggerService {
     private let evaluators: [TriggerEvaluator]
     private var evaluatorContext = Deque<TranscriptChunk>()
     private var evaluationTask: Task<Void, Never>?
-    private var sinks = Set<AnyCancellable>()
     
-    var onTrigger: ((InterventionEvent) -> (Void))?
+    private var onTrigger: (@Sendable (InterventionEvent) -> (Void))?
     private var nextEventId: UInt64 = 0
     private var lastEventAt: Date = Date.distantPast
     
-    init(artifacts: ArtifactService, experiment: ExperimentModel, speechService: SpeechService, miniLLM: LLMService) {
+    init(artifacts: ArtifactService, experiment: ExperimentModel, speechService: SpeechService, miniLLM: LLMService) async {
         self.artifacts = artifacts
         self.experiment = experiment
         self.speechService = speechService
         self.miniLLM = miniLLM
         
-        self.evaluators = experiment.triggerEvaluationStrategies.map { strategy in
-            switch(strategy) {
-            case(.pauseEvaluator):
-                return PauseEvaluator(experiment: experiment)
-            case(.fillerEvaluator):
-                return FillerEvaluator()
+        self.evaluators = await MainActor.run {
+            experiment.triggerEvaluationStrategies.map { strategy in
+                switch strategy {
+                case .pauseEvaluator:
+                    return PauseEvaluator(experiment: experiment)
+                case .fillerEvaluator:
+                    return FillerEvaluator()
+                }
             }
         }
         
         for evaluator in evaluators {
             logger.info("Added evaluator: \(String(describing: type(of: evaluator)))")
         }
-
-        sinks.insert(speechService.transcriptChunkEvent.sink(receiveValue: handleTranscriptChunk))
     }
     
-    private func handleTranscriptChunk(chunk: TranscriptChunk) {
+    func setOnTrigger(_ handler: @Sendable @escaping (InterventionEvent) -> Void) {
+        self.onTrigger = handler
+    }
+    
+    func handleTranscriptChunk(chunk: TranscriptChunk) {
         // update context if this is a finalized chunk
         if chunk.isFinal {
             evaluatorContext.append(chunk)
@@ -99,12 +102,13 @@ class TriggerService {
                 // if no intervention reason was found or the task was cancelled, end the evaluation
                 
                 guard let reason = interventionReason else { return }
+                let reasonString = await MainActor.run { reason.description }
                 try Task.checkCancellation()
                 
                 // if an intervention reason was found, we need to trigger an event
                 
-                guard let onTrigger = onTrigger else {
-                    return logger.warning("No trigger callback set, dropping intervention event: \(reason)")
+                guard onTrigger != nil else {
+                    return logger.warning("No trigger callback set, dropping intervention event: \(reasonString)")
                 }
                 
                 var context = Array(evaluatorContext)
@@ -122,13 +126,14 @@ class TriggerService {
                 lastEventAt = event.at
                 nextEventId += 1
                 
-                await artifacts.logEvent(type: "Intervention", message: "(#\(event.id)) \(reason)")
-                onTrigger(event)
+                await artifacts.logEvent(type: "Intervention", message: "(#\(event.id)) \(reasonString)")
+                try Task.checkCancellation()
+                self.onTrigger?(event)
             } catch { }
         }
     }
     
-    deinit() {
+    deinit {
         evaluationTask?.cancel()
     }
 }

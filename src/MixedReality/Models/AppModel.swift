@@ -35,6 +35,7 @@ class AppModel {
         Task {
             do {
                 session = try await SessionModel(config: config)
+                try await session?.start()
                 logger.info("🎧 Session started. Launching immersive space…")
                 activeScene = SceneID.immersiveSpace
             } catch {
