@@ -7,6 +7,11 @@
 import SwiftUI
 import Foundation
 
+enum SceneID: String {
+    case immersiveSpace = "ImmersiveSpace"
+    case windowGroup = "DefaultWindowGroup"
+}
+
 @MainActor
 @Observable
 class AppModel {
@@ -14,6 +19,8 @@ class AppModel {
     var isEndingSession = false
     var isLaunchingSession = false
     var launchError: String?
+    
+    var activeScene: SceneID = SceneID.windowGroup
     
     var config = ConfigModel()
     
@@ -25,14 +32,13 @@ class AppModel {
         Task {
             do {
                 session = try await SessionModel(config: config)
-                print("🎧 Session started. Listening…")
-                isLaunchingSession = false
+                print("🎧 Session started. Launching immersive view…")
+                activeScene = SceneID.immersiveSpace
             } catch {
                 print("❌ Failed to start session: \(error)")
                 launchError = error.localizedDescription
-                isLaunchingSession = false
-                return
             }
+            isLaunchingSession = false
         }
     }
 
@@ -44,7 +50,8 @@ class AppModel {
             await session.end()
             self.session = nil
             print("🛑 Session ended.")
-            isLaunchingSession = false
+            activeScene = SceneID.windowGroup
+            isEndingSession = false
         }
     }
 }

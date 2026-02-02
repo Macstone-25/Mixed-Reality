@@ -2,8 +2,14 @@ import SwiftUI
 import AVFoundation  
 
 struct StartView: View {
-    @Environment(AppModel.self) private var appModel
-    let onStart: () -> Void
+    private let appModel: AppModel
+    
+    @State private var viewModel: StartViewModel
+    
+    init(_ appModel: AppModel) {
+        self.appModel = appModel
+        _viewModel = State(wrappedValue: StartViewModel(appModel: appModel))
+    }
 
     var body: some View {
         VStack(spacing: 24) {
@@ -11,14 +17,16 @@ struct StartView: View {
                 .font(.largeTitle).bold()
                 .multilineTextAlignment(.center)
 
-            Button("Start Session") {
-                requestMicPermission()
+            let isSessionActive = appModel.isLaunchingSession || appModel.session != nil
+            Button(isSessionActive ? "Launching..." : "Start Session") {
+                appModel.startSession()
             }
             .buttonStyle(.borderedProminent)
             .controlSize(.large)
             .accessibilityIdentifier("start-session-button")
+            .disabled(appModel.isLaunchingSession)
 
-            if let error = appModel.lastSessionError {
+            if let error = appModel.launchError {
                 Text(error)
                     .foregroundColor(.red)
                     .font(.footnote)
@@ -27,36 +35,5 @@ struct StartView: View {
             }
         }
         .frame(maxWidth: .infinity, maxHeight: .infinity)
-    }
-
-    private func requestMicPermission() {
-        let session = AVAudioSession.sharedInstance()
-
-        switch session.recordPermission {
-        case .granted:
-            // Already allowed – go ahead and start
-            onStart()
-
-        case .denied:
-            // User has previously denied
-            appModel.lastSessionError =
-            "Microphone access is required. Please enable it in Settings."
-
-        case .undetermined:
-            // First time – ask
-            session.requestRecordPermission { granted in
-                DispatchQueue.main.async {
-                    if granted {
-                        self.onStart()
-                    } else {
-                        self.appModel.lastSessionError =
-                        "Microphone access is required. Please enable it in Settings."
-                    }
-                }
-            }
-
-        @unknown default:
-            appModel.lastSessionError = "Unknown microphone permission state."
-        }
     }
 }
