@@ -42,7 +42,7 @@ class SessionModel {
     func start() async throws {
         await self.artifacts.logEvent(type: "Session", message: "Session starting...")
         await self.artifacts.logEvent(type: "Experiment", message: "\(experiment)")
-
+        
         // Connect TriggerService to SpeechService
         sinks.insert(
             speechService.transcriptChunkEvent
@@ -50,6 +50,17 @@ class SessionModel {
                     Task { [weak self] in
                         guard let self = self else { return }
                         await self.triggerService.handleTranscriptChunk(chunk: chunk)
+                    }
+                }
+        )
+        
+        // Connect PromptService to SpeechService
+        sinks.insert(
+            speechService.transcriptChunkEvent
+                .sink { chunk in
+                    Task { [weak self] in
+                        guard let self = self else { return }
+                        await self.promptService.handleTranscriptChunk(chunk: chunk)
                     }
                 }
         )

@@ -19,7 +19,7 @@ struct ConfigModel {
     var maxTriggerDelayMs: Int = 2000
     
     var minPauseDetectionMs: Int = 2000
-    var maxPauseDetectionMs: Int = 5000
+    var maxPauseDetectionMs: Int = 4000
     
     var minTriggerCooldownMs: Int = 5000
     var maxTriggerCooldownMs: Int = 30000

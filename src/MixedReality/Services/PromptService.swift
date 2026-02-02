@@ -8,15 +8,13 @@ import Collections
 import Combine
 import OSLog
 
-class PromptService {
+actor PromptService {
     private let logger = Logger(subsystem: "PromptService", category: "Services")
     
     private let artifacts: ArtifactService
     private let experiment: ExperimentModel
     private let llm: LLMService
     private let speechService: SpeechService
-    
-    private var sinks = Set<AnyCancellable>()
     
     // TODO: Summarize old transcript lines
     private var summary = ""
@@ -43,29 +41,29 @@ class PromptService {
         self.experiment = experiment
         self.llm = llm
         self.speechService = speechService
-        sinks.insert(speechService.transcriptChunkEvent.sink(receiveValue: handleTranscriptChunk))
     }
     
-    private func handleTranscriptChunk(chunk: TranscriptChunk) {
+    func handleTranscriptChunk(chunk: TranscriptChunk) async {
         guard (chunk.isFinal) else { return }
         
-        self.recentTranscript.append("\(chunk)")
+        let chunkDescription = await MainActor.run { chunk.description }
+        recentTranscript.append(chunkDescription)
         
         // update summary when context is sufficiently large
         if (self.recentTranscript.count == self.experiment.promptContextWindow + self.experiment.summaryContextWindow) {
-            let summaryContext = self.recentTranscript.prefix(self.experiment.summaryContextWindow).joined(separator: "\n")
+            // let summaryContext = self.recentTranscript.prefix(self.experiment.summaryContextWindow).joined(separator: "\n")
             self.recentTranscript.removeFirst(self.experiment.summaryContextWindow)
             logger.info("Summarizing first \(self.experiment.summaryContextWindow) lines")
-            // TODO: Summarize old transcript lines
+            // TODO: Summarize old transcript lines with summaryContext (commented out above)
         }
     }
     
     func generatePrompt(eventId: UInt64) async -> String {
+        logger.info("💡 Generating prompt #\(eventId) from \(self.recentTranscript.count) transcript lines")
         let promptContext = self.recentTranscript.joined(separator: "\n")
-        logger.info("💡 (#\(eventId)) Generating prompt from \(self.recentTranscript.count) transcript lines")
         do {
-            // TODO: Include old transcript summary
             let start = CFAbsoluteTimeGetCurrent()
+            // TODO: Include old transcript summary
             let prompt = try await self.llm.generate(systemPrompt: Self.systemPrompt, userPrompt: promptContext)
             let end = CFAbsoluteTimeGetCurrent()
             let duration = String(format: "%.1f", end - start)
