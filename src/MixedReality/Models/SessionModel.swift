@@ -14,6 +14,7 @@ class SessionModel {
     private let experiment: ExperimentModel
     private let artifacts: ArtifactService
     private let llm: LLMService
+    private let miniLLM: LLMService
     private let speechService: SpeechService
     private let triggerService: TriggerService
     private let promptService: PromptService
@@ -28,9 +29,10 @@ class SessionModel {
         self.experiment = try ExperimentModel(config: config)
         
         self.artifacts = try ArtifactService(id: id)
-        self.llm = LLMService(artifacts: self.artifacts, experiment: experiment)
+        self.llm = LLMService(artifacts: self.artifacts, experiment: experiment, llm: experiment.llm)
+        self.miniLLM = LLMService(artifacts: self.artifacts, experiment: experiment, llm: experiment.miniLLM)
         self.speechService = try await SpeechService(artifacts: self.artifacts, experiment: experiment, config: DeepgramConfig())
-        self.triggerService = TriggerService(artifacts: self.artifacts, experiment: experiment, speechService: self.speechService)
+        self.triggerService = TriggerService(artifacts: self.artifacts, experiment: experiment, speechService: self.speechService, miniLLM: self.miniLLM)
         self.promptService = PromptService(artifacts: self.artifacts, experiment: experiment, llm: self.llm, speechService: self.speechService)
         
         await self.artifacts.logEvent(type: "Session", message: "Session starting...")

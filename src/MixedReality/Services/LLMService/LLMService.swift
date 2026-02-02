@@ -17,11 +17,11 @@ class LLMService : LLMGenerator {
     
     private let logger = Logger(subsystem: "LLMService", category: "Services")
     
-    init(artifacts: ArtifactService, experiment: ExperimentModel) {
+    init(artifacts: ArtifactService, experiment: ExperimentModel, llm: LLMConfig) {
         self.artifacts = artifacts
         self.experiment = experiment
         
-        switch experiment.llm {
+        switch llm {
         case .openAI(let model):
             self.llmProvider = OpenAIProvider(artifacts: artifacts, experiment: experiment, model: model)
         }

@@ -20,6 +20,7 @@ class TriggerService {
     private let artifacts: ArtifactService
     private let experiment: ExperimentModel
     private let speechService: SpeechService
+    private let miniLLM: LLMService
     
     private let evaluators: [TriggerEvaluator]
     private var evaluatorContext = Deque<TranscriptChunk>()
@@ -29,10 +30,11 @@ class TriggerService {
     var onTrigger: ((InterventionEvent) -> (Void))?
     private var nextEventId: UInt64 = 0
     
-    init(artifacts: ArtifactService, experiment: ExperimentModel, speechService: SpeechService) {
+    init(artifacts: ArtifactService, experiment: ExperimentModel, speechService: SpeechService, miniLLM: LLMService) {
         self.artifacts = artifacts
         self.experiment = experiment
         self.speechService = speechService
+        self.miniLLM = miniLLM
         
         self.evaluators = experiment.triggerEvaluationStrategies.map { strategy in
             switch(strategy) {
