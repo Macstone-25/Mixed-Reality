@@ -10,7 +10,7 @@ struct InterventionEvent: Identifiable, Sendable, Codable {
     /// Stable identity for SwiftUI lists, logging, etc.
     let id: UInt64
 
-    /// Wall-clock time when the intervention occured.
+    /// Wall-clock time when the intervention occurred.
     let at: Date
     
     /// The reason behind the decision.

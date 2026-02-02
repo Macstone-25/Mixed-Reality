@@ -1,4 +1,5 @@
 import SwiftUI
+import OSLog
 
 @main
 struct MixedRealityApp: App {
@@ -23,16 +24,16 @@ struct MixedRealityApp: App {
                     let result = await openImmersiveSpace(id: SceneID.immersiveSpace.rawValue)
                     switch result {
                     case .opened:
-                        print("Opened immersive space")
+                        appModel.logger.info("Opened immersive space")
                         dismissWindow(id: SceneID.windowGroup.rawValue)
                     default:
-                        print("Failed to open immersive space")
+                        appModel.logger.error("Failed to open immersive space")
                         appModel.endSession()
                     }
                 case(.windowGroup):
                     await dismissImmersiveSpace()
                     openWindow(id: SceneID.windowGroup.rawValue)
-                    print("Dismissed immersive space")
+                    appModel.logger.info("Dismissed immersive space")
                 }
             }
         }

@@ -30,11 +30,11 @@ class FillerEvaluator: TriggerEvaluator {
         guard context.suffix(chunksToCheck).allSatisfy({ $0.endsWithFiller }) else { return nil }
         
         var fillers = context.suffix(chunksToCheck).map({
-            $0.plainText.components(separatedBy: CharacterSet.whitespacesAndNewlines).last!
+            $0.plainText.components(separatedBy: CharacterSet.whitespacesAndNewlines).last ?? ""
         })
         
         if chunk != context.last {
-            fillers.append(chunk.plainText.components(separatedBy: CharacterSet.whitespacesAndNewlines).last!)
+            fillers.append(chunk.plainText.components(separatedBy: CharacterSet.whitespacesAndNewlines).last ?? "")
         }
         
         return InterventionReason.filler(words: fillers.joined(separator: ", "))

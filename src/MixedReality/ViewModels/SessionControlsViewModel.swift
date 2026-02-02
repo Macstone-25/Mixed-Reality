@@ -1,5 +1,5 @@
 //
-//  SessionViewModel.swift
+//  SessionControlsViewModel.swift
 //  MixedReality
 //
 

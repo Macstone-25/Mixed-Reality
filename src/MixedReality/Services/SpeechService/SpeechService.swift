@@ -250,7 +250,7 @@ class SpeechService: WebSocketDelegate {
                 socket.write(string: jsonString)
             }
         } catch {
-            print("Failed to encode KeepAlive message: \(error)")
+            logger.warning("Failed to encode KeepAlive message: \(error)")
         }
     }
     
@@ -316,7 +316,7 @@ class SpeechService: WebSocketDelegate {
                 speakerID: speakerID,
                 isFinal: results.is_final,
                 startAt: entry.start,
-                endAt: entry.end,
+                endAt: entry.end
             )
             
             let logMessage = "(\(chunk.startAt) - \(chunk.endAt)) \(chunk)"

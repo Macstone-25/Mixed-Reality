@@ -34,6 +34,7 @@ public struct TranscriptChunk: Sendable, Codable, Hashable, CustomStringConverti
             .components(separatedBy: CharacterSet.punctuationCharacters)
             .joined()
             .components(separatedBy: CharacterSet.whitespacesAndNewlines)
+            .filter({ !$0.isEmpty })
             .joined(separator: " ")
             .lowercased()
     }
@@ -42,6 +43,7 @@ public struct TranscriptChunk: Sendable, Codable, Hashable, CustomStringConverti
     public var wordCount: Int {
         plainText
             .components(separatedBy: CharacterSet.whitespacesAndNewlines)
+            .filter({ !$0.isEmpty })
             .count
     }
 

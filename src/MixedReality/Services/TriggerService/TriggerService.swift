@@ -127,5 +127,9 @@ class TriggerService {
             } catch { }
         }
     }
+    
+    deinit() {
+        evaluationTask?.cancel()
+    }
 }
 

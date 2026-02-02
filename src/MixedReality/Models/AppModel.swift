@@ -6,6 +6,7 @@
 
 import SwiftUI
 import Foundation
+import OSLog
 
 enum SceneID: String {
     case immersiveSpace = "ImmersiveSpace"
@@ -15,6 +16,8 @@ enum SceneID: String {
 @MainActor
 @Observable
 class AppModel {
+    let logger = Logger()
+    
     var session: SessionModel?
     var isEndingSession = false
     var isLaunchingSession = false
@@ -32,10 +35,10 @@ class AppModel {
         Task {
             do {
                 session = try await SessionModel(config: config)
-                print("🎧 Session started. Launching immersive space…")
+                logger.info("🎧 Session started. Launching immersive space…")
                 activeScene = SceneID.immersiveSpace
             } catch {
-                print("❌ Failed to start session: \(error)")
+                logger.error("❌ Failed to start session: \(error)")
                 launchError = error.localizedDescription
             }
             isLaunchingSession = false
@@ -49,7 +52,7 @@ class AppModel {
         Task {
             await session.end()
             self.session = nil
-            print("🛑 Session ended.")
+            logger.info("🛑 Session ended.")
             activeScene = SceneID.windowGroup
             isEndingSession = false
         }

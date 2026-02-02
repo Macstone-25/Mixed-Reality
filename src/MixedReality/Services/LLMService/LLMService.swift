@@ -1,5 +1,5 @@
 //
-//  LLMServiceProtocol.swift
+//  LLMService.swift
 //  MixedReality
 //
 
