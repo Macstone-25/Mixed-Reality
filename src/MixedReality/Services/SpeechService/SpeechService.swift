@@ -159,9 +159,10 @@ class SpeechService: WebSocketDelegate {
     }
     
     /// Disconnect from Deepgram WebSocket and deactivate microphone
-    func disconnect() async throws {
+    func disconnect() async {
         guard isConnected == true else {
-            throw SpeechServiceError.runtimeError("Already disconnected")
+            logger.error("Already disconnected")
+            return
         }
         
         await artifacts.logEvent(type: "SpeechService", message: "Disconnecting...")
