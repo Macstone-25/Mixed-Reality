@@ -49,7 +49,7 @@ class PromptService {
     private func handleTranscriptChunk(chunk: TranscriptChunk) {
         guard (chunk.isFinal) else { return }
         
-        self.recentTranscript.append("[\(chunk.speakerID)] \(chunk.text.trimmingCharacters(in: .whitespacesAndNewlines))")
+        self.recentTranscript.append("\(chunk)")
         
         // update summary when context is sufficiently large
         if (self.recentTranscript.count == self.experiment.promptContextWindow + self.experiment.summaryContextWindow) {
@@ -60,7 +60,7 @@ class PromptService {
         }
     }
     
-    func generatePrompt(eventId: UUID) async -> String {
+    func generatePrompt(eventId: UInt64) async -> String {
         let promptContext = self.recentTranscript.joined(separator: "\n")
         logger.info("💡 (\(eventId)) Generating prompt from \(self.recentTranscript.count) transcript lines")
         do {

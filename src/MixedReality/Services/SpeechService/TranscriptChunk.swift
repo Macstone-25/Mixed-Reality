@@ -5,7 +5,7 @@
 import Foundation
 
 /// One piece of transcript coming from ASR (partial or final).
-public struct TranscriptChunk: Sendable, Codable, Hashable {
+public struct TranscriptChunk: Sendable, Codable, Hashable, CustomStringConvertible {
     /// The speech recognized for this chunk.
     public let text: String
     
@@ -22,6 +22,11 @@ public struct TranscriptChunk: Sendable, Codable, Hashable {
 
     /// Duration of the audio covered by this chunk.
     public var duration: TimeInterval { endAt - startAt }
+    
+    /// A "[Speaker:ID]: text" formatted string for easy logging.
+    public var description: String {
+        "[\(speakerID)]: \"\(text)\""
+    }
     
     /// The text in lowercase without any punctuation.
     public var plainText: String {

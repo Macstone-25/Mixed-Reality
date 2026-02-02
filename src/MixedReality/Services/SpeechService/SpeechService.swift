@@ -44,7 +44,6 @@ enum SpeechServiceError: Error {
     case permissionError(String)
 }
 
-@MainActor
 class SpeechService: WebSocketDelegate {
     private let logger = Logger(subsystem: "SpeechService", category: "Services")
     
@@ -287,7 +286,15 @@ class SpeechService: WebSocketDelegate {
                 endAt: entry.end,
             )
             
-            logger.info("\(chunk.isFinal ? "✅" : "❓") [\(chunk.speakerID)]: \(chunk.text)")
+            if chunk.isFinal {
+                logger.info("✅ \(chunk)")
+                Task {
+                    await artifacts.logEvent(type: "Transcript", message: "(\(chunk.startAt) - \(chunk.endAt)) \(chunk)")
+                }
+            } else {
+                logger.info("❓ \(chunk)")
+            }
+            
             transcriptChunkEvent.send(chunk)
         }
     }
