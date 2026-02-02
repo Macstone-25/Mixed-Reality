@@ -2,8 +2,6 @@
 //  SpeechService.swift
 //  MixedReality
 //
-//  Created by William Clubine on 2026-01-30.
-//
 
 import Foundation
 import Combine
@@ -39,36 +37,6 @@ private struct DeepgramResults: Codable {
     }
 }
 
-struct DeepgramConfig {
-    /// https://developers.deepgram.com/docs/model
-    let model: String = "nova-3"
-    
-    /// https://developers.deepgram.com/docs/language
-    let language: String = "en"
-    
-    /// https://developers.deepgram.com/docs/channels
-    let channels: AVAudioChannelCount = 1
-    
-    /// https://developers.deepgram.com/docs/endpointing
-    let endpointingMs: Int = 500
-    
-    /// https://developers.deepgram.com/docs/diarization
-    let diarize: Bool = true
-    
-    /// https://developers.deepgram.com/docs/punctuation
-    let punctuate: Bool = true
-    
-    /// https://developers.deepgram.com/docs/filler-words
-    let fillerWords: Bool = true
-    
-    /// https://developers.deepgram.com/docs/interim-results
-    let interimResults: Bool = true
-    
-    /// https://developers.deepgram.com/docs/speech-started
-    /// Note: VAD messages are currently ignored by SpeechService
-    let vadEvents: Bool = false
-}
-
 enum SpeechServiceError: Error {
     case configError(String)
     case apiError(String)
@@ -76,6 +44,7 @@ enum SpeechServiceError: Error {
     case permissionError(String)
 }
 
+@MainActor
 class SpeechService: WebSocketDelegate {
     private let logger = Logger(subsystem: "SpeechService", category: "Services")
     
@@ -95,7 +64,7 @@ class SpeechService: WebSocketDelegate {
     private let assetWriter: AVAssetWriter
     private let assetWriterInput: AVAssetWriterInput
     
-    private let processingQueue = DispatchQueue(label: "com.speech.processor.write", qos: .userInitiated)
+    private let processingQueue = DispatchQueue(label: "SpeechService", qos: .userInitiated)
     private let jsonDecoder = JSONDecoder()
     
     init(artifacts: ArtifactService, experiment: ExperimentModel, config: DeepgramConfig) async throws {
@@ -323,3 +292,4 @@ class SpeechService: WebSocketDelegate {
         }
     }
 }
+

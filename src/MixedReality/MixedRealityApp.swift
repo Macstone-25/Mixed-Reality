@@ -1,23 +1,23 @@
 import SwiftUI
 
+enum SceneID: String {
+    case immersiveSpace = "ImmersiveSpace"
+    case windowGroup = "DefaultWindowGroup"
+}
+
 @main
 struct MixedRealityApp: App {
     @State private var appModel = AppModel()
     
     var body: some Scene {
-        WindowGroup(id: appModel.windowGroupId) {
-            // ORIGINAL (temporarily disabled for testing):
+        WindowGroup(id: SceneID.windowGroup.rawValue) {
              ContentView()
                  .environment(appModel)
-
-            // TEST VIEW (enable this to exercise the trigger engine demo):
-//            TriggerDemoView(useLLM: false)   // flip to true to test LLM-augmented mode
-//                .environment(appModel)
         }
         .defaultSize(CGSize(width: 600, height: 350))
 
         // Immersive space left as-is (not used by the demo window)
-        ImmersiveSpace(id: appModel.immersiveSpaceId) {
+        ImmersiveSpace(id: SceneID.immersiveSpace.rawValue) {
             ImmersiveView()
                 .environment(appModel)
         }

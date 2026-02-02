@@ -2,11 +2,13 @@
 //  LLMServiceProtocol.swift
 //  MixedReality
 //
-//  Created by William Clubine on 2026-01-30.
-//
 
 import Foundation
 import OSLog
+
+enum LLMConfig: Hashable, Encodable {
+    case openAI(OpenAIModel)
+}
 
 class LLMService : LLMGenerator {
     private let artifacts: ArtifactService

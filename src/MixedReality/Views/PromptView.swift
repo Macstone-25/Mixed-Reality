@@ -2,8 +2,6 @@
 //  PromptView.swift
 //  MixedReality
 //
-//  Created by William Clubine on 2025-11-14.
-//
 
 import SwiftUI
 

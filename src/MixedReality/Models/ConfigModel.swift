@@ -2,23 +2,36 @@
 //  ConfigModel.swift
 //  MixedReality
 //
-//  Created by William Clubine on 2026-01-30.
-//
 
 import Foundation
 
-enum LLMConfig: Hashable, Encodable {
-    case openAI(OpenAIModel)
-}
-
 struct ConfigModel {
-    var minimumPromptContextWindow: Int = 5
-    var maximumPromptContextWindow: Int = 50
+    var minPromptContextWindow: Int = 5
+    var maxPromptContextWindow: Int = 50
     
-    var minimumSummaryContextWindow: Int = 3
-    var maximumSummaryContextWindow: Int = 10
+    var minSummaryContextWindow: Int = 3
+    var maxSummaryContextWindow: Int = 10
+    
+    var minTriggerContext: Int = 4
+    var maxTriggerContext: Int = 10
+    
+    var minTriggerDelayMs: Int = 500
+    var maxTriggerDelayMs: Int = 1500
+    
+    var minPauseDetectionMs: Int = 1000
+    var maxPauseDetectionMs: Int = 4000
+    
+    var minTriggerEvaluators: Int = 1
+    var selectedTriggerEvaluationStrategies: Set<TriggerEvaluationStrategy> = [
+        .pauseEvaluator,
+        .fillerEvaluator
+    ]
     
     var selectedLLMs: Set<LLMConfig> = [
+        .openAI(.gpt_4_1_mini)
+    ]
+    
+    var selectedMiniLLMs: Set<LLMConfig> = [
         .openAI(.gpt_4_1_mini)
     ]
 }

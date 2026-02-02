@@ -8,10 +8,13 @@ import Foundation
 public struct TranscriptChunk: Sendable, Codable, Hashable {
     /// The speech recognized for this chunk.
     public let text: String
+    
     /// The diarized speaker for this chunk (volatile).
     public let speakerID: String
+    
     /// Whether this chunk is a finalized segment (as opposed to a partial speech fragment).
     public let isFinal: Bool
+    
     /// When this chunk’s audio began.
     public let startAt: Double
     /// When this chunk’s audio ended.
@@ -19,38 +22,40 @@ public struct TranscriptChunk: Sendable, Codable, Hashable {
 
     /// Duration of the audio covered by this chunk.
     public var duration: TimeInterval { endAt - startAt }
+    
+    /// The text in lowercase without any punctuation.
+    public var plainText: String {
+        text
+            .components(separatedBy: CharacterSet.punctuationCharacters)
+            .joined()
+            .components(separatedBy: CharacterSet.whitespacesAndNewlines)
+            .joined(separator: " ")
+            .lowercased()
+    }
 
     /// Number of words (simple whitespace split).
     public var wordCount: Int {
-        return text
-            .components(separatedBy: CharacterSet.whitespaces)
+        plainText
+            .components(separatedBy: CharacterSet.whitespacesAndNewlines)
             .count
     }
 
     /// A list of words classified as fillers / hesitation.
+    /// https://developers.deepgram.com/docs/filler-words
     private static let fillerWords: Set<String> = [
-        "um", "uh", "umm", "hmm", "er", "ah", "like", "you know", "huh"
+        "um", "umm", "uh", "uhh", "oh", "hm", "hmm", "er", "ah", "like", "huh"
     ]
     
     /// True if the chunk is only a filler / hesitation word.
     public var isFiller: Bool {
         // TODO: make this more advanced with a small LLM
-        if TranscriptChunk.fillerWords.contains(text) {
-            return true
-        }
-
-        return false
+        TranscriptChunk.fillerWords.contains(plainText)
     }
 
     /// True if the chunk ends with a filler / hesitation word.
     public var endsWithFiller: Bool {
         // TODO: make this more advanced with a small LLM
-        // Split by whitespace and punctuation, check last token
-        let tokens = text
-            .components(separatedBy: CharacterSet.whitespacesAndNewlines.union(.punctuationCharacters))
-            .filter { !$0.isEmpty }
-
-        guard let lastToken = tokens.last else { return false }
-        return TranscriptChunk.fillerWords.contains(lastToken)
+        TranscriptChunk.fillerWords.contains(plainText.components(separatedBy: CharacterSet.whitespacesAndNewlines).last ?? "")
     }
 }
+

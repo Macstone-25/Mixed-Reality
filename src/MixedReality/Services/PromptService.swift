@@ -2,8 +2,6 @@
 //  PromptService.swift
 //  MixedReality
 //
-//  Created by William Clubine on 2026-01-30.
-//
 
 import Foundation
 import Collections
@@ -11,12 +9,13 @@ import Combine
 import OSLog
 
 class PromptService {
+    private let logger = Logger(subsystem: "PromptService", category: "Services")
+    
     private let artifacts: ArtifactService
     private let experiment: ExperimentModel
     private let llm: LLMService
     private let speechService: SpeechService
     
-    private let logger = Logger(subsystem: "PromptService", category: "Services")
     private var sinks = Set<AnyCancellable>()
     
     // TODO: Summarize old transcript lines

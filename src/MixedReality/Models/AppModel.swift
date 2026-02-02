@@ -9,16 +9,10 @@ import Foundation
 
 @MainActor
 @Observable
-class AppModel: SpeechProcessorDelegate {
+class AppModel {
 
-    // MARK: - VisionOS Scene identifiers
-    let immersiveSpaceId = "ImmersiveSpace"
-    let windowGroupId = "DefaultWindowGroup"
-
-    // MARK: - State
-    var isSessionActive = false
-    
-    var lastSessionError: String?
+    var launchingSession = false
+    var launchError: String?
 
     // MARK: - Trigger / intervention pipeline
     private var triggerService = TriggerDemoService(useLLM: false)

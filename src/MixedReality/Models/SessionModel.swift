@@ -2,8 +2,6 @@
 //  SessionModel.swift
 //  MixedReality
 //
-//  Created by William Clubine on 2026-01-30.
-//
 
 import Foundation
 import OSLog
@@ -35,14 +33,13 @@ class SessionModel {
         await self.artifacts.logEvent(type: "Session", message: "Session Starting")
         
         self.triggerService.onTrigger = { [weak self] event in
-            guard (self?.onPrompt != nil) else {
+            guard let self = self, let onPrompt = self.onPrompt else {
                 self?.logger.warning("Dropping trigger \(event.id), no prompt callback set")
                 return
             }
             
             Task {
-                let prompt = await self?.promptService.generatePrompt(eventId: event.id)
-                self?.onPrompt?(prompt ?? "")
+                onPrompt(await self.promptService.generatePrompt(eventId: event.id))
                 // TODO: Automatically clear prompt (#53) - make sure to use eventId to avoid clearing prompts overwriting this one
             }
         }
