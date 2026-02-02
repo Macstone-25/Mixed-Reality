@@ -180,7 +180,7 @@ class SpeechService: WebSocketDelegate {
             return
         }
         
-        await artifacts.logEvent(type: "SpeechService", message: "Disconnecting...")
+        logger.info("🔌 Disconnecting SpeechService...")
         isConnected = false
         
         // Disconnect audio engine
@@ -195,7 +195,6 @@ class SpeechService: WebSocketDelegate {
         
         // Disconnect WebSocket
         socket.disconnect(closeCode: 1000)
-        await artifacts.logEvent(type: "SpeechService", message: "WebSocket disconnected")
         
         // Disconnect AssetWriter (and AssetWriterInput)
         await assetWriter.finishWriting()
@@ -204,41 +203,36 @@ class SpeechService: WebSocketDelegate {
         } else {
             await artifacts.logEvent(type: "SpeechService", message: "Audio recording saved to \(assetWriter.outputURL)")
         }
+        
+        logger.info("🛑 SpeechService stopped")
     }
     
     /// Handles WebSocket events: connection, disconnection, incoming messages, and errors
     func didReceive(event: Starscream.WebSocketEvent, client: any Starscream.WebSocketClient) {
-        switch event {
-        case .connected(let headers):
-            Task {
+        Task {
+            switch event {
+            case .connected(let headers):
                 await artifacts.logEvent(type: "Deepgram", message: "WebSocket connected with headers: \(headers)")
-            }
-        case .disconnected(let reason, let code):
-            // TODO: depending on the code, attempt to reconnect
-            Task {
+            case .peerClosed:
+                await artifacts.logEvent(type: "Deepgram", message: "WebSocket closed")
+            case .cancelled:
+                await artifacts.logEvent(type: "Deepgram", message: "WebSocket cancelled")
+            case .disconnected(let reason, let code):
+                // TODO: depending on the code, attempt to reconnect
                 await artifacts.logEvent(type: "Deepgram", message: "WebSocket disconnected (\(code)): \(reason)")
-            }
-        case .text(let text):
-            if let data = text.data(using: .utf8) {
-                do {
-                    try processJSON(data: data)
-                } catch {
-                    Task {
+            case .text(let text):
+                if let data = text.data(using: .utf8) {
+                    do {
+                        try await processJSON(data: data)
+                    } catch {
                         await artifacts.logEvent(type: "Deepgram", message: "Failed to parse Deepgram response: \(error.localizedDescription)")
                     }
                 }
+            case .error(let error):
+                await artifacts.logEvent(type: "Deepgram", message: "WebSocket error: \(error?.localizedDescription ?? "unknown")")
+            default:
+                await artifacts.logEvent(type: "Deepgram", message: "Unhandled WebSocketEvent: \(String(describing: event))")
             }
-        case .error(let error):
-            Task {
-                if let error = error {
-                    await artifacts.logEvent(type: "Deepgram", message: "WebSocket error: \(error.localizedDescription)")
-                } else {
-                    await artifacts.logEvent(type: "Deepgram", message: "WebSocket error: unknown")
-                }
-            }
-        default:
-            logger.warning("Unhandled WebSocketEvent")
-            break
         }
     }
     
@@ -279,7 +273,7 @@ class SpeechService: WebSocketDelegate {
     }
     
     /// Parses JSON data into TranscriptChunk events
-    private func processJSON(data: Data) throws {
+    private func processJSON(data: Data) async throws {
         // We are only interested in Results data frames, the rest can be ignored
         let envelope = try jsonDecoder.decode(DeepgramEnvelope.self, from: data)
         guard envelope.type == "Results" else { return }
@@ -319,12 +313,11 @@ class SpeechService: WebSocketDelegate {
                 endAt: entry.end
             )
             
-            let logMessage = "(\(chunk.startAt) - \(chunk.endAt)) \(chunk)"
+            let timeRange = String(format: "(%.1fs - %.1fs)", chunk.startAt, chunk.endAt)
+            let logMessage = "\(timeRange) \(chunk)"
             if chunk.isFinal {
                 logger.info("✅ \(logMessage)")
-                Task {
-                    await artifacts.logEvent(type: "Transcript", message: chunk.description)
-                }
+                await artifacts.logEvent(type: "Transcript", message: logMessage)
             } else {
                 logger.info("❓ \(logMessage)")
             }

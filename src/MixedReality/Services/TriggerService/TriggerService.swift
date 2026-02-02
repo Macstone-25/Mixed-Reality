@@ -139,7 +139,8 @@ actor TriggerService {
                     context: chunkContext
                 )
                 
-                await self?.artifacts.logEvent(type: "Intervention", message: "(#\(event.id)) \(reasonString)")
+                let message = "(#\(event.id)) \(reasonString) @ \(String(format: "%.1f", chunk.endAt))s"
+                await self?.artifacts.logEvent(type: "Intervention", message: message)
                 try Task.checkCancellation()
                 
                 guard let onTrigger = await self?.onTrigger else {
@@ -155,6 +156,7 @@ actor TriggerService {
     func stop() {
         evaluationTask?.cancel()
         onTrigger = nil
+        logger.info("🛑 TriggerService stopped")
     }
 }
 

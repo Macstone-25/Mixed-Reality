@@ -53,7 +53,7 @@ class AppModel {
         Task {
             await session.end()
             self.session = nil
-            logger.info("🛑 Session ended.")
+            logger.info("🛑 Session ended")
             activeScene = SceneID.windowGroup
             isEndingSession = false
         }
