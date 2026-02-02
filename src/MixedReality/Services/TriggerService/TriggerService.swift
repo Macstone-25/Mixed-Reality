@@ -29,6 +29,7 @@ class TriggerService {
     
     var onTrigger: ((InterventionEvent) -> (Void))?
     private var nextEventId: UInt64 = 0
+    private var lastEventAt: Date = Date.distantPast
     
     init(artifacts: ArtifactService, experiment: ExperimentModel, speechService: SpeechService, miniLLM: LLMService) {
         self.artifacts = artifacts
@@ -59,6 +60,12 @@ class TriggerService {
             if evaluatorContext.count > experiment.triggerContext {
                 _ = evaluatorContext.popFirst()
             }
+        }
+        
+        // people usually pause to read prompts when they appear, so to avoid
+        // double firing we need to have a cooldown period between triggers
+        guard Date.now.timeIntervalSince(lastEventAt) >= experiment.triggerCooldown else {
+            return
         }
         
         // launch (or relaunch) evaluation
@@ -111,6 +118,8 @@ class TriggerService {
                     reason: reason,
                     context: context
                 )
+                
+                lastEventAt = event.at
                 nextEventId += 1
                 
                 await artifacts.logEvent(type: "Intervention", message: "(\(event.id)) \(reason)")

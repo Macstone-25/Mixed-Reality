@@ -31,6 +31,9 @@ struct ExperimentModel: Encodable {
     /// Determines how long the trigger engine waits to run evaluators (unless more transcript arrives)
     let triggerDelayMs: Int
     
+    /// Determines the minimum time between interventions
+    let triggerCooldown: Double
+    
     /// Determines the duration until a pause-based intervention
     let pauseDurationMs: Int
     
@@ -57,6 +60,7 @@ struct ExperimentModel: Encodable {
         self.summaryContextWindow = Int.random(in: (config.minSummaryContextWindow...config.maxSummaryContextWindow))
         self.triggerContext = Int.random(in: (config.minTriggerContext...config.maxTriggerContext))
         self.triggerDelayMs = Int.random(in: (config.minTriggerDelayMs...config.maxTriggerDelayMs))
+        self.triggerCooldown = Double(Int.random(in: (config.minTriggerCooldownMs...config.maxTriggerCooldownMs))) / 1000
         self.pauseDurationMs = Int.random(in: (config.minPauseDetectionMs...config.maxPauseDetectionMs))
     }
 }
