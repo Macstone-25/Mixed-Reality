@@ -111,7 +111,7 @@ class TriggerService {
                 )
                 nextEventId += 1
                 
-                await artifacts.logEvent(type: "Intervention", message: "(\(event.id)) \(event)")
+                await artifacts.logEvent(type: "Intervention", message: "(\(event.id)) \(reason)")
                 onTrigger(event)
             } catch { }
         }

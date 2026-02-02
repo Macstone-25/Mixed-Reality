@@ -34,6 +34,7 @@ class SessionModel {
         self.promptService = PromptService(artifacts: self.artifacts, experiment: experiment, llm: self.llm, speechService: self.speechService)
         
         await self.artifacts.logEvent(type: "Session", message: "Session starting...")
+        await self.artifacts.logEvent(type: "Experiment", message: "\(experiment)")
         
         self.triggerService.onTrigger = { [weak self] event in
             guard let self = self, let onPrompt = self.onPrompt else {
@@ -46,6 +47,8 @@ class SessionModel {
                 // TODO: Automatically clear prompt (#53) - make sure to use eventId to avoid clearing prompts overwriting this one
             }
         }
+        
+        try await speechService.connect()
     }
     
     func end() async {

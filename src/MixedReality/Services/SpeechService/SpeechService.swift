@@ -63,13 +63,28 @@ class SpeechService: WebSocketDelegate {
     private let assetWriter: AVAssetWriter
     private let assetWriterInput: AVAssetWriterInput
     
-    private let processingQueue = DispatchQueue(label: "SpeechService", qos: .userInitiated)
     private let jsonDecoder = JSONDecoder()
     
     init(artifacts: ArtifactService, experiment: ExperimentModel, config: DeepgramConfig) async throws {
         self.artifacts = artifacts
         self.experiment = experiment
         self.config = config
+        
+        // MARK: Configure audio session
+        
+        let isPermissionGranted = await AVAudioApplication.requestRecordPermission()
+        guard isPermissionGranted else {
+            throw SpeechServiceError.permissionError("Recording permission was not granted")
+        }
+        
+        let session = AVAudioSession.sharedInstance()
+        try session.setCategory(.playAndRecord,
+                                mode: .measurement,
+                                options: [.allowBluetoothA2DP, .defaultToSpeaker])
+
+        try session.setPreferredSampleRate(config.preferredSampleRate)
+        try session.setPreferredIOBufferDuration(0.005) // 5 ms
+        try session.setActive(true, options: .notifyOthersOnDeactivation)
         
         // MARK: Create AssetWriter
         
@@ -103,7 +118,7 @@ class SpeechService: WebSocketDelegate {
         urlComponents.queryItems = [
             // MARK: Constant
             URLQueryItem(name: "encoding", value: "linear16"),
-            URLQueryItem(name: "sample_rate", value: String(audioFormat.sampleRate)),
+            URLQueryItem(name: "sample_rate", value: String(Int(audioFormat.sampleRate))),
             // MARK: Configurable
             URLQueryItem(name: "model", value: config.model),
             URLQueryItem(name: "language", value: config.language),
@@ -137,17 +152,9 @@ class SpeechService: WebSocketDelegate {
             throw SpeechServiceError.runtimeError("Already connected")
         }
         
-        // Obtain microphone access
-        let isPermissionGranted = await AVAudioApplication.requestRecordPermission()
-        guard isPermissionGranted else {
-            throw SpeechServiceError.permissionError("Recording permission was not granted")
-        }
-        
         // Configure and enable AudioEngine
-        audioEngine.inputNode.installTap(onBus: 0, bufferSize: 1024, format: audioFormat) { [weak self] buffer, time in
-            self?.processingQueue.async {
-                self?.processAudioBuffer(buffer: buffer, time: time)
-            }
+        audioEngine.inputNode.installTap(onBus: 0, bufferSize: 4096, format: audioFormat) { [weak self] buffer, time in
+            self?.processAudioBuffer(buffer: buffer, time: time)
         }
         try audioEngine.start()
         
@@ -287,13 +294,14 @@ class SpeechService: WebSocketDelegate {
                 endAt: entry.end,
             )
             
+            let logMessage = "(\(chunk.startAt) - \(chunk.endAt)) \(chunk)"
             if chunk.isFinal {
-                logger.info("✅ \(chunk)")
+                logger.info("✅ \(logMessage)")
                 Task {
-                    await artifacts.logEvent(type: "Transcript", message: "(\(chunk.startAt) - \(chunk.endAt)) \(chunk)")
+                    await artifacts.logEvent(type: "Transcript", message: chunk.description)
                 }
             } else {
-                logger.info("❓ \(chunk)")
+                logger.info("❓ \(logMessage)")
             }
             
             transcriptChunkEvent.send(chunk)

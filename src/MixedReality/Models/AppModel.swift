@@ -32,7 +32,7 @@ class AppModel {
         Task {
             do {
                 session = try await SessionModel(config: config)
-                print("🎧 Session started. Launching immersive view…")
+                print("🎧 Session started. Launching immersive space…")
                 activeScene = SceneID.immersiveSpace
             } catch {
                 print("❌ Failed to start session: \(error)")

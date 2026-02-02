@@ -107,6 +107,6 @@ final actor ArtifactService {
         let h = comps.hour ?? 0
         let m = comps.minute ?? 0
         let s = comps.second ?? 0
-        return String(format: "%04d%02d%02d-%02d%02d%02d", y, M, d, h, m, s)
+        return String(format: "%04d-%02d-%02d-%02d:%02d:%02d", y, M, d, h, m, s)
     }
 }

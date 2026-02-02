@@ -15,6 +15,9 @@ struct DeepgramConfig {
     /// https://developers.deepgram.com/docs/channels
     let channels: AVAudioChannelCount = 1
     
+    /// Note: This is the "preferred" rate and not guaranteed
+    let preferredSampleRate: Double = 48_000
+    
     /// https://developers.deepgram.com/docs/endpointing
     let endpointingMs: Int = 500
     

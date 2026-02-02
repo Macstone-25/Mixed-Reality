@@ -16,10 +16,10 @@ struct ConfigModel {
     var maxTriggerContext: Int = 10
     
     var minTriggerDelayMs: Int = 500
-    var maxTriggerDelayMs: Int = 1500
+    var maxTriggerDelayMs: Int = 2000
     
-    var minPauseDetectionMs: Int = 1000
-    var maxPauseDetectionMs: Int = 4000
+    var minPauseDetectionMs: Int = 2000
+    var maxPauseDetectionMs: Int = 6000
     
     var minTriggerEvaluators: Int = 1
     var selectedTriggerEvaluationStrategies: Set<TriggerEvaluationStrategy> = [

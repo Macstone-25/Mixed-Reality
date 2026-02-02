@@ -8,7 +8,7 @@ import Foundation
 /// Why the engine decided to intervene.
 enum InterventionReason: CustomStringConvertible, Sendable, Codable {
     /// A prolonged silence was detected.
-    case longPause(durationMs: UInt64)
+    case longPause(durationMs: Int)
     
     /// The LLM recommended intervening and may include a short rationale.
     case llmSuggested(rationale: String)
@@ -18,7 +18,7 @@ enum InterventionReason: CustomStringConvertible, Sendable, Codable {
     
     var description: String {
         switch self {
-        case .longPause(let duration): return String(format: "Long pause (%.1fs)", duration)
+        case .longPause(let durationMs): return String(format: "Long pause (%.1fs)", Float(durationMs) / 1000)
         case .llmSuggested(let rationale): return rationale
         case .filler(let words): return "Filler words (\(words))"
         }
