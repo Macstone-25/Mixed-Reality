@@ -55,6 +55,7 @@ class SpeechService: WebSocketDelegate {
     let transcriptChunkEvent = PassthroughSubject<TranscriptChunk, Never>()
     
     private var socket: Starscream.WebSocket
+    private var keepAliveTimer: Timer?
     private var isConnected = false
     
     private let audioEngine = AVAudioEngine()
@@ -159,10 +160,16 @@ class SpeechService: WebSocketDelegate {
         try audioEngine.start()
         
         // Connect to Deepgram via WebSocket
-        // TODO: Start sending KeepAlive at this point (https://developers.deepgram.com/docs/audio-keep-alive)
         await artifacts.logEvent(type: "SpeechService", message: "Connecting to \(socket.request.url?.absoluteString ?? "nil")")
         socket.connect()
         isConnected = true
+        
+        // Schedule KeepAlive messages
+        keepAliveTimer?.invalidate()
+        keepAliveTimer = Timer.scheduledTimer(withTimeInterval: 5.0, repeats: true) { [weak self] _ in
+            guard let self = self else { return }
+            self.sendKeepAlive()
+        }
     }
     
     /// Disconnect from Deepgram WebSocket and deactivate microphone
@@ -179,6 +186,10 @@ class SpeechService: WebSocketDelegate {
         audioEngine.inputNode.removeTap(onBus: 0)
         if audioEngine.isRunning { audioEngine.stop() }
         audioEngine.reset()
+        
+        // Disable KeepAlive messages
+        keepAliveTimer?.invalidate()
+        keepAliveTimer = nil
         
         // Disconnect WebSocket
         socket.disconnect(closeCode: 1000)
@@ -226,6 +237,18 @@ class SpeechService: WebSocketDelegate {
         default:
             logger.warning("Unhandled WebSocketEvent")
             break
+        }
+    }
+    
+    private func sendKeepAlive() {
+        let keepAlive: [String: Any] = ["type": "KeepAlive"]
+        do {
+            let data = try JSONSerialization.data(withJSONObject: keepAlive, options: [])
+            if let jsonString = String(data: data, encoding: .utf8) {
+                socket.write(string: jsonString)
+            }
+        } catch {
+            print("Failed to encode KeepAlive message: \(error)")
         }
     }
     
