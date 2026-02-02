@@ -78,6 +78,14 @@ actor TriggerService {
             return
         }
         
+        // sometimes deepgram hesitates (1-2 seconds) to mark a chunk as final and will
+        // "spam" the same chunk without any refinement during that period. we want to
+        // ignore chunks without change to avoid unnecessarily delaying our triggers.
+        if chunk.text == lastChunk?.text && abs(chunk.endAt - (lastChunk?.endAt ?? 0)) < 0.5 {
+            return
+        }
+        lastChunk = chunk
+        
         // launch (or relaunch) evaluation
         var chunkContext = Array(evaluatorContext)
         evaluationTask?.cancel()
