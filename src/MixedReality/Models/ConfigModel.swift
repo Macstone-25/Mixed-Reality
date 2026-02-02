@@ -31,11 +31,15 @@ struct ConfigModel {
     ]
     
     var selectedLLMs: Set<LLMConfig> = [
-        .openAI(.gpt_4_1_mini)
+        .openAI(.gpt_4_1),
+        .openAI(.gpt_4_1_mini),
+        .openAI(.gpt_5_2),
+        // TODO: Complete OpenAI verification to unlock these (https://platform.openai.com/settings/organization/general)
+        // .openAI(.gpt_5_mini),
     ]
     
     var selectedMiniLLMs: Set<LLMConfig> = [
-        .openAI(.gpt_4_1_mini)
+        .openAI(.gpt_4_1_mini),
     ]
 }
 

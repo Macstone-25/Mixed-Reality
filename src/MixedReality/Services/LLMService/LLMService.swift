@@ -30,8 +30,14 @@ class LLMService : LLMGenerator {
     func generate(systemPrompt: String, userPrompt: String) async throws -> String {
         do {
             return try await llmProvider.generate(systemPrompt: systemPrompt, userPrompt: userPrompt)
+        } catch LLMProviderError.noResponse {
+            await artifacts.logEvent(type: "LLM", message: "Connection Error: No response")
+            throw LLMProviderError.noResponse
+        } catch LLMProviderError.httpError(let code, let body) {
+            await artifacts.logEvent(type: "LLM", message: "HTTP Error: (\(code)) \(body)")
+            throw LLMProviderError.httpError(code: code, body: body)
         } catch {
-            await artifacts.logEvent(type: "LLM", message: "Error: \(error.localizedDescription)")
+            await artifacts.logEvent(type: "LLM", message: "Unknown Error: \(error.localizedDescription)")
             throw error
         }
     }

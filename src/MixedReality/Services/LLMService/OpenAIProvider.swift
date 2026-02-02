@@ -6,7 +6,12 @@
 import Foundation
 
 enum OpenAIModel: String, Encodable {
+    case gpt_4_1 = "gpt-4.1"
     case gpt_4_1_mini = "gpt-4.1-mini"
+    case gpt_5_2 = "gpt-5.2-chat-latest"
+    case gpt_5_mini = "gpt-5-mini"
+    /// GPT-5 nano is extremely slow for some reason (do not use)
+    case gpt_5_nano = "gpt-5-nano"
 }
 
 struct OpenAIChatCompletionResponse: Decodable {
@@ -47,20 +52,19 @@ final class OpenAIProvider : LLMProvider {
                 ["role": "system", "content": systemPrompt],
                 ["role": "user",   "content": userPrompt]
             ],
-            "max_tokens": 60
         ]
 
         request.httpBody = try JSONSerialization.data(withJSONObject: body)
-
+        
         let (data, response) = try await URLSession.shared.data(for: request)
 
         guard let http = response as? HTTPURLResponse else {
-            throw LLMProviderError.httpError("No response")
+            throw LLMProviderError.noResponse
         }
 
         guard (200...299).contains(http.statusCode) else {
             let bodyText = String(data: data, encoding: .utf8) ?? "<unreadable>"
-            throw LLMProviderError.httpError("(\(http.statusCode)) \(bodyText)")
+            throw LLMProviderError.httpError(code: http.statusCode, body: bodyText)
         }
 
         let decoded = try JSONDecoder().decode(OpenAIChatCompletionResponse.self, from: data)

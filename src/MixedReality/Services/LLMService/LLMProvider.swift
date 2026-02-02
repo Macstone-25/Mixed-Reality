@@ -5,8 +5,9 @@
 
 import Foundation
 
-enum LLMProviderError : Error {
-    case httpError(String)
+enum LLMProviderError: Error {
+    case httpError(code: Int, body: String)
+    case noResponse
 }
 
 protocol LLMProvider : LLMGenerator {

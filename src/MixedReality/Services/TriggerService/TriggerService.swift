@@ -122,7 +122,7 @@ class TriggerService {
                 lastEventAt = event.at
                 nextEventId += 1
                 
-                await artifacts.logEvent(type: "Intervention", message: "(\(event.id)) \(reason)")
+                await artifacts.logEvent(type: "Intervention", message: "(#\(event.id)) \(reason)")
                 onTrigger(event)
             } catch { }
         }

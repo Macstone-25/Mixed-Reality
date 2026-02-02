@@ -62,11 +62,14 @@ class PromptService {
     
     func generatePrompt(eventId: UInt64) async -> String {
         let promptContext = self.recentTranscript.joined(separator: "\n")
-        logger.info("💡 (\(eventId)) Generating prompt from \(self.recentTranscript.count) transcript lines")
+        logger.info("💡 (#\(eventId)) Generating prompt from \(self.recentTranscript.count) transcript lines")
         do {
             // TODO: Include old transcript summary
+            let start = CFAbsoluteTimeGetCurrent()
             let prompt = try await self.llm.generate(systemPrompt: Self.systemPrompt, userPrompt: promptContext)
-            await self.artifacts.logEvent(type: "Prompt", message: "(\(eventId)) \"\(prompt)\"")
+            let end = CFAbsoluteTimeGetCurrent()
+            let duration = String(format: "%.1f", end - start)
+            await self.artifacts.logEvent(type: "Prompt", message: "(#\(eventId)) (\(duration)s) \"\(prompt)\"")
             return prompt
         } catch {
             logger.error("Failed to generate prompt: \(error.localizedDescription)")
