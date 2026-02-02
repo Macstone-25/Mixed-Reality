@@ -7,7 +7,7 @@
 
 import Foundation
 
-struct ExperimentModel {
+struct ExperimentModel: Encodable {
     let llm: LLMConfig
     
     let promptContextWindow: Int

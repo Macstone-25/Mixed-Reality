@@ -1,6 +1,10 @@
 import Foundation
 import os
 
+enum ArtifactServiceError : Error {
+    case useAfterFinalized(String)
+}
+
 final actor ArtifactService {
     private let logger = Logger(subsystem: "ArtifactService", category: "Services")
     
@@ -32,12 +36,7 @@ final actor ArtifactService {
 
     func getFileURL(name: String) throws -> URL {
         guard finalized == false else {
-            throw NSError(
-                domain: "ArtifactCollector",
-                code: 1,
-                userInfo: [NSLocalizedDescriptionKey:
-                    "Cannot create artifacts after artifact collection has been finalized"]
-            )
+            throw ArtifactServiceError.useAfterFinalized("Cannot create artifacts after artifact collection has been finalized")
         }
 
         let fileId = nextId()
@@ -109,9 +108,5 @@ final actor ArtifactService {
         let m = comps.minute ?? 0
         let s = comps.second ?? 0
         return String(format: "%04d%02d%02d-%02d%02d%02d", y, M, d, h, m, s)
-    }
-    
-    deinit {
-        finalize()
     }
 }

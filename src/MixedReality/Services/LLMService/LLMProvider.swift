@@ -7,6 +7,10 @@
 
 import Foundation
 
+enum LLMProviderError : Error {
+    case httpError(String)
+}
+
 protocol LLMProvider : LLMGenerator {
     associatedtype Model
     

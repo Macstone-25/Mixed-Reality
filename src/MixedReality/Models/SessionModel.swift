@@ -28,7 +28,7 @@ class SessionModel {
         // TODO: Convert ExperimentModel to a .json file and store as an artifact (#47)
         self.artifacts = try ArtifactService(id: id)
         self.llm = LLMService(artifacts: self.artifacts, experiment: experiment)
-        self.speechService = SpeechService(artifacts: self.artifacts, experiment: experiment)
+        self.speechService = try await SpeechService(artifacts: self.artifacts, experiment: experiment, config: DeepgramConfig())
         self.triggerService = TriggerService(artifacts: self.artifacts, experiment: experiment, speechService: self.speechService)
         self.promptService = PromptService(artifacts: self.artifacts, experiment: experiment, llm: self.llm, speechService: self.speechService)
         

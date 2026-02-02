@@ -7,7 +7,7 @@
 
 import Foundation
 
-enum OpenAIModel: String {
+enum OpenAIModel: String, Encodable {
     case gpt_4_1_mini = "gpt-4.1-mini"
 }
 
@@ -57,14 +57,12 @@ final class OpenAIProvider : LLMProvider {
         let (data, response) = try await URLSession.shared.data(for: request)
 
         guard let http = response as? HTTPURLResponse else {
-            throw NSError(domain: "NoHTTPResponse", code: -1)
+            throw LLMProviderError.httpError("No response")
         }
 
         guard (200...299).contains(http.statusCode) else {
             let bodyText = String(data: data, encoding: .utf8) ?? "<unreadable>"
-            throw NSError(domain: "OpenAIError", code: http.statusCode, userInfo: [
-                "body": bodyText
-            ])
+            throw LLMProviderError.httpError("(\(http.statusCode)) \(bodyText)")
         }
 
         let decoded = try JSONDecoder().decode(OpenAIChatCompletionResponse.self, from: data)

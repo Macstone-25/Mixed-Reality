@@ -7,16 +7,16 @@
 
 import Foundation
 
-enum LLMConfig: Hashable {
+enum LLMConfig: Hashable, Encodable {
     case openAI(OpenAIModel)
 }
 
 struct ConfigModel {
-    var minimumPromptContextWindow = 5
-    var maximumPromptContextWindow = 50
+    var minimumPromptContextWindow: Int = 5
+    var maximumPromptContextWindow: Int = 50
     
-    var minimumSummaryContextWindow = 3
-    var maximumSummaryContextWindow = 10
+    var minimumSummaryContextWindow: Int = 3
+    var maximumSummaryContextWindow: Int = 10
     
     var selectedLLMs: Set<LLMConfig> = [
         .openAI(.gpt_4_1_mini)

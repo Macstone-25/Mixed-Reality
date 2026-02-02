@@ -48,7 +48,7 @@ class PromptService {
     }
     
     private func handleTranscriptChunk(chunk: TranscriptChunk) {
-        guard (chunk.isFinal && chunk.isEmptyText) else { return }
+        guard (chunk.isFinal) else { return }
         
         self.recentTranscript.append("[\(chunk.speakerID)] \(chunk.text.trimmingCharacters(in: .whitespacesAndNewlines))")
         
