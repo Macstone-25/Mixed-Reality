@@ -154,6 +154,7 @@ class SpeechService: WebSocketDelegate {
         }
         
         // Configure and enable AudioEngine
+        try AVAudioSession.sharedInstance().setActive(true, options: .notifyOthersOnDeactivation)
         audioEngine.inputNode.installTap(onBus: 0, bufferSize: 4096, format: audioFormat) { [weak self] buffer, time in
             self?.processAudioBuffer(buffer: buffer, time: time)
         }
@@ -186,6 +187,7 @@ class SpeechService: WebSocketDelegate {
         audioEngine.inputNode.removeTap(onBus: 0)
         if audioEngine.isRunning { audioEngine.stop() }
         audioEngine.reset()
+        try? AVAudioSession.sharedInstance().setActive(false)
         
         // Disable KeepAlive messages
         keepAliveTimer?.invalidate()
