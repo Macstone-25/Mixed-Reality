@@ -10,5 +10,5 @@ enum TriggerEvaluatorError: Error {
 }
 
 protocol TriggerEvaluator {
-    func evaluate(chunk: TranscriptChunk, context: Deque<TranscriptChunk>) async -> InterventionReason?
+    func evaluate(chunk: TranscriptChunk, context: [TranscriptChunk]) async -> InterventionReason?
 }

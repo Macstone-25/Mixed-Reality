@@ -18,7 +18,7 @@ class PauseEvaluator: TriggerEvaluator {
         self.pauseDurationMs = max(experiment.pauseDurationMs, experiment.triggerDelayMs)
     }
     
-    func evaluate(chunk: TranscriptChunk, context: Deque<TranscriptChunk>) async -> InterventionReason? {
+    func evaluate(chunk: TranscriptChunk, context: [TranscriptChunk]) async -> InterventionReason? {
         do {
             try Task.checkCancellation()
             try await Task.sleep(nanoseconds: sleepDurationNanoseconds)

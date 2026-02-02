@@ -16,7 +16,7 @@ class FillerEvaluator: TriggerEvaluator {
         self.chunksToCheck = chunksToCheck
     }
     
-    func evaluate(chunk: TranscriptChunk, context: Deque<TranscriptChunk>) async -> InterventionReason? {
+    func evaluate(chunk: TranscriptChunk, context: [TranscriptChunk]) async -> InterventionReason? {
         // If we don't have enough chunks to check yet, we can immediately ignore this chunk
         guard context.count > chunksToCheck else { return nil }
         

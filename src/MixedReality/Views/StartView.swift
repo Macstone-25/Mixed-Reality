@@ -17,14 +17,13 @@ struct StartView: View {
                 .font(.largeTitle).bold()
                 .multilineTextAlignment(.center)
 
-            let isSessionActive = appModel.isLaunchingSession || appModel.session != nil
-            Button(isSessionActive ? "Launching..." : "Start Session") {
+            Button(viewModel.isLaunching ? "Launching..." : "Start Session") {
                 appModel.startSession()
             }
             .buttonStyle(.borderedProminent)
             .controlSize(.large)
             .accessibilityIdentifier("start-session-button")
-            .disabled(appModel.isLaunchingSession)
+            .disabled(viewModel.isLaunching)
 
             if let error = appModel.launchError {
                 Text(error)

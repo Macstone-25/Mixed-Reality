@@ -15,4 +15,8 @@ class StartViewModel {
     init(appModel: AppModel) {
         self.appModel = appModel
     }
+    
+    var isLaunching: Bool {
+        appModel.isLaunchingSession || appModel.session != nil
+    }
 }

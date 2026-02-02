@@ -80,6 +80,7 @@ class SessionModel {
     func end() async {
         await artifacts.logEvent(type: "Session", message: "Ending session...")
         await speechService.disconnect()
+        await triggerService.stop()
         await artifacts.finalize()
     }
 }
