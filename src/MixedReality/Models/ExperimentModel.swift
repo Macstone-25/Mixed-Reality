@@ -7,7 +7,6 @@ import Foundation
 
 enum ExperimentError: Error {
     case insufficientOptions(String)
-    case jsonError(String)
 }
 
 struct ExperimentModel: Encodable {
