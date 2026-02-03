@@ -26,6 +26,7 @@ struct ExportView: View {
                 }
             }
             .environment(\.editMode, .constant(.active))
+            .allowsHitTesting(!viewModel.isBusy)
             
             Text(viewModel.statusText)
             
@@ -36,7 +37,7 @@ struct ExportView: View {
                 .tint(.red)
                 .buttonStyle(.borderedProminent)
                 .glassBackgroundEffect()
-                .disabled(true) // viewModel.actionsDisabled
+                .disabled(viewModel.actionsDisabled)
                 
                 Spacer()
                 
@@ -45,6 +46,14 @@ struct ExportView: View {
                 }
                 .buttonStyle(.borderedProminent)
                 .glassBackgroundEffect()
+                .disabled(viewModel.isBusy)
+                
+                Button(action: viewModel.refreshFolders) {
+                    Image(systemName: "arrow.clockwise")
+                }
+                .buttonStyle(.borderedProminent)
+                .clipShape(.circle)
+                .disabled(viewModel.isBusy)
                 
                 Spacer()
                 
@@ -57,11 +66,15 @@ struct ExportView: View {
                 .disabled(viewModel.actionsDisabled)
             }
         }
-        .onAppear {
-            DispatchQueue.main.async {
-                viewModel.refreshFolders()
+        .overlay {
+            if let zipURL = viewModel.zipURL {
+                ActivityShareSheet(
+                    item: zipURL,
+                    onComplete: viewModel.cleanup
+                )
             }
         }
+        .onAppear(perform: viewModel.refreshFolders)
     }
 }
 

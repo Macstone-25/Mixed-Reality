@@ -5,6 +5,7 @@
 
 import Foundation
 import Combine
+import OSLog
 
 struct SessionFolder: Identifiable {
     let id: URL
@@ -15,17 +16,19 @@ struct SessionFolder: Identifiable {
 class ExportViewModel: ObservableObject {
     private let appModel: AppModel
     
-    private var isRefreshing: Bool = false
-    private var isExporting: Bool = false
-    
-    @Published var selection: Set<SessionFolder.ID> = []
     @Published var sessions: [SessionFolder] = []
+    @Published var selection: Set<SessionFolder.ID> = []
+    @Published var isRefreshing: Bool = false
+    
+    @Published var isExporting: Bool = false
+    @Published var zipURL: URL? = nil
+    private var exportError: String? = nil
     
     init(_ appModel: AppModel) {
         self.appModel = appModel
     }
     
-    private var isBusy: Bool {
+    var isBusy: Bool {
         isRefreshing || isExporting
     }
     
@@ -38,12 +41,14 @@ class ExportViewModel: ObservableObject {
     }
     
     var statusText: String {
-        if isRefreshing {
+        if let error = exportError {
+            error
+        } else if isRefreshing {
             "Finding sessions..."
         } else if sessions.isEmpty {
             "No session data available"
         } else if isExporting {
-            "Exporting \(selectionCount) sessions..."
+            "Exporting \(selectionCount)..."
         } else {
             "\(selectionCount) selected"
         }
@@ -53,35 +58,42 @@ class ExportViewModel: ObservableObject {
         guard !isBusy else { return }
         isRefreshing = true
         
-        let documentsURL = FileManager.default.urls(for: .documentDirectory, in: .userDomainMask)[0]
-        guard let contents = try? FileManager.default.contentsOfDirectory(
-            at: documentsURL,
-            includingPropertiesForKeys: [.isDirectoryKey],
-            options: [.skipsHiddenFiles]
-        ) else {
-            selection.removeAll()
-            sessions.removeAll()
-            isRefreshing = false
-            return
+        Task.detached { [weak self] in
+            let documentsURL = FileManager.default.urls(for: .documentDirectory, in: .userDomainMask)[0]
+            guard let contents = try? FileManager.default.contentsOfDirectory(
+                at: documentsURL,
+                includingPropertiesForKeys: [.isDirectoryKey],
+                options: [.skipsHiddenFiles]
+            ) else {
+                await MainActor.run { [weak self] in
+                    guard let self = self else { return }
+                    self.selection.removeAll()
+                    self.sessions.removeAll()
+                    self.isRefreshing = false
+                }
+                return
+            }
+            
+            let newSessions = contents
+                .filter { url in
+                    (try? url.resourceValues(forKeys: [.isDirectoryKey]).isDirectory) == true
+                }
+                .map { url in
+                    SessionFolder(id: url, name: url.lastPathComponent)
+                }
+                .sorted {
+                    $0.name.localizedCaseInsensitiveCompare($1.name) == .orderedDescending
+                }
+            
+            await MainActor.run { [weak self] in
+                guard let self = self else { return }
+                // Keep only selected IDs that still exist
+                let validIDs = Set(newSessions.map(\.id))
+                self.selection = self.selection.intersection(validIDs)
+                self.sessions = newSessions
+                self.isRefreshing = false
+            }
         }
-        
-        let newSessions = contents
-            .filter { url in
-                (try? url.resourceValues(forKeys: [.isDirectoryKey]).isDirectory) == true
-            }
-            .map { url in
-                SessionFolder(id: url, name: url.lastPathComponent)
-            }
-            .sorted {
-                $0.name.localizedCaseInsensitiveCompare($1.name) == .orderedAscending
-            }
-        
-        // Keep only selected IDs that still exist
-        let validIDs = Set(newSessions.map(\.id))
-        selection = selection.intersection(validIDs)
-        sessions = newSessions
-        
-        isRefreshing = false
     }
     
     func selectAll() {
@@ -95,8 +107,81 @@ class ExportViewModel: ObservableObject {
     func exportData() {
         guard !isBusy else { return }
         isExporting = true
+        exportError = nil
         
-        
+        let fm = FileManager.default
+        let selection = selection
+
+        Task.detached { [weak self] in
+            do {
+                let timestamp = ArtifactService.makeTimestamp()
+                let exportName = "Export-\(timestamp)"
+                
+                // Create a unique working directory in tmp
+                let workingDir = fm.temporaryDirectory
+                    .appendingPathComponent(exportName, isDirectory: true)
+                try fm.createDirectory(at: workingDir, withIntermediateDirectories: true)
+                
+                // Copy each source folder into the working directory
+                for src in selection {
+                    var isDir: ObjCBool = false
+                    guard fm.fileExists(atPath: src.path, isDirectory: &isDir), isDir.boolValue else {
+                        continue
+                    }
+                    let dest = workingDir.appendingPathComponent(src.lastPathComponent, isDirectory: true)
+                    try fm.copyItem(at: src, to: dest)
+                }
+                
+                // Zip the working directory
+                let coordinator = NSFileCoordinator()
+                var coordError: NSError?
+                var copyError: Error?
+                
+                let outZipURL = fm.temporaryDirectory
+                    .appendingPathComponent("\(exportName).zip", isDirectory: false)
+                
+                coordinator.coordinate(readingItemAt: workingDir,
+                                       options: .forUploading,
+                                       error: &coordError) { zippedSnapshotURL in
+                    do {
+                        if fm.fileExists(atPath: outZipURL.path) {
+                            try fm.removeItem(at: outZipURL)
+                        }
+                        try fm.copyItem(at: zippedSnapshotURL, to: outZipURL)
+                    } catch {
+                        copyError = error
+                    }
+                }
+                
+                if let coordError { throw coordError }
+                if let copyError { throw copyError }
+                
+                // Clean up the working directory
+                try? fm.removeItem(at: workingDir)
+                
+                // Prompt the user to download / share the .zip
+                await MainActor.run { [weak self] in
+                    guard let self = self else { return }
+                    self.zipURL = outZipURL
+                }
+            } catch {
+                await MainActor.run { [weak self] in
+                    guard let self = self else { return }
+                    let errorMessage = "Failed to zip session data: \(error.localizedDescription)"
+                    self.appModel.logger.error("\(errorMessage, privacy: .public)")
+                    self.exportError = errorMessage
+                    self.isExporting = false
+                }
+            }
+        }
+    }
+    
+    func cleanup() {
+        if let zipURL = zipURL {
+            Task.detached { try? FileManager.default.removeItem(at: zipURL) }
+        }
+        zipURL = nil
+        isExporting = false
     }
 }
 
