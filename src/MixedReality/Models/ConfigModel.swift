@@ -25,10 +25,7 @@ struct ConfigModel {
     var maxTriggerCooldownMs: Int = 30000
     
     var minTriggerEvaluators: Int = 2
-    var selectedTriggerEvaluationStrategies: Set<TriggerEvaluationStrategy> = [
-        .pauseEvaluator,
-        .fillerEvaluator
-    ]
+    var selectedTriggerEvaluationStrategies: Set<TriggerEvaluationStrategy> = Set(TriggerEvaluationStrategy.allCases)
     
     var selectedLLMs: Set<LLMConfig> = [
         .openAI(.gpt_4_1),
@@ -41,5 +38,6 @@ struct ConfigModel {
     var selectedMiniLLMs: Set<LLMConfig> = [
         .openAI(.gpt_4_1_mini),
     ]
+    
+    static let `default` = ConfigModel()
 }
-
