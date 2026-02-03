@@ -61,7 +61,7 @@ struct NavigationView: View {
             case .configView:
                 ConfigView(appModel)
             case .exportView:
-                Text("TODO: export view")
+                ExportView(appModel)
             }
             
             Spacer()
