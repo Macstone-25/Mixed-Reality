@@ -1,23 +1,31 @@
 import SwiftUI
 
 struct SessionControlsView: View {
-    @Environment(AppModel.self) private var appModel
+    private let appModel: AppModel
+    private let sessionViewModel: SessionViewModel
     
-    var elapsedTime: TimeInterval
-    var onStop: () -> Void
+    @State private var viewModel: SessionControlsViewModel
     
-    @State private var isVisible = false
+    init(appModel: AppModel, sessionViewModel: SessionViewModel) {
+        self.appModel = appModel
+        self.sessionViewModel = sessionViewModel
+        _viewModel = State(wrappedValue: SessionControlsViewModel(appModel: appModel, sessionViewModel: sessionViewModel))
+    }
 
     var body: some View {
         HStack(spacing: 14) {
-            if appModel.isSessionActive {
-                Text(timeString(from: elapsedTime))
+            if appModel.isEndingSession {
+                Text("Ending session...")
+                    .font(.system(size: 18, weight: .medium, design: .monospaced))
+                    .frame(alignment: .center)
+            } else {
+                Text(viewModel.timeString)
                     .font(.system(size: 18, weight: .medium, design: .monospaced))
                     .frame(minWidth: 60, alignment: .leading)
                 
                 Spacer()
                 
-                Button(action: onStop) {
+                Button(action: viewModel.onStop) {
                     Circle()
                         .fill(Color.red)
                         .frame(width: 34, height: 34)
@@ -28,10 +36,6 @@ struct SessionControlsView: View {
                         )
                 }
                 .buttonStyle(.plain)
-            } else {
-                Text("Ending session...")
-                    .font(.system(size: 18, weight: .medium, design: .monospaced))
-                    .frame(alignment: .center)
             }
         }
         .padding(.horizontal, 18)
@@ -39,19 +43,8 @@ struct SessionControlsView: View {
         .background(.regularMaterial, in: Capsule())
         .glassBackgroundEffect()
         .frame(width: 240)
-        .opacity(isVisible ? 1: 0)
-        .animation(.easeIn(duration: 0.5), value: isVisible)
-        .onAppear {
-            isVisible = true
-        }
-        .onDisappear {
-            isVisible = false
-        }
-    }
-
-    private func timeString(from interval: TimeInterval) -> String {
-        let seconds = Int(interval) % 60
-        let minutes = (Int(interval) / 60) % 60
-        return String(format: "%02d:%02d", minutes, seconds)
+        .opacity(viewModel.isVisible ? 1: 0)
+        .animation(.easeIn(duration: 0.5), value: viewModel.isVisible)
+        .onAppear(perform: viewModel.onAppear)
     }
 }

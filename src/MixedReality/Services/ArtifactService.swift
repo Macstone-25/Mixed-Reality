@@ -1,8 +1,12 @@
 import Foundation
 import os
 
-final class ArtifactCollector {
-    private let logger = Logger(subsystem: "Session", category: "ArtifactCollector")
+enum ArtifactServiceError : Error {
+    case useAfterFinalized(String)
+}
+
+final actor ArtifactService {
+    private let logger = Logger(subsystem: "ArtifactService", category: "Services")
     
     private let rootFolder: URL
     private var handles: [FileHandle] = []
@@ -19,7 +23,7 @@ final class ArtifactCollector {
 
     init(id: String) throws {
         let docs = FileManager.default.urls(for: .documentDirectory, in: .userDomainMask)[0]
-        let timestamp = getTimestamp()
+        let timestamp = Self.makeTimestamp()
         self.rootFolder = docs.appendingPathComponent("\(id)-\(timestamp)", isDirectory: true)
         try FileManager.default.createDirectory(at: rootFolder, withIntermediateDirectories: true)
         logger.info("🗂️ Opened artifact collection at \(self.rootFolder.path())")
@@ -32,12 +36,7 @@ final class ArtifactCollector {
 
     func getFileURL(name: String) throws -> URL {
         guard finalized == false else {
-            throw NSError(
-                domain: "ArtifactCollector",
-                code: 1,
-                userInfo: [NSLocalizedDescriptionKey:
-                    "Cannot create artifacts after artifact collection has been finalized"]
-            )
+            throw ArtifactServiceError.useAfterFinalized("Cannot create artifacts after artifact collection has been finalized")
         }
 
         let fileId = nextId()
@@ -64,6 +63,11 @@ final class ArtifactCollector {
         let timestamp = Int(Date().timeIntervalSince1970)
         let line = "(\(timestamp)) (\(type)) \(message)\n"
         let data = Data(line.utf8)
+        
+        guard finalized == false else {
+            logger.error("⛔️ Tried to log event after finalization: \(line)")
+            return
+        }
 
         do {
             try eventsHandle.seekToEnd()
@@ -90,7 +94,19 @@ final class ArtifactCollector {
         logger.info("🗂️ Closed artifact collection at \(self.rootFolder.path())")
     }
     
-    deinit {
-        finalize()
+    // Local, non-main-actor timestamp generator to avoid calling main-actor-isolated utilities here.
+    private static func makeTimestamp() -> String {
+        // ISO 8601-like compact timestamp: yyyyMMdd-HHmmss
+        let now = Date()
+        var calendar = Calendar(identifier: .gregorian)
+        calendar.timeZone = TimeZone(secondsFromGMT: 0) ?? .gmt
+        let comps = calendar.dateComponents([.year, .month, .day, .hour, .minute, .second], from: now)
+        let y = comps.year ?? 0
+        let M = comps.month ?? 0
+        let d = comps.day ?? 0
+        let h = comps.hour ?? 0
+        let m = comps.minute ?? 0
+        let s = comps.second ?? 0
+        return String(format: "%04d-%02d-%02d-%02d:%02d:%02d", y, M, d, h, m, s)
     }
 }
