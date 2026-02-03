@@ -28,10 +28,9 @@ class SessionModel {
         // TODO: Add random id to display (#57)
         self.id = "Session"
         
-        // TODO: Convert ExperimentModel to a .json file and store as an artifact (#47)
+        self.artifacts = try ArtifactService(id: id)
         self.experiment = try ExperimentModel(config: config)
         
-        self.artifacts = try ArtifactService(id: id)
         self.llm = LLMService(artifacts: self.artifacts, experiment: experiment, llm: experiment.llm)
         self.miniLLM = LLMService(artifacts: self.artifacts, experiment: experiment, llm: experiment.miniLLM)
         self.speechService = try await SpeechService(artifacts: self.artifacts, experiment: experiment, config: DeepgramConfig())
@@ -41,7 +40,12 @@ class SessionModel {
     
     func start() async throws {
         await self.artifacts.logEvent(type: "Session", message: "Session starting...")
-        await self.artifacts.logEvent(type: "Experiment", message: "\(experiment)")
+        
+        // Record the experiment config in a JSON file
+        let experimentJson = try experiment.toJsonData()
+        let experimentJsonHandle = try await artifacts.getFileHandle(name: "Experiment.json")
+        try experimentJsonHandle.write(contentsOf: experimentJson)
+        await artifacts.logEvent(type: "Session", message: "Experiment config saved as JSON")
         
         // Connect TriggerService to SpeechService
         sinks.insert(

@@ -25,7 +25,7 @@ class AppModel {
     
     var activeScene: SceneID = SceneID.windowGroup
     
-    var config = ConfigModel()
+    var config = ConfigModel.load()
     
     func startSession() {
         guard !isLaunchingSession && session == nil else { return }

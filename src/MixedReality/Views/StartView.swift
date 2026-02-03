@@ -1,5 +1,4 @@
 import SwiftUI
-import AVFoundation  
 
 struct StartView: View {
     private let appModel: AppModel
@@ -13,26 +12,37 @@ struct StartView: View {
 
     var body: some View {
         VStack(spacing: 24) {
-            Text("Ready to begin?")
-                .font(.largeTitle).bold()
+            Text("Push the button below to begin.")
+                .font(.title)
                 .multilineTextAlignment(.center)
 
             Button(viewModel.isLaunching ? "Launching..." : "Start Session") {
                 appModel.startSession()
             }
+            .tint(.blue)
             .buttonStyle(.borderedProminent)
-            .controlSize(.large)
-            .accessibilityIdentifier("start-session-button")
+            .glassBackgroundEffect()
+            .controlSize(.extraLarge)
+            .font(.extraLargeTitle2)
             .disabled(viewModel.isLaunching)
 
             if let error = appModel.launchError {
                 Text(error)
                     .foregroundColor(.red)
-                    .font(.footnote)
+                    .monospaced()
                     .multilineTextAlignment(.center)
                     .padding(.horizontal)
             }
         }
-        .frame(maxWidth: .infinity, maxHeight: .infinity)
+        .frame(maxWidth: .infinity)
+        // account for navigation buttons
+        .padding(.bottom, 48)
     }
+}
+
+#Preview {
+    NavigationView(AppModel(), initView: .startView)
+        .background(.thinMaterial)
+        .frame(maxWidth: 750, maxHeight: 500)
+        .glassBackgroundEffect()
 }

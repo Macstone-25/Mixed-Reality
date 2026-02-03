@@ -89,7 +89,7 @@ class SpeechService: WebSocketDelegate {
         
         // MARK: Create AssetWriter
         
-        let fileURL = try await artifacts.getFileURL(name: "conversation.m4a")
+        let fileURL = try await artifacts.getFileURL(name: "Conversation.m4a")
         assetWriter = try AVAssetWriter(outputURL: fileURL, fileType: .m4a)
         
         audioFormat = audioEngine.inputNode.inputFormat(forBus: 0)
@@ -201,7 +201,7 @@ class SpeechService: WebSocketDelegate {
         if let error = assetWriter.error {
             await artifacts.logEvent(type: "SpeechService", message: "AssetWriter error: \(error.localizedDescription)")
         } else {
-            await artifacts.logEvent(type: "SpeechService", message: "Audio recording saved to \(assetWriter.outputURL)")
+            await artifacts.logEvent(type: "SpeechService", message: "Audio recording saved to \(assetWriter.outputURL.lastPathComponent)")
         }
         
         logger.info("🛑 SpeechService stopped")
@@ -211,8 +211,8 @@ class SpeechService: WebSocketDelegate {
     func didReceive(event: Starscream.WebSocketEvent, client: any Starscream.WebSocketClient) {
         Task {
             switch event {
-            case .connected(let headers):
-                await artifacts.logEvent(type: "Deepgram", message: "WebSocket connected with headers: \(headers)")
+            case .connected:
+                await artifacts.logEvent(type: "Deepgram", message: "WebSocket connected")
             case .peerClosed:
                 await artifacts.logEvent(type: "Deepgram", message: "WebSocket closed")
             case .cancelled:

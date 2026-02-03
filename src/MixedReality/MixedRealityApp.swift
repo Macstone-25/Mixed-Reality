@@ -13,10 +13,10 @@ struct MixedRealityApp: App {
     
     var body: some Scene {
         WindowGroup(id: SceneID.windowGroup.rawValue) {
-             StartView(appModel)
+             NavigationView(appModel)
                  .environment(appModel)
         }
-        .defaultSize(CGSize(width: 600, height: 350))
+        .defaultSize(width: 750, height: 500)
         .onChange(of: appModel.activeScene) { _, activeScene in
             Task {
                 switch(activeScene) {

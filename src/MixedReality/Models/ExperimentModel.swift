@@ -63,5 +63,12 @@ struct ExperimentModel: Encodable {
         self.triggerCooldown = Double(Int.random(in: (config.minTriggerCooldownMs...config.maxTriggerCooldownMs))) / 1000
         self.pauseDurationMs = Int.random(in: (config.minPauseDetectionMs...config.maxPauseDetectionMs))
     }
+    
+    func toJsonData() throws -> Data {
+        let encoder = JSONEncoder()
+        encoder.keyEncodingStrategy = .convertToSnakeCase
+        encoder.outputFormatting = [.prettyPrinted, .sortedKeys]
+        return try encoder.encode(self)
+    }
 }
 

@@ -6,7 +6,7 @@
 import Foundation
 import OSLog
 
-enum LLMConfig: Hashable, Encodable {
+enum LLMConfig: Hashable, Codable {
     case openAI(OpenAIModel)
 }
 
