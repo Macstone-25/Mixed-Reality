@@ -5,4 +5,12 @@
 
 import Foundation
 
-// TODO: #47
+@MainActor
+@Observable
+class ConfigViewModel {
+    private let appModel: AppModel
+    
+    init(_ appModel: AppModel) {
+        self.appModel = appModel
+    }
+}
