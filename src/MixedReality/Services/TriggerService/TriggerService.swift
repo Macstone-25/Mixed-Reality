@@ -8,7 +8,7 @@ import Combine
 import Collections
 import OSLog
 
-enum TriggerEvaluationStrategy: String, Hashable, Encodable, CaseIterable {
+enum TriggerEvaluationStrategy: String, Hashable, Codable, CaseIterable {
     case pauseEvaluator = "Pause Evaluator"
     case fillerEvaluator = "Filler Evaluator"
     // TODO: support llm evaluation (use experiment.miniLLM)

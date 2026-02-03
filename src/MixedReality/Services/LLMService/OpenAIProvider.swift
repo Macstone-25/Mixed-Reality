@@ -5,7 +5,7 @@
 
 import Foundation
 
-enum OpenAIModel: String, Encodable, CaseIterable {
+enum OpenAIModel: String, Codable, CaseIterable {
     case gpt_4_1 = "gpt-4.1"
     case gpt_4_1_mini = "gpt-4.1-mini"
     case gpt_5_2 = "gpt-5.2-chat-latest"

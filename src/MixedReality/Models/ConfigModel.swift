@@ -5,7 +5,7 @@
 
 import Foundation
 
-struct ConfigModel {
+struct ConfigModel: Codable {
     var minPromptContextWindow: Int = 5
     var maxPromptContextWindow: Int = 50
     
@@ -38,6 +38,26 @@ struct ConfigModel {
     var selectedMiniLLMs: Set<LLMConfig> = [
         .openAI(.gpt_4_1_mini),
     ]
-    
+}
+
+extension ConfigModel {
     static let `default` = ConfigModel()
+    
+    private static let storageKey = "ConfigModel.storage"
+
+    func save() {
+        if let data = try? JSONEncoder().encode(self) {
+            UserDefaults.standard.set(data, forKey: Self.storageKey)
+        }
+    }
+
+    static func load() -> ConfigModel {
+        guard
+            let data = UserDefaults.standard.data(forKey: storageKey),
+            let config = try? JSONDecoder().decode(ConfigModel.self, from: data)
+        else {
+            return `default`
+        }
+        return config
+    }
 }

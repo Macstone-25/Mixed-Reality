@@ -38,7 +38,12 @@ class NavigationViewModel {
     }
     
     var leftIcon: String {
-        activeView == .startView ? "gearshape.fill" : "chevron.backward"
+        switch activeView {
+        case .startView:
+            "gearshape.fill"
+        default:
+            "chevron.backward"
+        }
     }
     
     /// Navigates either back (default) or to the config view (from the start view)
@@ -47,7 +52,12 @@ class NavigationViewModel {
     }
     
     var rightIcon: String {
-        activeView == .startView ? "square.and.arrow.up.fill" : ""
+        switch activeView {
+        case .startView:
+            "square.and.arrow.up.fill"
+        default:
+            ""
+        }
     }
     
     /// Navigates to the export view (only from the start view)

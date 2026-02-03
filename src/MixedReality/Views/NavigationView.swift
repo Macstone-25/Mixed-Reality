@@ -10,7 +10,7 @@ struct NavigationView: View {
     
     @State private var viewModel: NavigationViewModel
     
-    let navButtonSize: CGFloat = 64
+    let navButtonSize: CGFloat = 48
     
     init(_ appModel: AppModel, initView: WindowView = .startView) {
         self.appModel = appModel
@@ -23,13 +23,12 @@ struct NavigationView: View {
             HStack {
                 Button(action: viewModel.leftAction) {
                     Image(systemName: viewModel.leftIcon)
-                        .font(.title)
                         .frame(width: navButtonSize, height: navButtonSize)
                 }
                 .buttonStyle(.plain)
-                .background(.ultraThinMaterial)
                 .glassBackgroundEffect()
-                .clipShape(Circle())
+                .background(.thickMaterial)
+                .clipShape(.circle)
                 
                 Spacer()
                 
@@ -41,18 +40,19 @@ struct NavigationView: View {
                 if viewModel.rightIcon != "" {
                     Button(action: viewModel.rightAction) {
                         Image(systemName: viewModel.rightIcon)
-                            .font(.title)
                             .frame(width: navButtonSize, height: navButtonSize)
                     }
                     .buttonStyle(.plain)
-                    .background(.ultraThinMaterial)
                     .glassBackgroundEffect()
-                    .clipShape(Circle())
+                    .background(.thickMaterial)
+                    .clipShape(.circle)
                 } else {
                     Color.clear
                         .frame(width: navButtonSize, height: navButtonSize)
                 }
             }
+            
+            Spacer()
             
             // content
             switch viewModel.activeView {
@@ -63,14 +63,16 @@ struct NavigationView: View {
             case .exportView:
                 Text("TODO: export view")
             }
+            
+            Spacer()
         }
-        .frame(width: 700)
-        .padding(16)
+        .padding(24)
     }
 }
 
 #Preview {
     NavigationView(AppModel())
-        .background(.regularMaterial)
+        .background(.thinMaterial)
+        .frame(maxWidth: 750, maxHeight: 500)
         .glassBackgroundEffect()
 }

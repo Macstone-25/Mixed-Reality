@@ -16,6 +16,7 @@ struct MixedRealityApp: App {
              NavigationView(appModel)
                  .environment(appModel)
         }
+        .defaultSize(width: 750, height: 500)
         .onChange(of: appModel.activeScene) { _, activeScene in
             Task {
                 switch(activeScene) {

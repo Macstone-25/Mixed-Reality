@@ -19,9 +19,14 @@ class ConfigViewModel {
     
     func applyChanges() {
         appModel.config = config
+        appModel.config.save()
     }
     
-    func revertChanges() {
+    func undoChanges() {
         config = appModel.config
+    }
+    
+    func resetConfig() {
+        config = ConfigModel.default
     }
 }

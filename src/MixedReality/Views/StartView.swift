@@ -35,15 +35,14 @@ struct StartView: View {
             }
         }
         .frame(maxWidth: .infinity)
-        .padding(.horizontal, 100)
-        .padding(.bottom, 128)
-        // reduced top padding due to navigation buttons
-        .padding(.top, 64)
+        // account for navigation buttons
+        .padding(.bottom, 48)
     }
 }
 
 #Preview {
     NavigationView(AppModel(), initView: .startView)
-        .background(.regularMaterial)
+        .background(.thinMaterial)
+        .frame(maxWidth: 750, maxHeight: 500)
         .glassBackgroundEffect()
 }
