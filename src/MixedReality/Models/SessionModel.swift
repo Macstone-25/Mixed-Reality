@@ -51,7 +51,7 @@ class SessionModel {
         sinks.insert(
             speechService.transcriptChunkEvent
                 .sink { chunk in
-                    Task { [weak self] in
+                    Task.detached { [weak self] in
                         guard let self = self else { return }
                         await self.triggerService.handleTranscriptChunk(chunk: chunk)
                     }
@@ -62,7 +62,7 @@ class SessionModel {
         sinks.insert(
             speechService.transcriptChunkEvent
                 .sink { chunk in
-                    Task { [weak self] in
+                    Task.detached { [weak self] in
                         guard let self = self else { return }
                         await self.promptService.handleTranscriptChunk(chunk: chunk)
                     }
@@ -71,7 +71,7 @@ class SessionModel {
         
         // Connect PromptService to TriggerService
         await self.triggerService.setOnTrigger { [weak self] event in
-            Task {
+            Task.detached { [weak self] in
                 guard let self = self else { return }
                 
                 // TODO: Automatically clear prompt (#53) - make sure to use eventId to avoid clearing prompts overwriting this one

@@ -32,30 +32,43 @@ class AppModel {
         isLaunchingSession = true
         launchError = nil
         
-        Task {
+        let config = config
+        
+        Task.detached { [weak self] in
+            let newSession: SessionModel
             do {
-                session = try await SessionModel(config: config)
-                try await session?.start()
-                logger.info("🎧 Session started. Launching immersive space…")
-                activeScene = SceneID.immersiveSpace
+                newSession = try await SessionModel(config: config)
+                try await newSession.start()
             } catch {
-                logger.error("❌ Failed to start session: \(error)")
-                launchError = error.localizedDescription
+                return await MainActor.run { [weak self] in
+                    guard let self = self else { return }
+                    self.logger.error("❌ Failed to start session: \(error)")
+                    self.launchError = error.localizedDescription
+                }
             }
-            isLaunchingSession = false
+            
+            await MainActor.run { [weak self] in
+                guard let self = self else { return }
+                self.session = newSession
+                self.logger.info("🎧 Session started. Launching immersive space…")
+                self.activeScene = SceneID.immersiveSpace
+                self.isLaunchingSession = false
+            }
         }
     }
 
     func endSession() {
         guard !isEndingSession, let session = session else { return }
         isEndingSession = true
-        
-        Task {
+        Task.detached { [weak self] in
             await session.end()
-            self.session = nil
-            logger.info("🛑 Session ended")
-            activeScene = SceneID.windowGroup
-            isEndingSession = false
+            await MainActor.run { [weak self] in
+                guard let self = self else { return }
+                self.session = nil
+                self.logger.info("🛑 Session ended")
+                self.activeScene = SceneID.windowGroup
+                self.isEndingSession = false
+            }
         }
     }
 }
