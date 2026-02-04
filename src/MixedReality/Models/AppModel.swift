@@ -44,6 +44,7 @@ class AppModel {
                     guard let self = self else { return }
                     self.logger.error("❌ Failed to start session: \(error)")
                     self.launchError = error.localizedDescription
+                    self.isLaunchingSession = false
                 }
             }
             
