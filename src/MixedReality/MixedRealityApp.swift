@@ -1,24 +1,45 @@
 import SwiftUI
+import OSLog
 
 @main
 struct MixedRealityApp: App {
+    @Environment(\.openWindow) private var openWindow
+    @Environment(\.dismissWindow) private var dismissWindow
+    
+    @Environment(\.openImmersiveSpace) private var openImmersiveSpace
+    @Environment(\.dismissImmersiveSpace) private var dismissImmersiveSpace
+    
     @State private var appModel = AppModel()
     
     var body: some Scene {
-        WindowGroup(id: appModel.windowGroupId) {
-            // ORIGINAL (temporarily disabled for testing):
-             ContentView()
+        WindowGroup(id: SceneID.windowGroup.rawValue) {
+             NavigationView(appModel)
                  .environment(appModel)
-
-            // TEST VIEW (enable this to exercise the trigger engine demo):
-//            TriggerDemoView(useLLM: false)   // flip to true to test LLM-augmented mode
-//                .environment(appModel)
         }
-        .defaultSize(CGSize(width: 600, height: 350))
+        .defaultSize(width: 750, height: 500)
+        .onChange(of: appModel.activeScene) { _, activeScene in
+            Task {
+                switch(activeScene) {
+                case(.immersiveSpace):
+                    let result = await openImmersiveSpace(id: SceneID.immersiveSpace.rawValue)
+                    switch result {
+                    case .opened:
+                        appModel.logger.info("Opened immersive space")
+                        dismissWindow(id: SceneID.windowGroup.rawValue)
+                    default:
+                        appModel.logger.error("Failed to open immersive space")
+                        appModel.endSession()
+                    }
+                case(.windowGroup):
+                    await dismissImmersiveSpace()
+                    openWindow(id: SceneID.windowGroup.rawValue)
+                    appModel.logger.info("Dismissed immersive space")
+                }
+            }
+        }
 
-        // Immersive space left as-is (not used by the demo window)
-        ImmersiveSpace(id: appModel.immersiveSpaceId) {
-            ImmersiveView()
+        ImmersiveSpace(id: SceneID.immersiveSpace.rawValue) {
+            SessionView(appModel)
                 .environment(appModel)
         }
         .immersionStyle(selection: .constant(.mixed), in: .mixed)

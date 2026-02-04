@@ -2,22 +2,26 @@
 //  PromptView.swift
 //  MixedReality
 //
-//  Created by William Clubine on 2025-11-14.
-//
 
 import SwiftUI
 
 struct PromptView: View {
-    @Environment(AppModel.self) private var appModel
-
-    // Initialize independently of @Environment
-    @State private var isVisible: Bool = false
+    private let appModel: AppModel
+    private let sessionViewModel: SessionViewModel
+    
+    @State private var viewModel: PromptViewModel
+    
+    init(appModel: AppModel, sessionViewModel: SessionViewModel) {
+        self.appModel = appModel
+        self.sessionViewModel = sessionViewModel
+        _viewModel = State(wrappedValue: PromptViewModel(appModel: appModel, sessionViewModel: sessionViewModel))
+    }
 
     var body: some View {
         HStack(spacing: 14) {
-            Text(appModel.prompt)
+            Text(sessionViewModel.prompt)
 
-            Button(action: clearPrompt) {
+            Button(action: { sessionViewModel.prompt = "" }) {
                 Circle()
                     .fill(Color.green)
                     .frame(width: 34, height: 34)
@@ -33,22 +37,7 @@ struct PromptView: View {
         .padding(.vertical, 10)
         .background(.regularMaterial, in: Capsule())
         .glassBackgroundEffect()
-        .opacity(isVisible ? 1 : 0)
-        .animation(.easeInOut(duration: 0.5), value: isVisible)
-        .onAppear {
-            // Safe to read @Environment now
-            isVisible = !appModel.prompt.isEmpty
-        }
-        .onChange(of: appModel.prompt) { _, newValue in
-            isVisible = !newValue.isEmpty
-        }
+        .opacity(viewModel.isVisible ? 1 : 0)
+        .animation(.easeInOut(duration: 0.5), value: viewModel.isVisible)
     }
-
-    private func clearPrompt() {
-        appModel.prompt = ""
-    }
-}
-
-#Preview {
-    PromptView()
 }

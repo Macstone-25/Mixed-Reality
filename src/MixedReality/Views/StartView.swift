@@ -1,62 +1,48 @@
 import SwiftUI
-import AVFoundation  
 
 struct StartView: View {
-    @Environment(AppModel.self) private var appModel
-    let onStart: () -> Void
+    private let appModel: AppModel
+    
+    @State private var viewModel: StartViewModel
+    
+    init(_ appModel: AppModel) {
+        self.appModel = appModel
+        _viewModel = State(wrappedValue: StartViewModel(appModel: appModel))
+    }
 
     var body: some View {
         VStack(spacing: 24) {
-            Text("Ready to begin?")
-                .font(.largeTitle).bold()
+            Text("Push the button below to begin.")
+                .font(.title)
                 .multilineTextAlignment(.center)
 
-            Button("Start Session") {
-                requestMicPermission()
+            Button(viewModel.isLaunching ? "Launching..." : "Start Session") {
+                appModel.startSession()
             }
+            .tint(.blue)
             .buttonStyle(.borderedProminent)
-            .controlSize(.large)
-            .accessibilityIdentifier("start-session-button")
+            .glassBackgroundEffect()
+            .controlSize(.extraLarge)
+            .font(.extraLargeTitle2)
+            .disabled(viewModel.isLaunching)
 
-            if let error = appModel.lastSessionError {
+            if let error = appModel.launchError {
                 Text(error)
                     .foregroundColor(.red)
-                    .font(.footnote)
+                    .monospaced()
                     .multilineTextAlignment(.center)
                     .padding(.horizontal)
             }
         }
-        .frame(maxWidth: .infinity, maxHeight: .infinity)
+        .frame(maxWidth: .infinity)
+        // account for navigation buttons
+        .padding(.bottom, 48)
     }
+}
 
-    private func requestMicPermission() {
-        let session = AVAudioSession.sharedInstance()
-
-        switch session.recordPermission {
-        case .granted:
-            // Already allowed – go ahead and start
-            onStart()
-
-        case .denied:
-            // User has previously denied
-            appModel.lastSessionError =
-            "Microphone access is required. Please enable it in Settings."
-
-        case .undetermined:
-            // First time – ask
-            session.requestRecordPermission { granted in
-                DispatchQueue.main.async {
-                    if granted {
-                        self.onStart()
-                    } else {
-                        self.appModel.lastSessionError =
-                        "Microphone access is required. Please enable it in Settings."
-                    }
-                }
-            }
-
-        @unknown default:
-            appModel.lastSessionError = "Unknown microphone permission state."
-        }
-    }
+#Preview {
+    NavigationView(AppModel(), initView: .startView)
+        .background(.thinMaterial)
+        .frame(maxWidth: 750, maxHeight: 500)
+        .glassBackgroundEffect()
 }
