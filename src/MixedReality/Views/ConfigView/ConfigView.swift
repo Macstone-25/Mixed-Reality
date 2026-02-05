@@ -8,11 +8,11 @@ import SwiftUI
 struct ConfigView: View {
     private let appModel: AppModel
     
-    @State private var viewModel: ConfigViewModel
+    @StateObject private var viewModel: ConfigViewModel
     
     init(_ appModel: AppModel) {
         self.appModel = appModel
-        _viewModel = State(wrappedValue: ConfigViewModel(appModel))
+        _viewModel = StateObject(wrappedValue: ConfigViewModel(appModel))
     }
     
     var body: some View {
