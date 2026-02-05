@@ -15,7 +15,6 @@ actor PromptService {
     private let experiment: ExperimentModel
     private let llm: LLMService
     private let speechService: SpeechService
-    private let soundService: SoundService
     
     // TODO: Summarize old transcript lines
     private var summary = ""
@@ -37,12 +36,11 @@ actor PromptService {
         5. Use phrasing like "you were talking about" instead of "you were asking about" because you do not know which speaker ID is the one viewing your prompts. 
     """
     
-    init(artifacts: ArtifactService, experiment: ExperimentModel, llm: LLMService, speechService: SpeechService, soundService: SoundService) {
+    init(artifacts: ArtifactService, experiment: ExperimentModel, llm: LLMService, speechService: SpeechService) {
         self.artifacts = artifacts
         self.experiment = experiment
         self.llm = llm
         self.speechService = speechService
-        self.soundService = soundService
     }
     
     func handleTranscriptChunk(chunk: TranscriptChunk) async {
@@ -65,13 +63,7 @@ actor PromptService {
         let promptContext = self.recentTranscript.joined(separator: "\n")
         do {
             let start = CFAbsoluteTimeGetCurrent()
-
             let prompt = try await self.llm.generate(systemPrompt: Self.systemPrompt, userPrompt: promptContext)
-
-            await MainActor.run {
-                self.soundService.playDing()
-            }
-
             let end = CFAbsoluteTimeGetCurrent()
             let duration = String(format: "%.1f", end - start)
             await self.artifacts.logEvent(type: "Prompt", message: "(#\(eventId)) (\(duration)s delay) \"\(prompt)\"")

@@ -37,7 +37,7 @@ class SessionModel {
         self.speechService = try await SpeechService(artifacts: self.artifacts, experiment: experiment, config: DeepgramConfig())
         self.triggerService = await TriggerService(artifacts: self.artifacts, experiment: experiment, speechService: self.speechService, miniLLM: self.miniLLM)
         self.soundService = SoundService()
-        self.promptService = PromptService(artifacts: self.artifacts, experiment: experiment, llm: self.llm, speechService: self.speechService, soundService: self.soundService)
+        self.promptService = PromptService(artifacts: self.artifacts, experiment: experiment, llm: self.llm, speechService: self.speechService)
     }
     
     func start() async throws {
@@ -86,10 +86,13 @@ class SessionModel {
                         return
                     }
                     
+                    self.soundService.playDing()
                     onPrompt(prompt)
                 }
             }
         }
+        
+        soundService.prepareDing()
         
         try await speechService.connect()
     }

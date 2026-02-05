@@ -98,14 +98,6 @@ class SpeechService: WebSocketDelegate {
                 "Invalid input format — channels: \(audioFormat.channelCount), sample rate: \(audioFormat.sampleRate)")
         }
         
-//        assetWriterInput = AVAssetWriterInput(mediaType: .audio, outputSettings: [
-//            AVFormatIDKey: kAudioFormatMPEG4AAC,
-//            AVSampleRateKey: audioFormat.sampleRate,
-//            AVNumberOfChannelsKey: audioFormat.channelCount,
-//            AVEncoderBitRateKey: 128000
-//        ])
-        
-        // edit made by Greg to replace above code (Feb 5, 2026)
         let sr = audioFormat.sampleRate
         let safeSampleRate: Double = (sr == 44_100 || sr == 48_000) ? sr : 48_000
 
@@ -115,7 +107,6 @@ class SpeechService: WebSocketDelegate {
             AVNumberOfChannelsKey: min(Int(audioFormat.channelCount), 2),
             AVEncoderBitRateKey: 128_000
         ])
-        //end of edit
         
         if assetWriter.canAdd(assetWriterInput) {
             assetWriterInput.expectsMediaDataInRealTime = true
