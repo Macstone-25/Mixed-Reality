@@ -19,6 +19,7 @@ class SessionModel {
     private let speechService: SpeechService
     private let triggerService: TriggerService
     private let promptService: PromptService
+    private let soundService: SoundService
     
     private var sinks = Set<AnyCancellable>()
     
@@ -35,7 +36,8 @@ class SessionModel {
         self.miniLLM = LLMService(artifacts: self.artifacts, experiment: experiment, llm: experiment.miniLLM)
         self.speechService = try await SpeechService(artifacts: self.artifacts, experiment: experiment, config: DeepgramConfig())
         self.triggerService = await TriggerService(artifacts: self.artifacts, experiment: experiment, speechService: self.speechService, miniLLM: self.miniLLM)
-        self.promptService = PromptService(artifacts: self.artifacts, experiment: experiment, llm: self.llm, speechService: self.speechService)
+        self.soundService = SoundService()
+        self.promptService = PromptService(artifacts: self.artifacts, experiment: experiment, llm: self.llm, speechService: self.speechService, soundService: self.soundService)
     }
     
     func start() async throws {
