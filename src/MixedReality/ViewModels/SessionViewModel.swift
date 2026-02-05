@@ -22,4 +22,19 @@ class SessionViewModel {
             self.prompt = prompt
         }
     }
+    
+    // MARK: - Prompt Read Tracking
+    
+    func logPromptRead(method: PromptReadMethod) {
+        appModel.session?.logPromptRead(method: method)
+    }
+    
+    func clearPrompt() {
+        appModel.session?.logPromptDismissed()
+        prompt = ""
+    }
+    
+    func hasPromptBeenRead() -> Bool {
+        return appModel.session?.hasPromptBeenRead() ?? false
+    }
 }

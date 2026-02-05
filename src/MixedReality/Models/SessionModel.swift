@@ -7,6 +7,11 @@ import Foundation
 import Combine
 import OSLog
 
+enum PromptReadMethod: String, Sendable {
+    case gaze = "Gaze"
+    case button = "Button"
+}
+
 class SessionModel {
     let id: String
     
@@ -23,6 +28,12 @@ class SessionModel {
     private var sinks = Set<AnyCancellable>()
     
     var onPrompt: ((String) -> (Void))?
+    
+    // MARK: - Prompt Tracking
+    private var currentPromptEventId: UInt64?
+    private var promptDisplayedAt: Date?
+    private var promptReadAt: Date?
+    private var promptReadMethod: PromptReadMethod?
     
     init(config: ConfigModel) async throws {
         // TODO: Add random id to display (#57)
@@ -80,12 +91,57 @@ class SessionModel {
                         return
                     }
                     
+                    // Set prompt tracking metadata
+                    self.currentPromptEventId = event.id
+                    self.promptDisplayedAt = Date()
+                    self.promptReadAt = nil
+                    self.promptReadMethod = nil
+                    
                     onPrompt(prompt)
                 }
             }
         }
         
         try await speechService.connect()
+    }
+    
+    // MARK: - Prompt Read Tracking
+    
+    func logPromptRead(method: PromptReadMethod) {
+        // Only log once per prompt
+        guard let eventId = currentPromptEventId, promptReadAt == nil else { return }
+        
+        promptReadAt = Date()
+        promptReadMethod = method
+        
+        let displayDuration = promptReadAt!.timeIntervalSince(promptDisplayedAt ?? Date())
+        let message = "(#\(eventId)) method=\(method.rawValue) displayDuration=\(String(format: "%.2f", displayDuration))s"
+        
+        Task {
+            await self.artifacts.logEvent(type: "PromptRead", message: message)
+        }
+    }
+    
+    func logPromptDismissed() {
+        guard let eventId = currentPromptEventId else { return }
+        
+        let wasRead = promptReadAt != nil
+        let method = promptReadMethod?.rawValue ?? "None"
+        let message = "(#\(eventId)) wasRead=\(wasRead) method=\(method)"
+        
+        Task {
+            await self.artifacts.logEvent(type: "PromptDismissed", message: message)
+        }
+        
+        // Reset tracking state
+        currentPromptEventId = nil
+        promptDisplayedAt = nil
+        promptReadAt = nil
+        promptReadMethod = nil
+    }
+    
+    func hasPromptBeenRead() -> Bool {
+        return promptReadAt != nil
     }
     
     func end() async {
