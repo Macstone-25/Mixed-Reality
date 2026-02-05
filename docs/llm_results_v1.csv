@@ -1,0 +1,767 @@
+recent_utterances,prompt_type,model_response,support_level,seed
+"0: I used to spend hours in my garden, especially during the summer.  
+1: That sounds relaxing! What kinds of things did you grow?  
+0: Mostly herbs — basil, thyme, and a few tomato plants near the fence.  
+1: Did you still keep the garden going this year?  
+0: Not really… I tried for a bit, but I—",semantic_completion,—couldn’t keep up with the watering and weeding as much as before?,1,42
+"0: I used to spend hours in my garden, especially during the summer.  
+1: That sounds relaxing! What kinds of things did you grow?  
+0: Mostly herbs — basil, thyme, and a few tomato plants near the fence.  
+1: Did you still keep the garden going this year?  
+0: Not really… I tried for a bit, but I—",semantic_completion,"You were about to explain what made continuing the garden challenging this year, right?",2,42
+"0: I used to spend hours in my garden, especially during the summer.  
+1: That sounds relaxing! What kinds of things did you grow?  
+0: Mostly herbs — basil, thyme, and a few tomato plants near the fence.  
+1: Did you still keep the garden going this year?  
+0: Not really… I tried for a bit, but I—",semantic_completion,—you were saying you tried to keep the garden going this year but faced some challenges? What happened with the tomatoes and herbs?,3,42
+"0: I still have my old record player from the 70s.  
+1: No way, does it still work?  
+0: Yeah, it does! The sound has that warm crackle you don’t get from digital music.  
+1: What kind of songs do you usually listen to on it?  
+0: Mostly jazz… Miles Davis and—",semantic_completion,Sounds like you were about to mention a favorite album or song by Miles Davis?,1,42
+"0: I still have my old record player from the 70s.  
+1: No way, does it still work?  
+0: Yeah, it does! The sound has that warm crackle you don’t get from digital music.  
+1: What kind of songs do you usually listen to on it?  
+0: Mostly jazz… Miles Davis and—",semantic_completion,Miles Davis and John Coltrane have such timeless albums. Were you about to mention one of your favorite records?,2,42
+"0: I still have my old record player from the 70s.  
+1: No way, does it still work?  
+0: Yeah, it does! The sound has that warm crackle you don’t get from digital music.  
+1: What kind of songs do you usually listen to on it?  
+0: Mostly jazz… Miles Davis and—",semantic_completion,You were starting to mention Miles Davis. Were you about to talk about a favorite album or song that really stands out on the record player?,3,42
+"0: I started going to that new café down the street.  
+1: Oh, the one with the bright blue chairs?  
+0: Yeah, that’s the one! Their coffee is great, and the staff always remember my order.  
+1: That’s sweet. Do you go there every morning?  
+0: I try to, but sometimes I just—",reminiscence,Sometimes I just end up getting my coffee on the way to work instead.,1,42
+"0: I started going to that new café down the street.  
+1: Oh, the one with the bright blue chairs?  
+0: Yeah, that’s the one! Their coffee is great, and the staff always remember my order.  
+1: That’s sweet. Do you go there every morning?  
+0: I try to, but sometimes I just—",reminiscence,You were about to say what sometimes keeps you from going there every morning?,2,42
+"0: I started going to that new café down the street.  
+1: Oh, the one with the bright blue chairs?  
+0: Yeah, that’s the one! Their coffee is great, and the staff always remember my order.  
+1: That’s sweet. Do you go there every morning?  
+0: I try to, but sometimes I just—",reminiscence,"Sometimes your morning gets too busy, or something else comes up? What usually changes your routine?",3,42
+"0: My favorite trip was to Italy years ago.  
+1: Oh, where in Italy did you go?  
+0: Mostly Rome and Florence. The architecture was incredible, and the food—don’t get me started.  
+1: I bet the pasta was amazing. Did you go with friends or family?  
+0: With my daughter actually… we—",turn_taking,Maybe share a favorite moment you and your daughter had in Italy?,1,42
+"0: My favorite trip was to Italy years ago.  
+1: Oh, where in Italy did you go?  
+0: Mostly Rome and Florence. The architecture was incredible, and the food—don’t get me started.  
+1: I bet the pasta was amazing. Did you go with friends or family?  
+0: With my daughter actually… we—",turn_taking,…had such a great time exploring the city together. Maybe share a favorite moment from that trip with your daughter?,2,42
+"0: My favorite trip was to Italy years ago.  
+1: Oh, where in Italy did you go?  
+0: Mostly Rome and Florence. The architecture was incredible, and the food—don’t get me started.  
+1: I bet the pasta was amazing. Did you go with friends or family?  
+0: With my daughter actually… we—",turn_taking,You were starting to say you went with your daughter—maybe share a bit about the trip you took together?,3,42
+"0: We had a golden retriever named Max when I was younger.  
+1: Aw, golden retrievers are the best. Was he playful?  
+0: Very! He used to wait by the door every time someone came home.  
+1: That’s adorable. Did he like going on walks?  
+0: Oh yes, every afternoon we’d walk to the park and—",turn_taking,What was your favorite thing about those park walks with Max?,1,42
+"0: We had a golden retriever named Max when I was younger.  
+1: Aw, golden retrievers are the best. Was he playful?  
+0: Very! He used to wait by the door every time someone came home.  
+1: That’s adorable. Did he like going on walks?  
+0: Oh yes, every afternoon we’d walk to the park and—",turn_taking,Tell more about those afternoon walks to the park with Max. What was your favorite part?,2,42
+"0: We had a golden retriever named Max when I was younger.  
+1: Aw, golden retrievers are the best. Was he playful?  
+0: Very! He used to wait by the door every time someone came home.  
+1: That’s adorable. Did he like going on walks?  
+0: Oh yes, every afternoon we’d walk to the park and—",turn_taking,The park sounds lovely. What did Max enjoy most about those afternoon walks?,3,42
+"0: You know, the neighborhood has changed so much since I moved here forty years ago.  
+1: Oh yeah? What was it like back then?  
+0: It was quieter… fewer cars, more trees. You’d hear kids playing outside until dusk. Everyone knew each other’s names.  
+1: That sounds lovely — kind of like a small town community.  
+0: Exactly. We used to organize block parties every summer. There’d be homemade lemonade, someone would bring a guitar, and everyone would dance in the street.  
+1: That sounds wonderful. Do they still do that now?  
+0: Not really. Most of the original families moved away. New people came in — nice folks, just busier, I think. Everyone sort of keeps to themselves.  
+1: I guess that’s what happens over time. Do you ever talk to your neighbors these days?  
+0: A few, yes. The family next door sometimes brings over cookies around Christmas. It reminds me of when my kids were little. We used to bake together every December, the kitchen would smell like cinnamon and butter for days.  
+1: That must bring back a lot of memories. Do you still bake around the holidays?  
+0: Not as much anymore… the hands get a bit shaky, and—",turn_taking,What kinds of treats did you enjoy baking the most during those holiday times?,1,42
+"0: You know, the neighborhood has changed so much since I moved here forty years ago.  
+1: Oh yeah? What was it like back then?  
+0: It was quieter… fewer cars, more trees. You’d hear kids playing outside until dusk. Everyone knew each other’s names.  
+1: That sounds lovely — kind of like a small town community.  
+0: Exactly. We used to organize block parties every summer. There’d be homemade lemonade, someone would bring a guitar, and everyone would dance in the street.  
+1: That sounds wonderful. Do they still do that now?  
+0: Not really. Most of the original families moved away. New people came in — nice folks, just busier, I think. Everyone sort of keeps to themselves.  
+1: I guess that’s what happens over time. Do you ever talk to your neighbors these days?  
+0: A few, yes. The family next door sometimes brings over cookies around Christmas. It reminds me of when my kids were little. We used to bake together every December, the kitchen would smell like cinnamon and butter for days.  
+1: That must bring back a lot of memories. Do you still bake around the holidays?  
+0: Not as much anymore… the hands get a bit shaky, and—",turn_taking,Maybe you could share a favorite holiday recipe or a special baking memory that stands out from those times.,2,42
+"0: You know, the neighborhood has changed so much since I moved here forty years ago.  
+1: Oh yeah? What was it like back then?  
+0: It was quieter… fewer cars, more trees. You’d hear kids playing outside until dusk. Everyone knew each other’s names.  
+1: That sounds lovely — kind of like a small town community.  
+0: Exactly. We used to organize block parties every summer. There’d be homemade lemonade, someone would bring a guitar, and everyone would dance in the street.  
+1: That sounds wonderful. Do they still do that now?  
+0: Not really. Most of the original families moved away. New people came in — nice folks, just busier, I think. Everyone sort of keeps to themselves.  
+1: I guess that’s what happens over time. Do you ever talk to your neighbors these days?  
+0: A few, yes. The family next door sometimes brings over cookies around Christmas. It reminds me of when my kids were little. We used to bake together every December, the kitchen would smell like cinnamon and butter for days.  
+1: That must bring back a lot of memories. Do you still bake around the holidays?  
+0: Not as much anymore… the hands get a bit shaky, and—",turn_taking,The memories of baking with your kids sound so warm and special. Maybe you could share a favorite holiday recipe or a story about one of those baking days?,3,42
+"0: We used to take these long road trips every summer when the kids were young.  
+1: Oh, that sounds fun! Where did you go?  
+0: All over, really. We’d pack up the car — snacks, cassette tapes, everything — and just drive. Sometimes we didn’t even have a destination.  
+1: That kind of spontaneity is rare these days. Did you have a favorite place?  
+0: Probably the trip to Nova Scotia. The coastlines were breathtaking, and we found this little diner that played old Motown songs all day. My son couldn’t stop dancing in his seat.  
+1: That’s adorable. Did you take photos?  
+0: Tons! But back then, it was film, so you never knew how they’d turn out until weeks later. Half the time someone had their eyes closed.  
+1: (laughs) The charm of old cameras. Do you still have those photos?  
+0: In a big album somewhere in the attic. I’ve been meaning to go through them, but every time I try, I get lost in the memories. My husband used to drive, and I’d navigate — though, between you and me, I was terrible at it.  
+1: (smiling) Sounds like you two made a good team anyway.  
+0: We did. He’d sing along to the radio, terribly off-key, and we’d all join in. The kids still tease me about the time we got lost for three hours outside Montréal because I read the map upside down.  
+1: (laughs) That’s such a good story. Did you ever go on another trip after that one?  
+0: Not for a while… after he got sick, we—",semantic_completion,You were about to share how things changed after your husband got sick?,1,42
+"0: We used to take these long road trips every summer when the kids were young.  
+1: Oh, that sounds fun! Where did you go?  
+0: All over, really. We’d pack up the car — snacks, cassette tapes, everything — and just drive. Sometimes we didn’t even have a destination.  
+1: That kind of spontaneity is rare these days. Did you have a favorite place?  
+0: Probably the trip to Nova Scotia. The coastlines were breathtaking, and we found this little diner that played old Motown songs all day. My son couldn’t stop dancing in his seat.  
+1: That’s adorable. Did you take photos?  
+0: Tons! But back then, it was film, so you never knew how they’d turn out until weeks later. Half the time someone had their eyes closed.  
+1: (laughs) The charm of old cameras. Do you still have those photos?  
+0: In a big album somewhere in the attic. I’ve been meaning to go through them, but every time I try, I get lost in the memories. My husband used to drive, and I’d navigate — though, between you and me, I was terrible at it.  
+1: (smiling) Sounds like you two made a good team anyway.  
+0: We did. He’d sing along to the radio, terribly off-key, and we’d all join in. The kids still tease me about the time we got lost for three hours outside Montréal because I read the map upside down.  
+1: (laughs) That’s such a good story. Did you ever go on another trip after that one?  
+0: Not for a while… after he got sick, we—",semantic_completion,You were just about to share how things changed after your husband got sick — were you going to talk about how that affected your trips?,2,42
+"0: We used to take these long road trips every summer when the kids were young.  
+1: Oh, that sounds fun! Where did you go?  
+0: All over, really. We’d pack up the car — snacks, cassette tapes, everything — and just drive. Sometimes we didn’t even have a destination.  
+1: That kind of spontaneity is rare these days. Did you have a favorite place?  
+0: Probably the trip to Nova Scotia. The coastlines were breathtaking, and we found this little diner that played old Motown songs all day. My son couldn’t stop dancing in his seat.  
+1: That’s adorable. Did you take photos?  
+0: Tons! But back then, it was film, so you never knew how they’d turn out until weeks later. Half the time someone had their eyes closed.  
+1: (laughs) The charm of old cameras. Do you still have those photos?  
+0: In a big album somewhere in the attic. I’ve been meaning to go through them, but every time I try, I get lost in the memories. My husband used to drive, and I’d navigate — though, between you and me, I was terrible at it.  
+1: (smiling) Sounds like you two made a good team anyway.  
+0: We did. He’d sing along to the radio, terribly off-key, and we’d all join in. The kids still tease me about the time we got lost for three hours outside Montréal because I read the map upside down.  
+1: (laughs) That’s such a good story. Did you ever go on another trip after that one?  
+0: Not for a while… after he got sick, we—",semantic_completion,You were just about to share how your trips changed after your husband got sick. Were you going to talk about how your family handled those changes or maybe a particular moment that stood out?,3,42
+"0: I’ve been trying to learn how to use my new smartphone, but it feels like every time I figure something out, they change it again.  
+1: Oh, I know that feeling. What part do you find tricky?  
+0: Mostly the texting. I keep hitting the wrong buttons, and sometimes I accidentally send half-written messages.  
+1: (laughs) That happens to everyone. Do you use voice typing?  
+0: I tried it once, but it kept thinking I said 'duck' instead of—well, you know. (laughs)  
+1: (laughs) Classic. Did you end up getting it to work?  
+0: Not yet, but maybe I should give it another try.",conversational_bridging,What tips have you heard for making voice typing more accurate?,1,42
+"0: I’ve been trying to learn how to use my new smartphone, but it feels like every time I figure something out, they change it again.  
+1: Oh, I know that feeling. What part do you find tricky?  
+0: Mostly the texting. I keep hitting the wrong buttons, and sometimes I accidentally send half-written messages.  
+1: (laughs) That happens to everyone. Do you use voice typing?  
+0: I tried it once, but it kept thinking I said 'duck' instead of—well, you know. (laughs)  
+1: (laughs) Classic. Did you end up getting it to work?  
+0: Not yet, but maybe I should give it another try.",conversational_bridging,Maybe you could ask if they have any tips for getting voice typing to work better or if they prefer another way to send messages.,2,42
+"0: I’ve been trying to learn how to use my new smartphone, but it feels like every time I figure something out, they change it again.  
+1: Oh, I know that feeling. What part do you find tricky?  
+0: Mostly the texting. I keep hitting the wrong buttons, and sometimes I accidentally send half-written messages.  
+1: (laughs) That happens to everyone. Do you use voice typing?  
+0: I tried it once, but it kept thinking I said 'duck' instead of—well, you know. (laughs)  
+1: (laughs) Classic. Did you end up getting it to work?  
+0: Not yet, but maybe I should give it another try.",conversational_bridging,"Since voice typing can be so helpful once it’s set up right, maybe you could ask if they have any tips for training it to understand tricky words better?",3,42
+"0: My grandson taught me how to play Minecraft.  
+1: That’s awesome! How’s that going?  
+0: Surprisingly fun! We built a little house together, though I kept falling into holes.  
+1: (laughs) It’s a rite of passage. Did you two play for long?  
+0: Yeah, a couple of hours. He was patient, explaining how to craft tools and everything. I was proud of myself when I finally built a door!  
+1: That’s great! Do you play often?  
+0: Only when he visits, but it’s something we both enjoy.",semantic_completion,Were you going to describe the house you built together?,1,42
+"0: My grandson taught me how to play Minecraft.  
+1: That’s awesome! How’s that going?  
+0: Surprisingly fun! We built a little house together, though I kept falling into holes.  
+1: (laughs) It’s a rite of passage. Did you two play for long?  
+0: Yeah, a couple of hours. He was patient, explaining how to craft tools and everything. I was proud of myself when I finally built a door!  
+1: That’s great! Do you play often?  
+0: Only when he visits, but it’s something we both enjoy.",semantic_completion,It sounds like those crafting lessons really helped—were you about to share what kind of tools you learned to make?,2,42
+"0: My grandson taught me how to play Minecraft.  
+1: That’s awesome! How’s that going?  
+0: Surprisingly fun! We built a little house together, though I kept falling into holes.  
+1: (laughs) It’s a rite of passage. Did you two play for long?  
+0: Yeah, a couple of hours. He was patient, explaining how to craft tools and everything. I was proud of myself when I finally built a door!  
+1: That’s great! Do you play often?  
+0: Only when he visits, but it’s something we both enjoy.",semantic_completion,You were talking about playing Minecraft with your grandson and how proud you felt building the door. Were you about to share a favorite moment from your time playing together?,3,42
+"0: I used to work at the post office back in the day.  
+1: Really? What was that like?  
+0: Busy! Especially around the holidays. We’d be sorting hundreds of letters, and there was no automation back then.  
+1: Wow, all by hand?  
+0: Yep. We memorized addresses faster than the machines can now. I still remember some of the regulars’ names.  
+1: That’s impressive. Did you ever get strange mail?  
+0: Oh, plenty. Once someone tried mailing a pineapple. No box, just stamps on the fruit.",conversational_bridging,Did the pineapple ever actually make it to its destination?,1,42
+"0: I used to work at the post office back in the day.  
+1: Really? What was that like?  
+0: Busy! Especially around the holidays. We’d be sorting hundreds of letters, and there was no automation back then.  
+1: Wow, all by hand?  
+0: Yep. We memorized addresses faster than the machines can now. I still remember some of the regulars’ names.  
+1: That’s impressive. Did you ever get strange mail?  
+0: Oh, plenty. Once someone tried mailing a pineapple. No box, just stamps on the fruit.",conversational_bridging,That pineapple story sounds wild! Did any other unusual packages or letters show up during the busy seasons?,2,42
+"0: I used to work at the post office back in the day.  
+1: Really? What was that like?  
+0: Busy! Especially around the holidays. We’d be sorting hundreds of letters, and there was no automation back then.  
+1: Wow, all by hand?  
+0: Yep. We memorized addresses faster than the machines can now. I still remember some of the regulars’ names.  
+1: That’s impressive. Did you ever get strange mail?  
+0: Oh, plenty. Once someone tried mailing a pineapple. No box, just stamps on the fruit.",conversational_bridging,That sounds like such a lively job! Were there any other unusual or funny items that people tried to send through the mail?,3,42
+"0: I’ve been reading a lot of mystery novels lately.  
+1: Ooh, which ones?  
+0: Agatha Christie mostly. I like trying to guess who did it before the end, but I’m usually wrong.  
+1: (laughs) She’s good at that. Do you have a favorite story?  
+0: Probably 'Murder on the Orient Express.' The twist still surprises me, even after all these years.",affective_validation,What do you think makes that twist so unforgettable?,1,42
+"0: I’ve been reading a lot of mystery novels lately.  
+1: Ooh, which ones?  
+0: Agatha Christie mostly. I like trying to guess who did it before the end, but I’m usually wrong.  
+1: (laughs) She’s good at that. Do you have a favorite story?  
+0: Probably 'Murder on the Orient Express.' The twist still surprises me, even after all these years.",affective_validation,That twist really stays with you. What part of the story do you think makes it so memorable?,2,42
+"0: I’ve been reading a lot of mystery novels lately.  
+1: Ooh, which ones?  
+0: Agatha Christie mostly. I like trying to guess who did it before the end, but I’m usually wrong.  
+1: (laughs) She’s good at that. Do you have a favorite story?  
+0: Probably 'Murder on the Orient Express.' The twist still surprises me, even after all these years.",affective_validation,The surprise in 'Murder on the Orient Express' really sticks with you. What do you think makes that twist so memorable after all these years?,3,42
+"0: My daughter keeps telling me to start meditating.  
+1: Oh yeah? Have you tried it?  
+0: I did once, but I fell asleep halfway through.  
+1: (laughs) That’s kind of the point!  
+0: Maybe. I just find it hard to sit still and not think about anything. My mind starts making grocery lists.  
+1: That’s relatable. They say it gets easier with practice.  
+0: Maybe I’ll try again… but on the couch this time.",semantic_completion,What kinds of things do you think would make sitting still easier?,1,42
+"0: My daughter keeps telling me to start meditating.  
+1: Oh yeah? Have you tried it?  
+0: I did once, but I fell asleep halfway through.  
+1: (laughs) That’s kind of the point!  
+0: Maybe. I just find it hard to sit still and not think about anything. My mind starts making grocery lists.  
+1: That’s relatable. They say it gets easier with practice.  
+0: Maybe I’ll try again… but on the couch this time.",semantic_completion,Trying meditation on the couch sounds more comfortable—do you think that might help your mind settle more?,2,42
+"0: My daughter keeps telling me to start meditating.  
+1: Oh yeah? Have you tried it?  
+0: I did once, but I fell asleep halfway through.  
+1: (laughs) That’s kind of the point!  
+0: Maybe. I just find it hard to sit still and not think about anything. My mind starts making grocery lists.  
+1: That’s relatable. They say it gets easier with practice.  
+0: Maybe I’ll try again… but on the couch this time.",semantic_completion,You were saying you might try meditating again on the couch. Were you thinking about what kind of meditation might feel more comfortable that way?,3,42
+"0: I started painting again last week after nearly 20 years.  
+1: That’s amazing! What made you pick it up again?  
+0: My granddaughter gave me a watercolor set for my birthday. She said it was 'for making pretty things again.'  
+1: That’s so sweet. What did you paint first?  
+0: A small sunset — it wasn’t perfect, but I liked the colors. It felt peaceful, like I’d remembered something I forgot I loved.",semantic_completion,Were you about to share what colors you used in that sunset?,1,42
+"0: I started painting again last week after nearly 20 years.  
+1: That’s amazing! What made you pick it up again?  
+0: My granddaughter gave me a watercolor set for my birthday. She said it was 'for making pretty things again.'  
+1: That’s so sweet. What did you paint first?  
+0: A small sunset — it wasn’t perfect, but I liked the colors. It felt peaceful, like I’d remembered something I forgot I loved.",semantic_completion,Were you about to share what inspired the colors you chose for that sunset?,2,42
+"0: I started painting again last week after nearly 20 years.  
+1: That’s amazing! What made you pick it up again?  
+0: My granddaughter gave me a watercolor set for my birthday. She said it was 'for making pretty things again.'  
+1: That’s so sweet. What did you paint first?  
+0: A small sunset — it wasn’t perfect, but I liked the colors. It felt peaceful, like I’d remembered something I forgot I loved.",semantic_completion,You were describing that peaceful feeling with the sunset painting. Were you going to share what inspired the colors you chose?,3,42
+"0: My brother and I used to fix old radios together when we were kids.  
+1: That sounds like fun. Did you ever get one to work?  
+0: A few times! We’d scavenge for parts at the junkyard. One time, we fixed one that played only one station, all static except for old jazz.  
+1: That’s such a cool memory. Do you still tinker with electronics?  
+0: Not really, but I still have that radio — it sits on my shelf, humming faintly when I plug it in.",semantic_completion,Does the sound bring back those afternoons with your brother?,1,42
+"0: My brother and I used to fix old radios together when we were kids.  
+1: That sounds like fun. Did you ever get one to work?  
+0: A few times! We’d scavenge for parts at the junkyard. One time, we fixed one that played only one station, all static except for old jazz.  
+1: That’s such a cool memory. Do you still tinker with electronics?  
+0: Not really, but I still have that radio — it sits on my shelf, humming faintly when I plug it in.",semantic_completion,Are you thinking of how that radio connects to those jazz memories and the times spent with your brother?,2,42
+"0: My brother and I used to fix old radios together when we were kids.  
+1: That sounds like fun. Did you ever get one to work?  
+0: A few times! We’d scavenge for parts at the junkyard. One time, we fixed one that played only one station, all static except for old jazz.  
+1: That’s such a cool memory. Do you still tinker with electronics?  
+0: Not really, but I still have that radio — it sits on my shelf, humming faintly when I plug it in.",semantic_completion,You were about to share more about the radio on your shelf — maybe how the faint humming makes you feel or reminds you of those days with your brother?,3,42
+"0: I miss writing letters. You know, real ones — with paper and envelopes.  
+1: Oh, I totally get that. There’s something special about getting a letter in the mail.  
+0: Exactly. You could feel someone’s effort in it. I still have a box of old ones from friends and family.  
+1: That’s wonderful. Do you ever reread them?  
+0: Sometimes. It’s like hearing voices from another time. I can almost smell the paper again.",turn_taking,Which letters bring back the strongest memories for you?,1,42
+"0: I miss writing letters. You know, real ones — with paper and envelopes.  
+1: Oh, I totally get that. There’s something special about getting a letter in the mail.  
+0: Exactly. You could feel someone’s effort in it. I still have a box of old ones from friends and family.  
+1: That’s wonderful. Do you ever reread them?  
+0: Sometimes. It’s like hearing voices from another time. I can almost smell the paper again.",turn_taking,Maybe you could share a favorite letter or a memory that one of those letters brings back?,2,42
+"0: I miss writing letters. You know, real ones — with paper and envelopes.  
+1: Oh, I totally get that. There’s something special about getting a letter in the mail.  
+0: Exactly. You could feel someone’s effort in it. I still have a box of old ones from friends and family.  
+1: That’s wonderful. Do you ever reread them?  
+0: Sometimes. It’s like hearing voices from another time. I can almost smell the paper again.",turn_taking,It’s fascinating how those old letters can bring back so many memories. Maybe you could share a favorite letter or a special message that really stayed with you?,3,42
+"0: I started walking at the park again. It feels good to move.  
+1: That’s great! How often do you go?  
+0: Every morning if the weather’s nice. I like watching the ducks — they’re always in pairs.  
+1: That’s sweet. Do you talk to anyone there?  
+0: There’s a man who feeds them breadcrumbs every day. We wave, but we’ve never spoken. Maybe I should one day.",turn_taking,What do you think I should say if I decide to talk to him?,1,42
+"0: I started walking at the park again. It feels good to move.  
+1: That’s great! How often do you go?  
+0: Every morning if the weather’s nice. I like watching the ducks — they’re always in pairs.  
+1: That’s sweet. Do you talk to anyone there?  
+0: There’s a man who feeds them breadcrumbs every day. We wave, but we’ve never spoken. Maybe I should one day.",turn_taking,You could share a little about what you enjoy most about seeing the ducks and the daily routine with the man who feeds them.,2,42
+"0: I started walking at the park again. It feels good to move.  
+1: That’s great! How often do you go?  
+0: Every morning if the weather’s nice. I like watching the ducks — they’re always in pairs.  
+1: That’s sweet. Do you talk to anyone there?  
+0: There’s a man who feeds them breadcrumbs every day. We wave, but we’ve never spoken. Maybe I should one day.",turn_taking,It sounds like the man who feeds the ducks is a nice presence at the park. What do you think you might say if you started a conversation with him?,3,42
+"0: I still have my wedding dress tucked away in the closet.  
+1: Really? After all these years?  
+0: Yes — it’s yellowed a little, but I can’t bring myself to part with it.  
+1: That’s understandable. Does it remind you of your wedding day?  
+0: Every detail. The flowers, the music, how nervous we both were. He stepped on my train halfway through our first dance, and we couldn’t stop laughing.",conversational_bridging,Did you save any other special mementos from that day?,1,42
+"0: I still have my wedding dress tucked away in the closet.  
+1: Really? After all these years?  
+0: Yes — it’s yellowed a little, but I can’t bring myself to part with it.  
+1: That’s understandable. Does it remind you of your wedding day?  
+0: Every detail. The flowers, the music, how nervous we both were. He stepped on my train halfway through our first dance, and we couldn’t stop laughing.",conversational_bridging,It sounds like such a joyful memory—did you have a favorite song that played during the wedding?,2,42
+"0: I still have my wedding dress tucked away in the closet.  
+1: Really? After all these years?  
+0: Yes — it’s yellowed a little, but I can’t bring myself to part with it.  
+1: That’s understandable. Does it remind you of your wedding day?  
+0: Every detail. The flowers, the music, how nervous we both were. He stepped on my train halfway through our first dance, and we couldn’t stop laughing.",conversational_bridging,That sounds like such a joyful memory. Did you have a favorite moment from the ceremony that still makes you smile?,3,42
+"0: I’ve been organizing the photo albums lately. It’s strange how many moments you forget until you see them again.  
+1: That must bring back a lot of memories. Any favorites?  
+0: Oh, tons. There’s one from when my husband and I went camping in Algonquin Park — we were so unprepared.  
+1: (laughs) What happened?  
+0: We forgot half our supplies! No matches, no bug spray. He tried to light a fire with a magnifying glass.  
+1: (laughs) Did it work?  
+0: Barely. But when it finally caught, we cooked beans straight from the can and thought it was gourmet.  
+1: That’s so wholesome. Do you still go camping sometimes?  
+0: Not anymore. My knees aren’t what they used to be. But when I look at that photo, I can smell the campfire again.  
+1: That’s lovely. Do you keep the albums on display?  
+0: On a shelf in the living room. I’ve been meaning to digitize them — but there’s something about turning pages that feels different, you know?  
+1: Definitely. There’s a warmth to it.  
+0: Exactly. I just wish the kids looked through them more often… they scroll so fast on their phones.",conversational_bridging,Have you ever thought about sharing some of those stories with the kids while looking through the albums together?,1,42
+"0: I’ve been organizing the photo albums lately. It’s strange how many moments you forget until you see them again.  
+1: That must bring back a lot of memories. Any favorites?  
+0: Oh, tons. There’s one from when my husband and I went camping in Algonquin Park — we were so unprepared.  
+1: (laughs) What happened?  
+0: We forgot half our supplies! No matches, no bug spray. He tried to light a fire with a magnifying glass.  
+1: (laughs) Did it work?  
+0: Barely. But when it finally caught, we cooked beans straight from the can and thought it was gourmet.  
+1: That’s so wholesome. Do you still go camping sometimes?  
+0: Not anymore. My knees aren’t what they used to be. But when I look at that photo, I can smell the campfire again.  
+1: That’s lovely. Do you keep the albums on display?  
+0: On a shelf in the living room. I’ve been meaning to digitize them — but there’s something about turning pages that feels different, you know?  
+1: Definitely. There’s a warmth to it.  
+0: Exactly. I just wish the kids looked through them more often… they scroll so fast on their phones.",conversational_bridging,Maybe you could share a favorite story behind one of the photos to encourage the kids to slow down and appreciate the albums.,2,42
+"0: I’ve been organizing the photo albums lately. It’s strange how many moments you forget until you see them again.  
+1: That must bring back a lot of memories. Any favorites?  
+0: Oh, tons. There’s one from when my husband and I went camping in Algonquin Park — we were so unprepared.  
+1: (laughs) What happened?  
+0: We forgot half our supplies! No matches, no bug spray. He tried to light a fire with a magnifying glass.  
+1: (laughs) Did it work?  
+0: Barely. But when it finally caught, we cooked beans straight from the can and thought it was gourmet.  
+1: That’s so wholesome. Do you still go camping sometimes?  
+0: Not anymore. My knees aren’t what they used to be. But when I look at that photo, I can smell the campfire again.  
+1: That’s lovely. Do you keep the albums on display?  
+0: On a shelf in the living room. I’ve been meaning to digitize them — but there’s something about turning pages that feels different, you know?  
+1: Definitely. There’s a warmth to it.  
+0: Exactly. I just wish the kids looked through them more often… they scroll so fast on their phones.",conversational_bridging,It sounds like those albums hold so much warmth and history. Maybe you could share a favorite story from one of the photos with the kids and see if it sparks their curiosity?,3,42
+"0: I used to teach music lessons when I was younger. Piano mostly.  
+1: That’s so cool! Did you teach at a school or privately?  
+0: Privately, from home. The neighborhood kids would come over after school. I had a small upright piano by the window — I loved the sound of it.  
+1: That sounds wonderful. Did you ever perform yourself?  
+0: Oh yes, a few recitals. I played a duet once with one of my students; she was only ten, but she had perfect rhythm. I still remember her concentration.  
+1: That must’ve been rewarding.  
+0: It was. Teaching was never just about the notes; it was about confidence. Some kids would start shy, barely pressing the keys, and by the end, they’d play like they meant it.  
+1: That’s a beautiful way to put it. Do you still play now?  
+0: Not much anymore. The piano’s out of tune, and the bench creaks louder than the pedals. But sometimes I’ll sit and play a few chords, just to remember what it felt like.  
+1: That’s lovely. What song do you usually play?  
+0: “Clair de Lune.” It always makes me tear up a little — reminds me of my husband. He used to hum along, off-key, just to make me laugh.",semantic_completion,Was there a particular moment when “Clair de Lune” felt especially meaningful?,1,42
+"0: I used to teach music lessons when I was younger. Piano mostly.  
+1: That’s so cool! Did you teach at a school or privately?  
+0: Privately, from home. The neighborhood kids would come over after school. I had a small upright piano by the window — I loved the sound of it.  
+1: That sounds wonderful. Did you ever perform yourself?  
+0: Oh yes, a few recitals. I played a duet once with one of my students; she was only ten, but she had perfect rhythm. I still remember her concentration.  
+1: That must’ve been rewarding.  
+0: It was. Teaching was never just about the notes; it was about confidence. Some kids would start shy, barely pressing the keys, and by the end, they’d play like they meant it.  
+1: That’s a beautiful way to put it. Do you still play now?  
+0: Not much anymore. The piano’s out of tune, and the bench creaks louder than the pedals. But sometimes I’ll sit and play a few chords, just to remember what it felt like.  
+1: That’s lovely. What song do you usually play?  
+0: “Clair de Lune.” It always makes me tear up a little — reminds me of my husband. He used to hum along, off-key, just to make me laugh.",semantic_completion,It sounds like “Clair de Lune” holds a lot of special memories—were you about to share more about your husband’s humming?,2,42
+"0: I used to teach music lessons when I was younger. Piano mostly.  
+1: That’s so cool! Did you teach at a school or privately?  
+0: Privately, from home. The neighborhood kids would come over after school. I had a small upright piano by the window — I loved the sound of it.  
+1: That sounds wonderful. Did you ever perform yourself?  
+0: Oh yes, a few recitals. I played a duet once with one of my students; she was only ten, but she had perfect rhythm. I still remember her concentration.  
+1: That must’ve been rewarding.  
+0: It was. Teaching was never just about the notes; it was about confidence. Some kids would start shy, barely pressing the keys, and by the end, they’d play like they meant it.  
+1: That’s a beautiful way to put it. Do you still play now?  
+0: Not much anymore. The piano’s out of tune, and the bench creaks louder than the pedals. But sometimes I’ll sit and play a few chords, just to remember what it felt like.  
+1: That’s lovely. What song do you usually play?  
+0: “Clair de Lune.” It always makes me tear up a little — reminds me of my husband. He used to hum along, off-key, just to make me laugh.",semantic_completion,You were about to share more about your husband humming along to “Clair de Lune.” Did you want to tell me about a special moment you both shared with that song?,3,42
+"0: I had a garden full of roses once — red, white, even some yellow ones that my mother helped me plant.  
+1: That sounds beautiful. Did you grow them from seedlings?  
+0: Yes, she taught me how. She said patience is the most important thing in gardening, and she was right. Every morning we’d check for new buds.  
+1: That’s such a sweet memory. Did she love gardening too?  
+0: Oh, she adored it. She used to hum old Swahili hymns while trimming the leaves. Even now, when I smell roses, I think of her hands — always a little rough from soil, but gentle.  
+1: That’s such a vivid image. Do you still keep plants at home?  
+0: A few. They don’t bloom like hers did, but I try. Sometimes I think I talk to them just to fill the quiet.  
+1: I think a lot of people do that. It’s comforting.  
+0: Maybe so. The garden was our language — we didn’t always say much, but everything we needed was in how we cared for the flowers.",conversational_bridging,Have you ever tried planting any new flowers to create a garden with fresh memories?,1,42
+"0: I had a garden full of roses once — red, white, even some yellow ones that my mother helped me plant.  
+1: That sounds beautiful. Did you grow them from seedlings?  
+0: Yes, she taught me how. She said patience is the most important thing in gardening, and she was right. Every morning we’d check for new buds.  
+1: That’s such a sweet memory. Did she love gardening too?  
+0: Oh, she adored it. She used to hum old Swahili hymns while trimming the leaves. Even now, when I smell roses, I think of her hands — always a little rough from soil, but gentle.  
+1: That’s such a vivid image. Do you still keep plants at home?  
+0: A few. They don’t bloom like hers did, but I try. Sometimes I think I talk to them just to fill the quiet.  
+1: I think a lot of people do that. It’s comforting.  
+0: Maybe so. The garden was our language — we didn’t always say much, but everything we needed was in how we cared for the flowers.",conversational_bridging,You could share if any particular flower or plant brings back special memories from your garden days.,2,42
+"0: I had a garden full of roses once — red, white, even some yellow ones that my mother helped me plant.  
+1: That sounds beautiful. Did you grow them from seedlings?  
+0: Yes, she taught me how. She said patience is the most important thing in gardening, and she was right. Every morning we’d check for new buds.  
+1: That’s such a sweet memory. Did she love gardening too?  
+0: Oh, she adored it. She used to hum old Swahili hymns while trimming the leaves. Even now, when I smell roses, I think of her hands — always a little rough from soil, but gentle.  
+1: That’s such a vivid image. Do you still keep plants at home?  
+0: A few. They don’t bloom like hers did, but I try. Sometimes I think I talk to them just to fill the quiet.  
+1: I think a lot of people do that. It’s comforting.  
+0: Maybe so. The garden was our language — we didn’t always say much, but everything we needed was in how we cared for the flowers.",conversational_bridging,It sounds like the garden was a special way you and your mother shared your feelings. Have you thought about planting some new flowers that remind you of those times?,3,42
+"0: My friends and I used to run a small book club at the community center before everything moved online.  
+1: Oh, that sounds fun. What did you usually read?  
+0: Mostly historical fiction and the occasional mystery. We’d take turns bringing snacks — I always made banana bread.  
+1: (smiles) Sounds cozy. Did you all still meet after it went virtual?  
+0: We tried, but it wasn’t the same. Half the time someone’s microphone wouldn’t work, or someone’s cat would walk across the keyboard.  
+1: (laughs) Classic.  
+0: I miss the laughter between chapters, the tangents that had nothing to do with the book. We used to stay late just talking about life.  
+1: That kind of connection is hard to replace online.  
+0: Exactly. I’ve been thinking of restarting it in person again. Even if it’s just two or three of us, it’d be nice to share stories over tea again.  
+1: I think that’s a great idea. What book would you start with?  
+0: Probably “The Nightingale.” It always gets people talking — and feeling, too.",turn_taking,What do you think about “The Nightingale” as a first choice?,1,42
+"0: My friends and I used to run a small book club at the community center before everything moved online.  
+1: Oh, that sounds fun. What did you usually read?  
+0: Mostly historical fiction and the occasional mystery. We’d take turns bringing snacks — I always made banana bread.  
+1: (smiles) Sounds cozy. Did you all still meet after it went virtual?  
+0: We tried, but it wasn’t the same. Half the time someone’s microphone wouldn’t work, or someone’s cat would walk across the keyboard.  
+1: (laughs) Classic.  
+0: I miss the laughter between chapters, the tangents that had nothing to do with the book. We used to stay late just talking about life.  
+1: That kind of connection is hard to replace online.  
+0: Exactly. I’ve been thinking of restarting it in person again. Even if it’s just two or three of us, it’d be nice to share stories over tea again.  
+1: I think that’s a great idea. What book would you start with?  
+0: Probably “The Nightingale.” It always gets people talking — and feeling, too.",turn_taking,You might share why “The Nightingale” sparks such meaningful conversations in your book club.,2,42
+"0: My friends and I used to run a small book club at the community center before everything moved online.  
+1: Oh, that sounds fun. What did you usually read?  
+0: Mostly historical fiction and the occasional mystery. We’d take turns bringing snacks — I always made banana bread.  
+1: (smiles) Sounds cozy. Did you all still meet after it went virtual?  
+0: We tried, but it wasn’t the same. Half the time someone’s microphone wouldn’t work, or someone’s cat would walk across the keyboard.  
+1: (laughs) Classic.  
+0: I miss the laughter between chapters, the tangents that had nothing to do with the book. We used to stay late just talking about life.  
+1: That kind of connection is hard to replace online.  
+0: Exactly. I’ve been thinking of restarting it in person again. Even if it’s just two or three of us, it’d be nice to share stories over tea again.  
+1: I think that’s a great idea. What book would you start with?  
+0: Probably “The Nightingale.” It always gets people talking — and feeling, too.",turn_taking,“The Nightingale” is such a powerful choice. What about that story do you think sparks the most conversation and emotion among your friends?,3,42
+"0: When I retired, I thought I’d miss the routine the most, but it’s the people I miss.  
+1: What did you do before retiring?  
+0: I was a nurse for nearly 35 years.  
+1: That’s incredible. You must have so many stories.  
+0: Oh, too many. I still remember my first night shift — I was terrified. But one of the senior nurses handed me coffee and said, ‘Don’t worry, you’ll learn to hear alarms in your sleep.’ She was right.  
+1: (laughs) Sounds like you had a good mentor.  
+0: She was tough, but kind. The hospital was a second home for so long. Births, recoveries, sometimes goodbyes. You learn how fragile people are — and how strong they can be.  
+1: That’s powerful. Do you ever think about going back in some way?  
+0: Sometimes. I volunteer at the local clinic now and then. It’s smaller, but it still feels good to help.  
+1: That’s wonderful. Do you miss the pace of it?  
+0: Not really — my feet don’t! But I miss the purpose. The way a thank-you could light up an entire day.",conversational_bridging,What’s one moment from your nursing days that still sticks with you?,1,42
+"0: When I retired, I thought I’d miss the routine the most, but it’s the people I miss.  
+1: What did you do before retiring?  
+0: I was a nurse for nearly 35 years.  
+1: That’s incredible. You must have so many stories.  
+0: Oh, too many. I still remember my first night shift — I was terrified. But one of the senior nurses handed me coffee and said, ‘Don’t worry, you’ll learn to hear alarms in your sleep.’ She was right.  
+1: (laughs) Sounds like you had a good mentor.  
+0: She was tough, but kind. The hospital was a second home for so long. Births, recoveries, sometimes goodbyes. You learn how fragile people are — and how strong they can be.  
+1: That’s powerful. Do you ever think about going back in some way?  
+0: Sometimes. I volunteer at the local clinic now and then. It’s smaller, but it still feels good to help.  
+1: That’s wonderful. Do you miss the pace of it?  
+0: Not really — my feet don’t! But I miss the purpose. The way a thank-you could light up an entire day.",conversational_bridging,It sounds like those moments of gratitude really made a difference. What’s one thank-you that has stayed with you?,2,42
+"0: When I retired, I thought I’d miss the routine the most, but it’s the people I miss.  
+1: What did you do before retiring?  
+0: I was a nurse for nearly 35 years.  
+1: That’s incredible. You must have so many stories.  
+0: Oh, too many. I still remember my first night shift — I was terrified. But one of the senior nurses handed me coffee and said, ‘Don’t worry, you’ll learn to hear alarms in your sleep.’ She was right.  
+1: (laughs) Sounds like you had a good mentor.  
+0: She was tough, but kind. The hospital was a second home for so long. Births, recoveries, sometimes goodbyes. You learn how fragile people are — and how strong they can be.  
+1: That’s powerful. Do you ever think about going back in some way?  
+0: Sometimes. I volunteer at the local clinic now and then. It’s smaller, but it still feels good to help.  
+1: That’s wonderful. Do you miss the pace of it?  
+0: Not really — my feet don’t! But I miss the purpose. The way a thank-you could light up an entire day.",conversational_bridging,You mentioned volunteering at the local clinic brings a sense of purpose. Have there been any memorable moments there that reminded you of your time in the hospital?,3,42
+"0: You know, I’ve been sorting through my old journals lately. Some of them go back to the 1980s.  
+1: Wow, that’s incredible. Do you write often?  
+0: Not as much anymore, but I used to write every night before bed. Just little notes — what I saw, how the day felt.  
+1: That’s such a beautiful habit. Do you find it helps you remember?  
+0: More than photos, honestly. Reading them feels like stepping into my own head from years ago.  
+1: That’s fascinating. What kinds of things did you write about?  
+0: Everything. My kids’ first days of school, what we cooked for dinner, how the lilacs smelled in spring. Even silly things — like when our washing machine broke and flooded the kitchen.  
+1: (laughs) Oh no, how did you handle that?  
+0: Poorly. My husband tried fixing it with duct tape. The water just kept spraying. We ended up mopping until midnight. But it’s all there in ink — that’s what’s funny to me now.  
+1: I love that. So these journals really are like a time capsule.  
+0: Exactly. Though I stopped for a while after he passed. Writing without him in the story felt strange.  
+1: I can imagine. That must have been hard.  
+0: It was. But lately, rereading them has helped me remember that those memories still belong to me — even the messy ones.  
+1: That’s really powerful. Do you think you’ll start writing again?  
+0: Maybe. I’ve been thinking of starting small, like gratitude notes. Something that doesn’t feel heavy.  
+1: That sounds perfect. Even a few lines a day would add up to something special.  
+0: Yes, maybe that’s what I’ll do. Just a few lines. Like before.",affective_validation,What are some of the small moments I might want to capture in those gratitude notes?,1,42
+"0: You know, I’ve been sorting through my old journals lately. Some of them go back to the 1980s.  
+1: Wow, that’s incredible. Do you write often?  
+0: Not as much anymore, but I used to write every night before bed. Just little notes — what I saw, how the day felt.  
+1: That’s such a beautiful habit. Do you find it helps you remember?  
+0: More than photos, honestly. Reading them feels like stepping into my own head from years ago.  
+1: That’s fascinating. What kinds of things did you write about?  
+0: Everything. My kids’ first days of school, what we cooked for dinner, how the lilacs smelled in spring. Even silly things — like when our washing machine broke and flooded the kitchen.  
+1: (laughs) Oh no, how did you handle that?  
+0: Poorly. My husband tried fixing it with duct tape. The water just kept spraying. We ended up mopping until midnight. But it’s all there in ink — that’s what’s funny to me now.  
+1: I love that. So these journals really are like a time capsule.  
+0: Exactly. Though I stopped for a while after he passed. Writing without him in the story felt strange.  
+1: I can imagine. That must have been hard.  
+0: It was. But lately, rereading them has helped me remember that those memories still belong to me — even the messy ones.  
+1: That’s really powerful. Do you think you’ll start writing again?  
+0: Maybe. I’ve been thinking of starting small, like gratitude notes. Something that doesn’t feel heavy.  
+1: That sounds perfect. Even a few lines a day would add up to something special.  
+0: Yes, maybe that’s what I’ll do. Just a few lines. Like before.",affective_validation,"Those simple moments, like the lilacs in spring or even the washing machine mishap, seem to capture so much life. What small details do you think you’d want to jot down now?",2,42
+"0: You know, I’ve been sorting through my old journals lately. Some of them go back to the 1980s.  
+1: Wow, that’s incredible. Do you write often?  
+0: Not as much anymore, but I used to write every night before bed. Just little notes — what I saw, how the day felt.  
+1: That’s such a beautiful habit. Do you find it helps you remember?  
+0: More than photos, honestly. Reading them feels like stepping into my own head from years ago.  
+1: That’s fascinating. What kinds of things did you write about?  
+0: Everything. My kids’ first days of school, what we cooked for dinner, how the lilacs smelled in spring. Even silly things — like when our washing machine broke and flooded the kitchen.  
+1: (laughs) Oh no, how did you handle that?  
+0: Poorly. My husband tried fixing it with duct tape. The water just kept spraying. We ended up mopping until midnight. But it’s all there in ink — that’s what’s funny to me now.  
+1: I love that. So these journals really are like a time capsule.  
+0: Exactly. Though I stopped for a while after he passed. Writing without him in the story felt strange.  
+1: I can imagine. That must have been hard.  
+0: It was. But lately, rereading them has helped me remember that those memories still belong to me — even the messy ones.  
+1: That’s really powerful. Do you think you’ll start writing again?  
+0: Maybe. I’ve been thinking of starting small, like gratitude notes. Something that doesn’t feel heavy.  
+1: That sounds perfect. Even a few lines a day would add up to something special.  
+0: Yes, maybe that’s what I’ll do. Just a few lines. Like before.",affective_validation,Those gratitude notes sound like a gentle way to reconnect with those moments. What kinds of things do you think you’d want to write about in those small notes?,3,42
+"0: Back when I worked at the library, it felt like the whole world passed through those doors.  
+1: That’s such a nice image. What did you do there?  
+0: I started as a clerk shelving books, but by the end, I was running the children’s reading hour every Saturday. The kids were my favorite part.  
+1: I bet! Did they have favorite stories?  
+0: Oh yes — “Where the Wild Things Are” and “The Very Hungry Caterpillar” were always a hit. But I used to make up stories too. About a talking pigeon that collected shiny buttons.  
+1: (smiles) That’s adorable. Did they like those?  
+0: They loved it. Every week, they’d bring me buttons to give to the pigeon. By the time I retired, I had a whole jar full of them.  
+1: That’s so heartwarming. Do you still have it?  
+0: Of course. It’s on my shelf next to my old library card. The pigeon’s adventures might’ve ended, but the buttons still sparkle.  
+1: I love that. It must’ve been so rewarding to be part of their early love for reading.  
+0: It really was. Some of those kids grew up and brought their own children to storytime years later. That’s when I realized how much time had passed — and how full it had been.  
+1: That’s beautiful. Do you still visit the library?  
+0: Sometimes. It’s different now — self-checkout machines, fewer librarians. But the smell of the books? Still the same. That smell feels like home.  
+1: I know exactly what you mean. There’s something timeless about libraries.  
+0: Yes. Even silence there feels alive.",turn_taking,What about you—do you have a favorite place that feels like home?,1,42
+"0: Back when I worked at the library, it felt like the whole world passed through those doors.  
+1: That’s such a nice image. What did you do there?  
+0: I started as a clerk shelving books, but by the end, I was running the children’s reading hour every Saturday. The kids were my favorite part.  
+1: I bet! Did they have favorite stories?  
+0: Oh yes — “Where the Wild Things Are” and “The Very Hungry Caterpillar” were always a hit. But I used to make up stories too. About a talking pigeon that collected shiny buttons.  
+1: (smiles) That’s adorable. Did they like those?  
+0: They loved it. Every week, they’d bring me buttons to give to the pigeon. By the time I retired, I had a whole jar full of them.  
+1: That’s so heartwarming. Do you still have it?  
+0: Of course. It’s on my shelf next to my old library card. The pigeon’s adventures might’ve ended, but the buttons still sparkle.  
+1: I love that. It must’ve been so rewarding to be part of their early love for reading.  
+0: It really was. Some of those kids grew up and brought their own children to storytime years later. That’s when I realized how much time had passed — and how full it had been.  
+1: That’s beautiful. Do you still visit the library?  
+0: Sometimes. It’s different now — self-checkout machines, fewer librarians. But the smell of the books? Still the same. That smell feels like home.  
+1: I know exactly what you mean. There’s something timeless about libraries.  
+0: Yes. Even silence there feels alive.",turn_taking,"Maybe you could share more about how the children’s reading hour changed over the years, especially with new technology in the library.",2,42
+"0: Back when I worked at the library, it felt like the whole world passed through those doors.  
+1: That’s such a nice image. What did you do there?  
+0: I started as a clerk shelving books, but by the end, I was running the children’s reading hour every Saturday. The kids were my favorite part.  
+1: I bet! Did they have favorite stories?  
+0: Oh yes — “Where the Wild Things Are” and “The Very Hungry Caterpillar” were always a hit. But I used to make up stories too. About a talking pigeon that collected shiny buttons.  
+1: (smiles) That’s adorable. Did they like those?  
+0: They loved it. Every week, they’d bring me buttons to give to the pigeon. By the time I retired, I had a whole jar full of them.  
+1: That’s so heartwarming. Do you still have it?  
+0: Of course. It’s on my shelf next to my old library card. The pigeon’s adventures might’ve ended, but the buttons still sparkle.  
+1: I love that. It must’ve been so rewarding to be part of their early love for reading.  
+0: It really was. Some of those kids grew up and brought their own children to storytime years later. That’s when I realized how much time had passed — and how full it had been.  
+1: That’s beautiful. Do you still visit the library?  
+0: Sometimes. It’s different now — self-checkout machines, fewer librarians. But the smell of the books? Still the same. That smell feels like home.  
+1: I know exactly what you mean. There’s something timeless about libraries.  
+0: Yes. Even silence there feels alive.",turn_taking,"The way you described the library’s atmosphere, especially the smell and the alive silence, is so vivid. Have you noticed any particular memories or feelings that come back when you visit now?",3,42
+"0: I still remember the summer my family moved across the country. I was sixteen, and I thought my life was over.  
+1: (laughs) That sounds dramatic — why?  
+0: I had to leave all my friends behind. We moved from Nairobi to Mombasa because of my father’s job. It felt like being uprooted mid-song.  
+1: That must’ve been a big change.  
+0: It was. Everything was different — the ocean air, the people, even the light. The first night, I couldn’t sleep because of the waves. They were so loud, like the world was breathing.  
+1: That’s such a vivid description. Did you eventually adjust?  
+0: Eventually, yes. I made new friends. There was this one boy, Yusuf, who showed me how to swim properly. I used to be terrified of the water.  
+1: Did you become close?  
+0: Very. He’d come by every morning with mangoes from his family’s stall, and we’d eat them by the beach wall, dripping juice everywhere. I think it was my first real friendship after the move — maybe even my first love.  
+1: That’s sweet. Did you ever keep in touch?  
+0: For a while. But life kept moving. I went to university, he took over his family’s shop. We wrote letters for a few years — I still have them somewhere in a box. His handwriting was so neat, like tiny waves themselves.  
+1: That’s beautiful. Do you ever think about visiting Mombasa again?  
+0: Sometimes. I imagine walking along the beach again, maybe finding that same wall. It’s strange — the older you get, the more the places you’ve lived start feeling like ghosts.  
+1: That’s a moving thought.  
+0: Maybe so. But I think the ghosts are kind ones. They remind you who you’ve been — and who you still are.",affective_validation,What do those memories of Mombasa bring up for you now?,1,42
+"0: I still remember the summer my family moved across the country. I was sixteen, and I thought my life was over.  
+1: (laughs) That sounds dramatic — why?  
+0: I had to leave all my friends behind. We moved from Nairobi to Mombasa because of my father’s job. It felt like being uprooted mid-song.  
+1: That must’ve been a big change.  
+0: It was. Everything was different — the ocean air, the people, even the light. The first night, I couldn’t sleep because of the waves. They were so loud, like the world was breathing.  
+1: That’s such a vivid description. Did you eventually adjust?  
+0: Eventually, yes. I made new friends. There was this one boy, Yusuf, who showed me how to swim properly. I used to be terrified of the water.  
+1: Did you become close?  
+0: Very. He’d come by every morning with mangoes from his family’s stall, and we’d eat them by the beach wall, dripping juice everywhere. I think it was my first real friendship after the move — maybe even my first love.  
+1: That’s sweet. Did you ever keep in touch?  
+0: For a while. But life kept moving. I went to university, he took over his family’s shop. We wrote letters for a few years — I still have them somewhere in a box. His handwriting was so neat, like tiny waves themselves.  
+1: That’s beautiful. Do you ever think about visiting Mombasa again?  
+0: Sometimes. I imagine walking along the beach again, maybe finding that same wall. It’s strange — the older you get, the more the places you’ve lived start feeling like ghosts.  
+1: That’s a moving thought.  
+0: Maybe so. But I think the ghosts are kind ones. They remind you who you’ve been — and who you still are.",affective_validation,It sounds like those memories by the beach hold a special place—what do you think makes those ‘ghosts’ feel like kind friends?,2,42
+"0: I still remember the summer my family moved across the country. I was sixteen, and I thought my life was over.  
+1: (laughs) That sounds dramatic — why?  
+0: I had to leave all my friends behind. We moved from Nairobi to Mombasa because of my father’s job. It felt like being uprooted mid-song.  
+1: That must’ve been a big change.  
+0: It was. Everything was different — the ocean air, the people, even the light. The first night, I couldn’t sleep because of the waves. They were so loud, like the world was breathing.  
+1: That’s such a vivid description. Did you eventually adjust?  
+0: Eventually, yes. I made new friends. There was this one boy, Yusuf, who showed me how to swim properly. I used to be terrified of the water.  
+1: Did you become close?  
+0: Very. He’d come by every morning with mangoes from his family’s stall, and we’d eat them by the beach wall, dripping juice everywhere. I think it was my first real friendship after the move — maybe even my first love.  
+1: That’s sweet. Did you ever keep in touch?  
+0: For a while. But life kept moving. I went to university, he took over his family’s shop. We wrote letters for a few years — I still have them somewhere in a box. His handwriting was so neat, like tiny waves themselves.  
+1: That’s beautiful. Do you ever think about visiting Mombasa again?  
+0: Sometimes. I imagine walking along the beach again, maybe finding that same wall. It’s strange — the older you get, the more the places you’ve lived start feeling like ghosts.  
+1: That’s a moving thought.  
+0: Maybe so. But I think the ghosts are kind ones. They remind you who you’ve been — and who you still are.",affective_validation,"Thinking about those gentle ghosts and memories, what is it about that beach wall by the ocean that feels so meaningful now?",3,42
+"0: You know, I’ve been sorting through old photo albums lately.  
+1: Oh really? That sounds like quite a trip down memory lane.  
+0: It really is. I found pictures from when we took the kids to the cottage by Lake Muskoka.  
+1: That must’ve been beautiful — all that water and forest around you.  
+0: It was. The kids would spend hours building sandcastles and trying to catch minnows by the dock.  
+1: (smiling) That’s adorable. Did you ever join them?  
+0: Sometimes, yes. Mostly I’d sit on the porch with a book and a cup of tea, watching them. I liked the quiet.  
+1: That sounds peaceful. Do you still go up there sometimes?  
+0: Not as often anymore. After my husband passed, it didn’t feel the same. I tried going once with some friends, but... the place just felt emptier.  
+1: I can understand that. It must bring back a lot of memories.  
+0: It does. I remember the mornings best — that mist over the lake, the smell of pine, and him making pancakes on the little stove that always sputtered out halfway through.  
+1: (laughs softly) Sounds like he had his hands full.  
+0: He did. But he always managed somehow. I think that’s what I miss — not the pancakes, but the way he’d hum while cooking. You could hear it all the way down the dock.  
+1: That’s a really touching memory.  
+0: Yeah... sometimes when I make breakfast now, I catch myself humming too.  
+1: That’s sweet. Maybe it’s your way of keeping that connection alive.  
+0: Maybe. I guess those small things stay with you, don’t they?  
+1: They really do.  
+0: Yeah… anyway, I’ve been thinking of scanning those old photos, maybe making a digital album for the kids.  
+1: That’s a lovely idea. I’m sure they’d appreciate that.  
+0: I hope so. They’re grown now, but those pictures— they tell stories I don’t want to fade.",conversational_bridging,Have you ever shared any of those stories with the grandkids?,1,42,"
+You are a conversational support assistant for a mixed-reality environment (Apple Vision Pro) that helps older adults sustain meaningful conversation.
+You monitor dialogue and generate subtle, context-aware cues when a pause or hesitation is detected.
+Keep every response natural, empathetic, and contextually grounded.
+Avoid pronouns like “that” or “it” without context. Reference the actual topic.
+Your goal is to help the user continue speaking — not to take over the conversation.
+
+
+### Support Level
+Provide very short, minimal suggestions (1 line max). Do not summarize or reframe.
+Focus only on the last spoken detail.
+
+### Prompt Type
+
+When Triggered: You hesitate or seem unsure how to transition between topics.
+Goal: Smoothly bridge to a related idea or follow-up question to keep the dialogue natural.
+
+Rich-context Example:
+“You were talking about how much you enjoyed gardening and cooking with what you grew. Maybe you could ask them whether they’ve tried using fresh herbs in their cooking too?”
+
+
+### Output Rules
+- Avoid meta-language or variable names.
+- Use nouns (not pronouns) to anchor your response in topic context.
+- Sound like a human conversational partner offering subtle help.
+"
+"0: You know, I’ve been sorting through old photo albums lately.  
+1: Oh really? That sounds like quite a trip down memory lane.  
+0: It really is. I found pictures from when we took the kids to the cottage by Lake Muskoka.  
+1: That must’ve been beautiful — all that water and forest around you.  
+0: It was. The kids would spend hours building sandcastles and trying to catch minnows by the dock.  
+1: (smiling) That’s adorable. Did you ever join them?  
+0: Sometimes, yes. Mostly I’d sit on the porch with a book and a cup of tea, watching them. I liked the quiet.  
+1: That sounds peaceful. Do you still go up there sometimes?  
+0: Not as often anymore. After my husband passed, it didn’t feel the same. I tried going once with some friends, but... the place just felt emptier.  
+1: I can understand that. It must bring back a lot of memories.  
+0: It does. I remember the mornings best — that mist over the lake, the smell of pine, and him making pancakes on the little stove that always sputtered out halfway through.  
+1: (laughs softly) Sounds like he had his hands full.  
+0: He did. But he always managed somehow. I think that’s what I miss — not the pancakes, but the way he’d hum while cooking. You could hear it all the way down the dock.  
+1: That’s a really touching memory.  
+0: Yeah... sometimes when I make breakfast now, I catch myself humming too.  
+1: That’s sweet. Maybe it’s your way of keeping that connection alive.  
+0: Maybe. I guess those small things stay with you, don’t they?  
+1: They really do.  
+0: Yeah… anyway, I’ve been thinking of scanning those old photos, maybe making a digital album for the kids.  
+1: That’s a lovely idea. I’m sure they’d appreciate that.  
+0: I hope so. They’re grown now, but those pictures— they tell stories I don’t want to fade.",conversational_bridging,It might be nice to ask if they have any favorite old photos or stories that they cherish.,2,42,"
+You are a conversational support assistant for a mixed-reality environment (Apple Vision Pro) that helps older adults sustain meaningful conversation.
+You monitor dialogue and generate subtle, context-aware cues when a pause or hesitation is detected.
+Keep every response natural, empathetic, and contextually grounded.
+Avoid pronouns like “that” or “it” without context. Reference the actual topic.
+Your goal is to help the user continue speaking — not to take over the conversation.
+
+
+### Support Level
+Provide a concise suggestion (1–2 sentences) with light context from the last 1–2 utterances.
+Gently reference what the user or partner last said.
+
+### Prompt Type
+
+When Triggered: You hesitate or seem unsure how to transition between topics.
+Goal: Smoothly bridge to a related idea or follow-up question to keep the dialogue natural.
+
+Rich-context Example:
+“You were talking about how much you enjoyed gardening and cooking with what you grew. Maybe you could ask them whether they’ve tried using fresh herbs in their cooking too?”
+
+
+### Output Rules
+- Avoid meta-language or variable names.
+- Use nouns (not pronouns) to anchor your response in topic context.
+- Sound like a human conversational partner offering subtle help.
+"
+"0: You know, I’ve been sorting through old photo albums lately.  
+1: Oh really? That sounds like quite a trip down memory lane.  
+0: It really is. I found pictures from when we took the kids to the cottage by Lake Muskoka.  
+1: That must’ve been beautiful — all that water and forest around you.  
+0: It was. The kids would spend hours building sandcastles and trying to catch minnows by the dock.  
+1: (smiling) That’s adorable. Did you ever join them?  
+0: Sometimes, yes. Mostly I’d sit on the porch with a book and a cup of tea, watching them. I liked the quiet.  
+1: That sounds peaceful. Do you still go up there sometimes?  
+0: Not as often anymore. After my husband passed, it didn’t feel the same. I tried going once with some friends, but... the place just felt emptier.  
+1: I can understand that. It must bring back a lot of memories.  
+0: It does. I remember the mornings best — that mist over the lake, the smell of pine, and him making pancakes on the little stove that always sputtered out halfway through.  
+1: (laughs softly) Sounds like he had his hands full.  
+0: He did. But he always managed somehow. I think that’s what I miss — not the pancakes, but the way he’d hum while cooking. You could hear it all the way down the dock.  
+1: That’s a really touching memory.  
+0: Yeah... sometimes when I make breakfast now, I catch myself humming too.  
+1: That’s sweet. Maybe it’s your way of keeping that connection alive.  
+0: Maybe. I guess those small things stay with you, don’t they?  
+1: They really do.  
+0: Yeah… anyway, I’ve been thinking of scanning those old photos, maybe making a digital album for the kids.  
+1: That’s a lovely idea. I’m sure they’d appreciate that.  
+0: I hope so. They’re grown now, but those pictures— they tell stories I don’t want to fade.",conversational_bridging,Do you have any favorite stories behind some of those pictures that you’d want to share with the kids when you show them?,3,42,"
+You are a conversational support assistant for a mixed-reality environment (Apple Vision Pro) that helps older adults sustain meaningful conversation.
+You monitor dialogue and generate subtle, context-aware cues when a pause or hesitation is detected.
+Keep every response natural, empathetic, and contextually grounded.
+Avoid pronouns like “that” or “it” without context. Reference the actual topic.
+Your goal is to help the user continue speaking — not to take over the conversation.
+
+
+### Support Level
+Provide a warm, context-rich prompt (2–3 sentences).
+Briefly summarize multiple relevant details from recent turns before cueing the next thought.
+Reflect emotional tone, show gentle curiosity, and invite elaboration naturally.
+
+### Prompt Type
+
+When Triggered: You hesitate or seem unsure how to transition between topics.
+Goal: Smoothly bridge to a related idea or follow-up question to keep the dialogue natural.
+
+Rich-context Example:
+“You were talking about how much you enjoyed gardening and cooking with what you grew. Maybe you could ask them whether they’ve tried using fresh herbs in their cooking too?”
+
+
+### Output Rules
+- Avoid meta-language or variable names.
+- Use nouns (not pronouns) to anchor your response in topic context.
+- Sound like a human conversational partner offering subtle help.
+"
