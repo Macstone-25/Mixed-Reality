@@ -48,6 +48,7 @@ class SessionModel {
         let experimentJsonHandle = try await artifacts.getFileHandle(name: "Experiment.json")
         try experimentJsonHandle.write(contentsOf: experimentJson)
         await artifacts.logEvent(type: "Session", message: "Experiment config saved as JSON")
+        logger.info("\(String(describing: self.experiment))")
         
         // Connect TriggerService to SpeechService
         sinks.insert(
