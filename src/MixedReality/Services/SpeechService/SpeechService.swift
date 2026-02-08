@@ -45,7 +45,7 @@ enum SpeechServiceError: Error {
     case permissionError(String)
 }
 
-// Proper formatting for the optional audio anonymization
+/// Proper formatting for the optional audio anonymization
 enum AudioAnonymizationPolicy {
     case none
     case pitchShift(semitones: Float, deleteOriginal: Bool)
@@ -86,8 +86,7 @@ class SpeechService: WebSocketDelegate {
         self.config = config
         self.anonymizationPolicy = anonymizationPolicy
         
-        // MARK: Configure audio session
-        
+        /// Configure audio session
         let isPermissionGranted = await AVAudioApplication.requestRecordPermission()
         guard isPermissionGranted else {
             throw SpeechServiceError.permissionError("Recording permission was not granted")
@@ -104,8 +103,7 @@ class SpeechService: WebSocketDelegate {
         try session.setPreferredIOBufferDuration(0.005) // 5 ms
         try session.setActive(true, options: .notifyOthersOnDeactivation)
         
-        // MARK: Create AssetWriter
-        
+        /// Create AssetWriter
         let fileURL = try await artifacts.getFileURL(name: "Conversation.m4a")
         self.conversationFileURL = fileURL
         
@@ -133,8 +131,7 @@ class SpeechService: WebSocketDelegate {
             assetWriter.add(assetWriterInput)
         }
         
-        // MARK: Create WebSocket
-        
+        /// Construct Deepgram WebSocket URL with audio and transcription parameters
         var urlComponents = URLComponents()
         urlComponents.scheme = "wss"
         urlComponents.host = "api.deepgram.com"
@@ -236,7 +233,6 @@ class SpeechService: WebSocketDelegate {
                 message: "Audio recording saved to \(conversationFileURL.lastPathComponent)"
             )
             
-            // 🔒 Audio anonymization (merged)
             switch anonymizationPolicy {
             case .none:
                 await artifacts.logEvent(
@@ -246,8 +242,7 @@ class SpeechService: WebSocketDelegate {
                 
             case .pitchShift(let semitones, let deleteOriginal):
                 do {
-                    let anonymizedURL = try artifacts.anonymizeAudioFile(
-                        inputURL: conversationFileURL,
+                    let anonymizedURL = try anonymizeConversationAudio(
                         pitchSemitones: semitones,
                         deleteOriginal: deleteOriginal
                     )
@@ -268,8 +263,7 @@ class SpeechService: WebSocketDelegate {
         logger.info("🛑 SpeechService stopped")
     }
     
-    // MARK: - WebSocket Delegate
-    
+    /// Starscream WebSocket delegate method for handling connection, messages, and errors
     func didReceive(event: Starscream.WebSocketEvent, client: any Starscream.WebSocketClient) {
         Task {
             switch event {
@@ -311,9 +305,13 @@ class SpeechService: WebSocketDelegate {
     
     private func sendKeepAlive() {
         let keepAlive: [String: Any] = ["type": "KeepAlive"]
-        if let data = try? JSONSerialization.data(withJSONObject: keepAlive),
-           let json = String(data: data, encoding: .utf8) {
-            socket.write(string: json)
+        do {
+            let data = try JSONSerialization.data(withJSONObject: keepAlive, options: [])
+            if let jsonString = String(data: data, encoding: .utf8) {
+                socket.write(string: jsonString)
+            }
+        } catch {
+            logger.warning("Failed to encode KeepAlive message: \(error)")
         }
     }
     
@@ -321,6 +319,7 @@ class SpeechService: WebSocketDelegate {
     private func processAudioBuffer(buffer: AVAudioPCMBuffer, time: AVAudioTime) {
         guard isConnected else { return }
         
+        /// Send audio buffer to Deepgram via WebSocket (in PCM16 format)
         if let pcmData = AudioBufferUtils.convertBufferToPCM16(
             buffer: buffer,
             targetChannelCount: config.channels
@@ -328,6 +327,7 @@ class SpeechService: WebSocketDelegate {
             socket.write(data: pcmData)
         }
         
+        /// Send audio buffer to asset writer (in native format)
         if let sampleBuffer = AudioBufferUtils.cmSampleBufferFromPCM(buffer) {
             if assetWriter.status == .unknown {
                 let startTime = CMSampleBufferGetPresentationTimeStamp(sampleBuffer)
@@ -345,14 +345,18 @@ class SpeechService: WebSocketDelegate {
     
     /// Parses JSON data into TranscriptChunk events
     private func processJSON(data: Data) async throws {
+        /// We are only interested in Results data frames, the rest can be ignored
         let envelope = try jsonDecoder.decode(DeepgramEnvelope.self, from: data)
         guard envelope.type == "Results" else { return }
         
         let results = try jsonDecoder.decode(DeepgramResults.self, from: data)
         
+        /// We can only handle one interpretation, so we take the most likely option and ignore other alternatives
+        /// If this result was empty (i.e. there are no words), we simply ignore it and continue
         guard let words = results.channel.alternatives.first?.words,
               !words.isEmpty else { return }
         
+        // Assemble full diarized sentences from individually diarized words
         var speakerSentences: [String: (text: String, start: Double, end: Double)] = [:]
         
         for wordInfo in words {
@@ -402,4 +406,71 @@ class SpeechService: WebSocketDelegate {
             transcriptChunkEvent.send(chunk)
         }
     }
+    
+    private func anonymizeConversationAudio(
+        outputName: String = "conversation_anonymized.m4a",
+        pitchSemitones: Float,
+        deleteOriginal: Bool
+    ) async throws -> URL {
+
+        let inputURL = conversationFileURL
+        let outputURL = try await artifacts.getFileURL(name: outputName)
+
+        let inputFile = try AVAudioFile(forReading: inputURL)
+        let format = inputFile.processingFormat
+
+        let engine = AVAudioEngine()
+        let player = AVAudioPlayerNode()
+        let pitch = AVAudioUnitTimePitch()
+
+        pitch.pitch = pitchSemitones * 100 // cents
+
+        engine.attach(player)
+        engine.attach(pitch)
+        engine.connect(player, to: pitch, format: format)
+        engine.connect(pitch, to: engine.mainMixerNode, format: format)
+
+        try engine.enableManualRenderingMode(
+            .offline,
+            format: format,
+            maximumFrameCount: 4096
+        )
+
+        try engine.start()
+
+        let outputFile = try AVAudioFile(
+            forWriting: outputURL,
+            settings: inputFile.fileFormat.settings
+        )
+
+        await player.scheduleFile(inputFile, at: nil)
+        player.play()
+
+        let buffer = AVAudioPCMBuffer(
+            pcmFormat: engine.manualRenderingFormat,
+            frameCapacity: engine.manualRenderingMaximumFrameCount
+        )!
+
+        while engine.manualRenderingSampleTime < inputFile.length {
+            let status = try engine.renderOffline(
+                buffer.frameCapacity,
+                to: buffer
+            )
+
+            if status == .success {
+                try outputFile.write(from: buffer)
+            }
+        }
+
+        engine.stop()
+
+        if deleteOriginal {
+            try? FileManager.default.removeItem(at: inputURL)
+            logger.info("Deleted original conversation audio after anonymization")
+        }
+
+        logger.info("Anonymized audio written to \(outputURL.lastPathComponent)")
+        return outputURL
+    }
+
 }
