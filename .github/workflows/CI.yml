@@ -20,18 +20,32 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
+      
           BASE_SHA="${{ github.event.pull_request.base.sha }}"
           HEAD_SHA="${{ github.event.pull_request.head.sha }}"
-
-          mapfile -t FILES < <(git diff --name-only --diff-filter=ACMR "$BASE_SHA" "$HEAD_SHA" | grep -E '\.swift$' || true)
-
-          if [ ${#FILES[@]} -eq 0 ]; then
+      
+          if [[ -z "$BASE_SHA" || -z "$HEAD_SHA" ]]; then
+            echo "Missing PR SHAs (is this running on pull_request?)"
             echo "count=0" >> "$GITHUB_OUTPUT"
             exit 0
           fi
-
-          printf '%s\n' "${FILES[@]}" > changed_swift_files.txt
-          echo "count=${#FILES[@]}" >> "$GITHUB_OUTPUT"
+      
+          # Make sure both commits exist locally (checkout fetch-depth: 0 recommended)
+          git fetch --no-tags --prune --depth=1 origin "$BASE_SHA" "$HEAD_SHA" || true
+      
+          # Collect changed .swift files (A/C/M/R), one per line
+          FILES="$(git diff --name-only --diff-filter=ACMR "$BASE_SHA" "$HEAD_SHA" -- | grep -E '\.swift$' || true)"
+      
+          if [[ -z "$FILES" ]]; then
+            echo "count=0" >> "$GITHUB_OUTPUT"
+            exit 0
+          fi
+      
+          printf '%s\n' "$FILES" > changed_swift_files.txt
+      
+          # Count lines
+          COUNT="$(wc -l < changed_swift_files.txt | tr -d ' ')"
+          echo "count=$COUNT" >> "$GITHUB_OUTPUT"
 
       - name: swift-format lint
         if: steps.changed.outputs.count != '0'
