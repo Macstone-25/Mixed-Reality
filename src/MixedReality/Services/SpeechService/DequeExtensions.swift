@@ -13,15 +13,10 @@ extension Deque where Element == TranscriptChunk {
     ///
     /// - Parameter chunk: The transcript chunk to insert
     mutating func insertSorted(_ chunk: TranscriptChunk) {
-        // Find the correct insertion point by comparing startAt timestamps
-        // We need to iterate from the end to find where this chunk belongs
-        var insertIndex = count
-        
         // Pop chunks from the end that should come after the new chunk
         var poppedChunks: [TranscriptChunk] = []
         while let last = last, last.startAt > chunk.startAt {
             poppedChunks.append(popLast()!)
-            insertIndex -= 1
         }
         
         // Insert the new chunk at the correct position

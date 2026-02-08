@@ -50,10 +50,9 @@ actor PromptService {
         
         // update summary when context is sufficiently large
         if (self.recentTranscript.count == self.experiment.promptContextWindow + self.experiment.summaryContextWindow) {
-            // let summaryContext = self.recentTranscript.prefix(self.experiment.summaryContextWindow).map { await MainActor.run { $0.description } }.joined(separator: "\n")
+            // TODO: Summarize old transcript lines (note: will need to convert chunks to descriptions in async context first)
             self.recentTranscript.removeFirst(self.experiment.summaryContextWindow)
             logger.info("Summarizing first \(self.experiment.summaryContextWindow) lines")
-            // TODO: Summarize old transcript lines with summaryContext (commented out above)
         }
     }
     
