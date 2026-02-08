@@ -22,7 +22,7 @@ final class SoundService {
 
         do {
             let p = try AVAudioPlayer(contentsOf: url)
-            p.volume = 0.25          // change volume here
+            p.volume = 1          // change volume here
             p.prepareToPlay()
             dingPlayer = p
         } catch {

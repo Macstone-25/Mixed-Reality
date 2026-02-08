@@ -63,7 +63,6 @@ actor PromptService {
         let promptContext = self.recentTranscript.joined(separator: "\n")
         do {
             let start = CFAbsoluteTimeGetCurrent()
-            // TODO: Include old transcript summary
             let prompt = try await self.llm.generate(systemPrompt: Self.systemPrompt, userPrompt: promptContext)
             let end = CFAbsoluteTimeGetCurrent()
             let duration = String(format: "%.1f", end - start)
@@ -74,4 +73,5 @@ actor PromptService {
             return "Failed to generate prompt."
         }
     }
+
 }

@@ -73,7 +73,7 @@ struct ConfigView: View {
                         minVal: $viewModel.config.minPauseDetectionMs,
                         maxVal: $viewModel.config.maxPauseDetectionMs,
                         lowerBound: 250,
-                        upperBound: 5000
+                        upperBound: 8000
                     )
                 }
                 
