@@ -3,6 +3,7 @@
 //
 
 import Foundation
+import Collections
 
 /// One piece of transcript coming from ASR (partial or final).
 public struct TranscriptChunk: Sendable, Codable, Hashable, CustomStringConvertible {
@@ -66,3 +67,26 @@ public struct TranscriptChunk: Sendable, Codable, Hashable, CustomStringConverti
     }
 }
 
+extension Deque where Element == TranscriptChunk {
+    /// Inserts a transcript chunk in sorted order based on startAt timestamp.
+    /// Ensures chunks remain ordered even when they are finalized out of order.
+    /// This method is thread-safe when used within an actor context.
+    ///
+    /// - Parameter chunk: The transcript chunk to insert
+    @inlinable
+    nonisolated public mutating func insertSorted(_ chunk: TranscriptChunk) {
+        // Pop chunks from the end that should come after the new chunk
+        var poppedChunks: [TranscriptChunk] = []
+        while let last = last, last.startAt > chunk.startAt {
+            poppedChunks.append(popLast()!)
+        }
+        
+        // Insert the new chunk at the correct position
+        append(chunk)
+        
+        // Re-insert the popped chunks in reverse order
+        for poppedChunk in poppedChunks.reversed() {
+            append(poppedChunk)
+        }
+    }
+}
