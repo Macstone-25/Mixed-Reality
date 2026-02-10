@@ -22,7 +22,7 @@ actor PromptService {
     private var pendingForSummary = Deque<TranscriptChunk>()
     private var isSummarizing = false
 
-        private let maxSummaryChars = 900
+    private let maxSummaryChars = 900
     
     private static let systemPrompt = """
         You are a conversational support assistant for a mixed-reality environment that helps older adults continue conversations naturally.
@@ -128,7 +128,6 @@ actor PromptService {
                 type: "Summary",
                 message: "Updated summary (\(block.count) lines) (\(duration)s)"
             )
-
         } catch {
             logger.error("Failed to update summary: \(error.localizedDescription)")
             await artifacts.logEvent(
@@ -138,7 +137,6 @@ actor PromptService {
             // keep pendingForSummary for retry later
         }
     }
-
 
     func generatePrompt(eventId: UInt64) async -> String {
         logger.info("💡 Generating prompt #\(eventId) from \(self.recentTranscript.count) transcript lines")
