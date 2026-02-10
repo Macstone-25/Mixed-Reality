@@ -70,8 +70,8 @@ actor PromptService {
             let toSummarizeCount = self.experiment.summaryContextWindow
             let oldChunks = self.recentTranscript.prefix(toSummarizeCount)
 
-            for c in oldChunks { 
-                self.pendingForSummary.append(c) 
+            for c in oldChunks {
+                self.pendingForSummary.append(c)
             }
 
             self.recentTranscript.removeFirst(toSummarizeCount)
