@@ -308,6 +308,8 @@ class SpeechService: WebSocketDelegate {
             let data = try JSONSerialization.data(withJSONObject: keepAlive, options: [])
             if let jsonString = String(data: data, encoding: .utf8) {
                 socket.write(string: jsonString)
+            } else {
+                logger.warning("Failed to convert data to UTF-8 string: \(data)")
             }
         } catch {
             logger.warning("Failed to encode KeepAlive message: \(error)")
