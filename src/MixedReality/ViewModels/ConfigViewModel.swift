@@ -4,13 +4,13 @@
 //
 
 import Foundation
+import Combine
 
 @MainActor
-@Observable
-class ConfigViewModel {
+class ConfigViewModel: ObservableObject {
     private let appModel: AppModel
     
-    var config: ConfigModel
+    @Published var config: ConfigModel
     
     init(_ appModel: AppModel) {
         self.appModel = appModel

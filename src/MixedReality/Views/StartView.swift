@@ -16,7 +16,7 @@ struct StartView: View {
                 .font(.title)
                 .multilineTextAlignment(.center)
 
-            Button(viewModel.isLaunching ? "Launching..." : "Start Session") {
+            Button("Start Session") {
                 appModel.startSession()
             }
             .tint(.blue)

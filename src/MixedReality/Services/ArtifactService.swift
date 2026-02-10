@@ -96,11 +96,11 @@ final actor ArtifactService {
     }
     
     // Local, non-main-actor timestamp generator to avoid calling main-actor-isolated utilities here.
-    private static func makeTimestamp() -> String {
+    static func makeTimestamp() -> String {
         // ISO 8601-like compact timestamp: yyyyMMdd-HHmmss
         let now = Date()
         var calendar = Calendar(identifier: .gregorian)
-        calendar.timeZone = TimeZone(secondsFromGMT: 0) ?? .gmt
+        calendar.timeZone = TimeZone(identifier: "America/New_York") ?? .gmt
         let comps = calendar.dateComponents([.year, .month, .day, .hour, .minute, .second], from: now)
         let y = comps.year ?? 0
         let M = comps.month ?? 0

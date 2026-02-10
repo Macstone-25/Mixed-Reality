@@ -25,9 +25,7 @@ struct NavigationView: View {
                     Image(systemName: viewModel.leftIcon)
                         .frame(width: navButtonSize, height: navButtonSize)
                 }
-                .buttonStyle(.plain)
-                .glassBackgroundEffect()
-                .background(.thickMaterial)
+                .buttonStyle(.borderedProminent)
                 .clipShape(.circle)
                 
                 Spacer()
@@ -42,9 +40,7 @@ struct NavigationView: View {
                         Image(systemName: viewModel.rightIcon)
                             .frame(width: navButtonSize, height: navButtonSize)
                     }
-                    .buttonStyle(.plain)
-                    .glassBackgroundEffect()
-                    .background(.thickMaterial)
+                    .buttonStyle(.borderedProminent)
                     .clipShape(.circle)
                 } else {
                     Color.clear
@@ -61,7 +57,7 @@ struct NavigationView: View {
             case .configView:
                 ConfigView(appModel)
             case .exportView:
-                Text("TODO: export view")
+                ExportView(appModel)
             }
             
             Spacer()

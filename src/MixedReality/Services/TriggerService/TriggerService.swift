@@ -66,7 +66,7 @@ actor TriggerService {
     func handleTranscriptChunk(chunk: TranscriptChunk) {
         // update context if this is a finalized chunk
         if chunk.isFinal {
-            evaluatorContext.append(chunk)
+            evaluatorContext.insertSorted(chunk)
             if evaluatorContext.count > experiment.triggerContext {
                 _ = evaluatorContext.popFirst()
             }

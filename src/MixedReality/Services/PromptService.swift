@@ -16,9 +16,8 @@ actor PromptService {
     private let llm: LLMService
     private let speechService: SpeechService
     
-    // TODO: Summarize old transcript lines
     private var summary = ""
-    private var recentTranscript = Deque<String>()
+    private var recentTranscript = Deque<TranscriptChunk>()
     
     private static let systemPrompt = """
         You are a conversational support assistant for a mixed-reality environment that helps older adults continue conversations naturally.
@@ -46,24 +45,24 @@ actor PromptService {
     func handleTranscriptChunk(chunk: TranscriptChunk) async {
         guard (chunk.isFinal) else { return }
         
-        let chunkDescription = await MainActor.run { chunk.description }
-        recentTranscript.append(chunkDescription)
+        recentTranscript.insertSorted(chunk)
         
         // update summary when context is sufficiently large
         if (self.recentTranscript.count == self.experiment.promptContextWindow + self.experiment.summaryContextWindow) {
-            // let summaryContext = self.recentTranscript.prefix(self.experiment.summaryContextWindow).joined(separator: "\n")
+            // TODO: Summarize old transcript lines (note: will need to convert chunks to descriptions in async context first)
             self.recentTranscript.removeFirst(self.experiment.summaryContextWindow)
             logger.info("Summarizing first \(self.experiment.summaryContextWindow) lines")
-            // TODO: Summarize old transcript lines with summaryContext (commented out above)
         }
     }
     
     func generatePrompt(eventId: UInt64) async -> String {
         logger.info("💡 Generating prompt #\(eventId) from \(self.recentTranscript.count) transcript lines")
-        let promptContext = self.recentTranscript.joined(separator: "\n")
+        let snapshot = self.recentTranscript
+        let promptContext = await MainActor.run {
+            snapshot.map { $0.description }.joined(separator: "\n")
+        }
         do {
             let start = CFAbsoluteTimeGetCurrent()
-            // TODO: Include old transcript summary
             let prompt = try await self.llm.generate(systemPrompt: Self.systemPrompt, userPrompt: promptContext)
             let end = CFAbsoluteTimeGetCurrent()
             let duration = String(format: "%.1f", end - start)
@@ -74,4 +73,5 @@ actor PromptService {
             return "Failed to generate prompt."
         }
     }
+
 }

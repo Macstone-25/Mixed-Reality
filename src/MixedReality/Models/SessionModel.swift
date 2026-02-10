@@ -19,6 +19,7 @@ class SessionModel {
     private let speechService: SpeechService
     private let triggerService: TriggerService
     private let promptService: PromptService
+    private let soundService: SoundService
     
     private var sinks = Set<AnyCancellable>()
     
@@ -35,6 +36,7 @@ class SessionModel {
         self.miniLLM = LLMService(artifacts: self.artifacts, experiment: experiment, llm: experiment.miniLLM)
         self.speechService = try await SpeechService(artifacts: self.artifacts, experiment: experiment, config: DeepgramConfig(), anonymizationPolicy: .pitchShift(semitones: Float.random(in: -3 ... -1), deleteOriginal: true))
         self.triggerService = await TriggerService(artifacts: self.artifacts, experiment: experiment, speechService: self.speechService, miniLLM: self.miniLLM)
+        self.soundService = SoundService()
         self.promptService = PromptService(artifacts: self.artifacts, experiment: experiment, llm: self.llm, speechService: self.speechService)
     }
     
@@ -46,6 +48,7 @@ class SessionModel {
         let experimentJsonHandle = try await artifacts.getFileHandle(name: "Experiment.json")
         try experimentJsonHandle.write(contentsOf: experimentJson)
         await artifacts.logEvent(type: "Session", message: "Experiment config saved as JSON")
+        logger.info("\(String(describing: self.experiment))")
         
         // Connect TriggerService to SpeechService
         sinks.insert(
@@ -84,10 +87,13 @@ class SessionModel {
                         return
                     }
                     
+                    self.soundService.playDing()
                     onPrompt(prompt)
                 }
             }
         }
+        
+        soundService.prepareDing()
         
         try await speechService.connect()
     }

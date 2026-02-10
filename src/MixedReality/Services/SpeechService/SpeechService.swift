@@ -115,15 +115,15 @@ class SpeechService: WebSocketDelegate {
             )
         }
         
-        assetWriterInput = AVAssetWriterInput(
-            mediaType: .audio,
-            outputSettings: [
-                AVFormatIDKey: kAudioFormatMPEG4AAC,
-                AVSampleRateKey: audioFormat.sampleRate,
-                AVNumberOfChannelsKey: audioFormat.channelCount,
-                AVEncoderBitRateKey: 128000
-            ]
-        )
+        let sr = audioFormat.sampleRate
+        let safeSampleRate: Double = (sr == 44_100 || sr == 48_000) ? sr : 48_000
+
+        assetWriterInput = AVAssetWriterInput(mediaType: .audio, outputSettings: [
+            AVFormatIDKey: kAudioFormatMPEG4AAC,
+            AVSampleRateKey: safeSampleRate,
+            AVNumberOfChannelsKey: min(Int(audioFormat.channelCount), 2),
+            AVEncoderBitRateKey: 128_000
+        ])
         
         if assetWriter.canAdd(assetWriterInput) {
             assetWriterInput.expectsMediaDataInRealTime = true
@@ -198,6 +198,7 @@ class SpeechService: WebSocketDelegate {
             self?.sendKeepAlive()
         }
     }
+    
     
     /// Disconnect from Deepgram WebSocket and deactivate microphone
     func disconnect() async {

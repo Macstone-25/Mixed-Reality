@@ -8,11 +8,11 @@ import SwiftUI
 struct ConfigView: View {
     private let appModel: AppModel
     
-    @State private var viewModel: ConfigViewModel
+    @StateObject private var viewModel: ConfigViewModel
     
     init(_ appModel: AppModel) {
         self.appModel = appModel
-        _viewModel = State(wrappedValue: ConfigViewModel(appModel))
+        _viewModel = StateObject(wrappedValue: ConfigViewModel(appModel))
     }
     
     var body: some View {
@@ -73,7 +73,7 @@ struct ConfigView: View {
                         minVal: $viewModel.config.minPauseDetectionMs,
                         maxVal: $viewModel.config.maxPauseDetectionMs,
                         lowerBound: 250,
-                        upperBound: 5000
+                        upperBound: 8000
                     )
                 }
                 
