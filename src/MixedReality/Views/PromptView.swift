@@ -40,13 +40,20 @@ struct PromptView: View {
 
         let shape = RoundedRectangle(cornerRadius: 28, style: .continuous)
 
-        // Base text 
+        let trimmed = sessionViewModel.prompt.trimmingCharacters(in: .whitespacesAndNewlines)
+        let wordCount = trimmed.split(whereSeparator: { $0.isWhitespace || $0.isNewline }).count
+        let isShortPrompt = !trimmed.isEmpty && trimmed.count <= 18 && wordCount <= 2
+
+        let textAlignment: TextAlignment = isShortPrompt ? .center : .leading
+        let frameAlignment: Alignment = isShortPrompt ? .center : .leading
+
+        // Base text
         let promptText = Text(sessionViewModel.prompt)
             .font(.system(size: fontSize))
             .foregroundStyle(.white)
-            .multilineTextAlignment(.leading)
+            .multilineTextAlignment(textAlignment)
             .lineLimit(nil)
-            .frame(maxWidth: .infinity, alignment: .leading)
+            .frame(maxWidth: .infinity, alignment: frameAlignment)
             .fixedSize(horizontal: false, vertical: true)
             .padding(.top, 2)
             .padding(.bottom, bottomSafety)
@@ -55,7 +62,7 @@ struct PromptView: View {
         let visible = promptText
             .padding(.horizontal, hPad)
             .padding(.vertical, vPad)
-            .frame(width: chosenWidth, height: chosenHeight, alignment: .leading)
+            .frame(width: chosenWidth, height: chosenHeight, alignment: frameAlignment)
             .background(.thickMaterial, in: shape)
             .overlay(shape.stroke(.white.opacity(0.18), lineWidth: 1))
             .shadow(color: .black.opacity(0.25), radius: 12, x: 0, y: 6)
@@ -70,7 +77,7 @@ struct PromptView: View {
                 promptText
                     .padding(.horizontal, hPad)
                     .padding(.vertical, vPad)
-                    .frame(width: w, alignment: .leading)
+                    .frame(width: w, alignment: frameAlignment)
                     .background(
                         GeometryReader { proxy in
                             Color.clear.preference(key: HeightMapKey.self, value: [w: proxy.size.height])
