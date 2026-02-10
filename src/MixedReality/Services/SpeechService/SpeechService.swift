@@ -45,7 +45,6 @@ enum SpeechServiceError: Error {
     case permissionError(String)
 }
 
-/// Proper formatting for the optional audio anonymization
 enum AudioAnonymizationPolicy {
     case none
     case pitchShift(semitones: Float, deleteOriginal: Bool)
@@ -79,7 +78,7 @@ class SpeechService: WebSocketDelegate {
         artifacts: ArtifactService,
         experiment: ExperimentModel,
         config: DeepgramConfig,
-        anonymizationPolicy: AudioAnonymizationPolicy = .none
+        anonymizationPolicy: AudioAnonymizationPolicy
     ) async throws {
         self.artifacts = artifacts
         self.experiment = experiment
@@ -463,6 +462,7 @@ class SpeechService: WebSocketDelegate {
         }
 
         engine.stop()
+        engine.reset()
 
         if deleteOriginal {
             try? FileManager.default.removeItem(at: inputURL)
