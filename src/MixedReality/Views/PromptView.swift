@@ -40,10 +40,6 @@ struct PromptView: View {
 
         let shape = RoundedRectangle(cornerRadius: 28, style: .continuous)
 
-        let trimmed = sessionViewModel.prompt.trimmingCharacters(in: .whitespacesAndNewlines)
-        let wordCount = trimmed.split(whereSeparator: { $0.isWhitespace || $0.isNewline }).count
-        let isShortPrompt = !trimmed.isEmpty && trimmed.count <= 18 && wordCount <= 2
-
         // Base text
         let promptText = Text(sessionViewModel.prompt)
             .font(.system(size: fontSize))
