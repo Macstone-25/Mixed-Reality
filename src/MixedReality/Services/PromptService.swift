@@ -124,11 +124,17 @@ actor PromptService {
 
             self.summary = newSummary
             self.pendingForSummary.removeAll() // clear only after success
-            await artifacts.logEvent(type: "Summary", message: "Updated summary (\(block.count) lines) (\(duration)s)")
+            await artifacts.logEvent(
+                type: "Summary",
+                message: "Updated summary (\(block.count) lines) (\(duration)s)"
+            )
 
         } catch {
             logger.error("Failed to update summary: \(error.localizedDescription)")
-            await artifacts.logEvent(type: "Summary", message: "FAILED to update summary: \(error.localizedDescription)")
+            await artifacts.logEvent(
+                type: "Summary",
+                message: "FAILED to update summary: \(error.localizedDescription)"
+            )
             // keep pendingForSummary for retry later
         }
     }
@@ -137,7 +143,7 @@ actor PromptService {
     func generatePrompt(eventId: UInt64) async -> String {
         logger.info("💡 Generating prompt #\(eventId) from \(self.recentTranscript.count) transcript lines")
         let snapshot = self.recentTranscript
-        let promptContext = await MainActor.run {
+        let recentText = await MainActor.run {
             snapshot.map { $0.description }.joined(separator: "\n")
         }
 
