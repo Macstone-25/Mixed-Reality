@@ -1,6 +1,6 @@
 import XCTest
 import Collections
-@testable import MixedReality
+@testable import MRCS
 
 final class TranscriptChunkOrderingTests: XCTestCase {
     
@@ -139,3 +139,4 @@ final class TranscriptChunkOrderingTests: XCTestCase {
         XCTAssertTrue(deque.contains(where: { $0.text == "Second" }))
     }
 }
+
