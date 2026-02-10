@@ -13,14 +13,11 @@ struct SessionControlsView: View {
     }
 
     var body: some View {
-        let hPad: CGFloat = 32
-        let vPad: CGFloat = 18
-
         if appModel.isEndingSession {
             Text("Ending session...")
                 .font(.system(size: 24, weight: .medium, design: .monospaced))
-                .padding(.horizontal, hPad)
-                .padding(.vertical, vPad)
+                .padding(.horizontal, 32)
+                .padding(.vertical, 18)
                 .background(.regularMaterial, in: Capsule())
                 .glassBackgroundEffect()
                 .opacity(viewModel.isVisible ? 1 : 0)
