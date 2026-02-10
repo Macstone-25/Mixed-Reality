@@ -142,12 +142,12 @@ actor PromptService {
         }
 
         let promptContext = """
-        Rolling summary:
-        \(summary.isEmpty ? "(none)" : summary)
+            Rolling summary:
+            \(summary.isEmpty ? "(none)" : summary)
 
-        Recent transcript:
-        \(recentText)
-        """
+            Recent transcript:
+            \(recentText)
+            """
 
         do {
             let start = CFAbsoluteTimeGetCurrent()
