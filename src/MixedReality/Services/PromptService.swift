@@ -99,14 +99,14 @@ actor PromptService {
         }
 
         let userPrompt = """
-        Current summary:
-        \(summary.isEmpty ? "(none)" : summary)
+            Current summary:
+            \(summary.isEmpty ? "(none)" : summary)
 
-        New transcript lines to incorporate:
-        \(blockText)
+            New transcript lines to incorporate:
+            \(blockText)
 
-        Return an updated rolling summary only.
-        """
+            Return an updated rolling summary only.
+            """
 
         do {
             let start = CFAbsoluteTimeGetCurrent()
