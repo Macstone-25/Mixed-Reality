@@ -16,7 +16,6 @@ actor PromptService {
     private let llm: LLMService
     private let speechService: SpeechService
     
-    // TODO: Summarize old transcript lines
     private var summary = ""
     private var recentTranscript = Deque<TranscriptChunk>()
     
@@ -58,8 +57,9 @@ actor PromptService {
     
     func generatePrompt(eventId: UInt64) async -> String {
         logger.info("💡 Generating prompt #\(eventId) from \(self.recentTranscript.count) transcript lines")
+        let snapshot = self.recentTranscript
         let promptContext = await MainActor.run {
-            self.recentTranscript.map { $0.description }.joined(separator: "\n")
+            snapshot.map { $0.description }.joined(separator: "\n")
         }
         do {
             let start = CFAbsoluteTimeGetCurrent()
