@@ -14,6 +14,7 @@ actor PromptService {
     private let artifacts: ArtifactService
     private let experiment: ExperimentModel
     private let llm: LLMService
+    private let miniLLM: LLMService
     private let speechService: SpeechService
     
     private var summary = ""
@@ -48,7 +49,7 @@ actor PromptService {
         - Preserve key nouns: people, places, activities, and open questions.
         - Do NOT invent details.
         - Focus on durable context (topics, facts, goals, emotional tone).
-- Output ONLY the updated summary text (no preamble).
+        - Output ONLY the updated summary text (no preamble).
     """
     
     init(artifacts: ArtifactService, experiment: ExperimentModel, llm: LLMService, miniLLM: LLMService, speechService: SpeechService) {
@@ -84,6 +85,10 @@ actor PromptService {
             await self.updateSummaryIfNeeded()
         }
     }
+    
+    private func updateSummaryIfNeeded() async {
+        guard !isSummarizing else { return }
+        guard !pendingForSummary.isEmpty else { return }
 
         isSummarizing = true
         defer { isSummarizing = false }

@@ -3,8 +3,8 @@
 //  MixedReality
 //
 
-import Foundation
 import Combine
+import Foundation
 import OSLog
 
 class SessionModel {
@@ -86,15 +86,15 @@ class SessionModel {
                         self.logger.warning("Dropping trigger \(event.id), no prompt callback set")
                         return
                     }
-                    
+
                     self.soundService.playDing()
                     onPrompt(prompt)
                 }
             }
         }
-        
+
         soundService.prepareDing()
-        
+
         try await speechService.connect()
     }
     
