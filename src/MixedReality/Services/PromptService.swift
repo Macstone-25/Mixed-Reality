@@ -37,7 +37,7 @@ actor PromptService {
         2. Avoid vague pronouns (e.g. it, that, they) and always reference the current topic clearly.
         3. Your role is to assist conversation flow - not to take control of it.
         4. Remember that the user is having a conversation with someone else, not you.
-        5. Use phrasing like "you were talking about" instead of "you were asking about" because you do not know which speaker ID is the one viewing your prompts. 
+        5. Use phrasing like "you were talking about" instead of "you were asking about" because you do not know which speaker ID is the one viewing your prompts.
     """
 
     private static let summarySystemPrompt = """
@@ -48,7 +48,7 @@ actor PromptService {
         - Preserve key nouns: people, places, activities, and open questions.
         - Do NOT invent details.
         - Focus on durable context (topics, facts, goals, emotional tone).
-        - Output ONLY the updated summary text (no preamble).
+- Output ONLY the updated summary text (no preamble).
     """
     
     init(artifacts: ArtifactService, experiment: ExperimentModel, llm: LLMService, miniLLM: LLMService, speechService: SpeechService) {
@@ -84,10 +84,6 @@ actor PromptService {
             await self.updateSummaryIfNeeded()
         }
     }
-    
-    private func updateSummaryIfNeeded() async {
-        guard !isSummarizing else { return }
-        guard !pendingForSummary.isEmpty else { return }
 
         isSummarizing = true
         defer { isSummarizing = false }
