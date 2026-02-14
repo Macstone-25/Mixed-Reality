@@ -242,7 +242,7 @@ class SpeechService: WebSocketDelegate {
                 
             case .pitchShift(let semitones, let deleteOriginal):
                 do {
-                    let anonymizedURL = try anonymizeConversationAudio(
+                    let anonymizedURL = try await anonymizeConversationAudio(
                         pitchSemitones: semitones,
                         deleteOriginal: deleteOriginal
                     )
