@@ -67,7 +67,17 @@ final class LLMTriggerEvaluator: TriggerEvaluator {
         """
         
         do {
-            let rawDecision = try await miniLLM.generate(systemPrompt: Self.systemPrompt, userPrompt: userPrompt)
+            let rawDecision: String
+
+            if let llmService = miniLLM as? LLMService {
+                rawDecision = try await llmService.generate(
+                    systemPrompt: Self.systemPrompt,
+                    userPrompt: userPrompt,
+                    logCancellationAsError: false
+                )
+            } else {
+                rawDecision = try await miniLLM.generate(systemPrompt: Self.systemPrompt, userPrompt: userPrompt)
+            }
             
             guard let decision = Self.parseDecision(rawDecision) else {
                 await logParseFailure(rawDecision)
@@ -79,6 +89,10 @@ final class LLMTriggerEvaluator: TriggerEvaluator {
             }
             
             return .llmSuggested(rationale: Self.sanitizeRationale(decision.rationale))
+        } catch is CancellationError {
+            return nil
+        } catch let error as URLError where error.code == .cancelled {
+            return nil
         } catch {
             logger.warning("LLM evaluator failed: \(error.localizedDescription, privacy: .public)")
             if let artifacts {

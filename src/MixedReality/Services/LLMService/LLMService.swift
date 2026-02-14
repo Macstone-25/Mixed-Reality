@@ -28,8 +28,30 @@ class LLMService : LLMGenerator {
     }
     
     func generate(systemPrompt: String, userPrompt: String) async throws -> String {
+        try await generate(
+            systemPrompt: systemPrompt,
+            userPrompt: userPrompt,
+            logCancellationAsError: true
+        )
+    }
+
+    func generate(
+        systemPrompt: String,
+        userPrompt: String,
+        logCancellationAsError: Bool
+    ) async throws -> String {
         do {
             return try await llmProvider.generate(systemPrompt: systemPrompt, userPrompt: userPrompt)
+        } catch is CancellationError {
+            if logCancellationAsError {
+                await artifacts.logEvent(type: "LLM", message: "Unknown Error: cancelled")
+            }
+            throw CancellationError()
+        } catch let error as URLError where error.code == .cancelled {
+            if logCancellationAsError {
+                await artifacts.logEvent(type: "LLM", message: "Unknown Error: \(error.localizedDescription)")
+            }
+            throw error
         } catch LLMProviderError.noResponse {
             await artifacts.logEvent(type: "LLM", message: "Connection Error: No response")
             throw LLMProviderError.noResponse

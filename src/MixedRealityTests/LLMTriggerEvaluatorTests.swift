@@ -68,6 +68,28 @@ final class LLMTriggerEvaluatorTests: XCTestCase {
         XCTAssertNil(reason)
         XCTAssertEqual(llm.callCount, 0)
     }
+
+    func testEvaluate_WhenLLMThrowsCancellationError_ReturnsNil() async {
+        let llm = MockLLMGenerator(error: CancellationError())
+        let evaluator = LLMTriggerEvaluator(miniLLM: llm)
+
+        let chunk = makeChunk(text: "I am still thinking...", isFinal: true)
+        let reason = await evaluator.evaluate(chunk: chunk, context: [chunk])
+
+        XCTAssertNil(reason)
+        XCTAssertEqual(llm.callCount, 1)
+    }
+
+    func testEvaluate_WhenLLMThrowsURLErrorCancelled_ReturnsNil() async {
+        let llm = MockLLMGenerator(error: URLError(.cancelled))
+        let evaluator = LLMTriggerEvaluator(miniLLM: llm)
+
+        let chunk = makeChunk(text: "Give me one second...", isFinal: true)
+        let reason = await evaluator.evaluate(chunk: chunk, context: [chunk])
+
+        XCTAssertNil(reason)
+        XCTAssertEqual(llm.callCount, 1)
+    }
     
     private func makeChunk(text: String, isFinal: Bool) -> TranscriptChunk {
         TranscriptChunk(
@@ -81,15 +103,27 @@ final class LLMTriggerEvaluatorTests: XCTestCase {
 }
 
 private final class MockLLMGenerator: LLMGenerator {
-    let response: String
+    let response: String?
+    let error: Error?
     private(set) var callCount = 0
     
     init(response: String) {
         self.response = response
+        self.error = nil
+    }
+
+    init(error: Error) {
+        self.response = nil
+        self.error = error
     }
     
     func generate(systemPrompt: String, userPrompt: String) async throws -> String {
         callCount += 1
-        return response
+
+        if let error {
+            throw error
+        }
+
+        return response ?? ""
     }
 }
