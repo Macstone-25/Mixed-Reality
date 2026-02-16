@@ -21,6 +21,7 @@ class AppModel {
     var session: SessionModel?
     var isEndingSession = false
     var isLaunchingSession = false
+    var lastSessionId: String?
     var launchError: String?
     
     var activeScene: SceneID = SceneID.windowGroup
@@ -38,6 +39,7 @@ class AppModel {
                 try await session?.start()
                 logger.info("🎧 Session started. Launching immersive space…")
                 activeScene = SceneID.immersiveSpace
+                lastSessionId = session?.id
             } catch {
                 logger.error("❌ Failed to start session: \(error)")
                 launchError = error.localizedDescription
