@@ -32,12 +32,13 @@ struct ExportView: View {
             
             HStack {
                 Button("Delete") {
-                    // TODO: Enable this functionality once cloud upload is working (#42)
+                    viewModel.deleteData()
                 }
                 .tint(.red)
                 .buttonStyle(.borderedProminent)
                 .glassBackgroundEffect()
                 .disabled(viewModel.actionsDisabled)
+                .opacity(appModel.config.isDeleteEnabled ? 1 : 0)
                 
                 Spacer()
                 
