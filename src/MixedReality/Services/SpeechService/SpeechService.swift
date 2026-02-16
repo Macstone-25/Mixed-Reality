@@ -410,11 +410,10 @@ class SpeechService: WebSocketDelegate {
     }
     
     private func anonymizeConversationAudio(
-        outputName: String = "conversation_anonymized.m4a",
+        outputName: String = "Conversation_Anonymized.m4a",
         pitchSemitones: Float,
         deleteOriginal: Bool
     ) async throws -> URL {
-
         let inputURL = conversationFileURL
         let outputURL = try await artifacts.getFileURL(name: outputName)
 
@@ -445,7 +444,7 @@ class SpeechService: WebSocketDelegate {
             settings: inputFile.fileFormat.settings
         )
 
-        await player.scheduleFile(inputFile, at: nil)
+        player.scheduleFile(inputFile, at: nil, completionHandler: nil)
         player.play()
 
         let buffer = AVAudioPCMBuffer(
