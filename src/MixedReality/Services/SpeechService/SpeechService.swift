@@ -64,6 +64,7 @@ class SpeechService: WebSocketDelegate {
     private var socket: Starscream.WebSocket
     private var keepAliveTimer: Timer?
     private var isConnected = false
+    private var hasInputTapInstalled = false
     
     private let audioEngine = AVAudioEngine()
     private let audioFormat: AVAudioFormat
@@ -171,16 +172,11 @@ class SpeechService: WebSocketDelegate {
         }
         
         try AVAudioSession.sharedInstance().setActive(true, options: .notifyOthersOnDeactivation)
-        
-        audioEngine.inputNode.installTap(
-            onBus: 0,
-            bufferSize: 4096,
-            format: audioFormat
-        ) { [weak self] buffer, time in
-            self?.processAudioBuffer(buffer: buffer, time: time)
+        installInputTapIfNeeded()
+
+        if !audioEngine.isRunning {
+            try audioEngine.start()
         }
-        
-        try audioEngine.start()
         
         await artifacts.logEvent(
             type: "SpeechService",
@@ -210,7 +206,10 @@ class SpeechService: WebSocketDelegate {
         logger.info("🔌 Disconnecting SpeechService...")
         isConnected = false
         
-        audioEngine.inputNode.removeTap(onBus: 0)
+        if hasInputTapInstalled {
+            audioEngine.inputNode.removeTap(onBus: 0)
+            hasInputTapInstalled = false
+        }
         if audioEngine.isRunning { audioEngine.stop() }
         audioEngine.reset()
         try? AVAudioSession.sharedInstance().setActive(false)
@@ -261,6 +260,34 @@ class SpeechService: WebSocketDelegate {
         }
         
         logger.info("🛑 SpeechService stopped")
+    }
+
+    func reactivateIfNeeded() async {
+        guard isConnected else {
+            await artifacts.logEvent(
+                type: "SpeechService",
+                message: "Skipping foreground restore because service is disconnected"
+            )
+            return
+        }
+
+        do {
+            try AVAudioSession.sharedInstance().setActive(true, options: .notifyOthersOnDeactivation)
+            installInputTapIfNeeded()
+            if !audioEngine.isRunning {
+                try audioEngine.start()
+            }
+
+            await artifacts.logEvent(
+                type: "SpeechService",
+                message: "Audio pipeline reactivated after app foreground"
+            )
+        } catch {
+            await artifacts.logEvent(
+                type: "SpeechService",
+                message: "Failed to reactivate audio after app foreground: \(error.localizedDescription)"
+            )
+        }
     }
     
     /// Starscream WebSocket delegate method for handling connection, messages, and errors
@@ -315,6 +342,20 @@ class SpeechService: WebSocketDelegate {
         } catch {
             logger.warning("Failed to encode KeepAlive message: \(error)")
         }
+    }
+
+    private func installInputTapIfNeeded() {
+        guard !hasInputTapInstalled else { return }
+
+        audioEngine.inputNode.installTap(
+            onBus: 0,
+            bufferSize: 4096,
+            format: audioFormat
+        ) { [weak self] buffer, time in
+            self?.processAudioBuffer(buffer: buffer, time: time)
+        }
+
+        hasInputTapInstalled = true
     }
     
     /// Performs format conversions and sends audio data to the WebSocket and AssetWriter

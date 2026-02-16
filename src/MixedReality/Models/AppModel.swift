@@ -24,6 +24,7 @@ class AppModel {
     var launchError: String?
     
     var activeScene: SceneID = SceneID.windowGroup
+    var immersiveOpenRequest: UInt64 = 0
     
     var config = ConfigModel.load()
     
@@ -58,5 +59,20 @@ class AppModel {
             isEndingSession = false
         }
     }
-}
 
+    func restoreSessionAfterForegrounding() {
+        guard !isLaunchingSession, !isEndingSession, let session else { return }
+
+        logger.info("🪟 Restoring session after app foreground")
+
+        if activeScene == .immersiveSpace {
+            immersiveOpenRequest &+= 1
+        } else {
+            activeScene = .immersiveSpace
+        }
+
+        Task {
+            await session.restoreAfterForegrounding()
+        }
+    }
+}

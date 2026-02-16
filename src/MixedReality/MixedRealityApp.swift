@@ -5,6 +5,7 @@ import OSLog
 struct MixedRealityApp: App {
     @Environment(\.openWindow) private var openWindow
     @Environment(\.dismissWindow) private var dismissWindow
+    @Environment(\.scenePhase) private var scenePhase
     
     @Environment(\.openImmersiveSpace) private var openImmersiveSpace
     @Environment(\.dismissImmersiveSpace) private var dismissImmersiveSpace
@@ -36,6 +37,24 @@ struct MixedRealityApp: App {
                     appModel.logger.info("Dismissed immersive space")
                 }
             }
+        }
+        .onChange(of: appModel.immersiveOpenRequest) { _, _ in
+            guard appModel.session != nil else { return }
+            Task {
+                let result = await openImmersiveSpace(id: SceneID.immersiveSpace.rawValue)
+                switch result {
+                case .opened:
+                    appModel.logger.info("Opened immersive space")
+                    dismissWindow(id: SceneID.windowGroup.rawValue)
+                default:
+                    appModel.logger.error("Failed to open immersive space")
+                    appModel.endSession()
+                }
+            }
+        }
+        .onChange(of: scenePhase) { _, phase in
+            guard phase == .active else { return }
+            appModel.restoreSessionAfterForegrounding()
         }
 
         ImmersiveSpace(id: SceneID.immersiveSpace.rawValue) {

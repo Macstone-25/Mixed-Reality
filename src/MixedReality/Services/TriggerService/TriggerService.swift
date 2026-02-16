@@ -64,12 +64,13 @@ actor TriggerService {
     }
     
     func handleTranscriptChunk(chunk: TranscriptChunk) {
-        // update context if this is a finalized chunk
-        if chunk.isFinal {
-            evaluatorContext.insertSorted(chunk)
-            if evaluatorContext.count > experiment.triggerContext {
-                _ = evaluatorContext.popFirst()
-            }
+        // Only finalized chunks should drive trigger timing. Interim updates can be noisy
+        // and would otherwise keep cancelling pause detection.
+        guard chunk.isFinal else { return }
+
+        evaluatorContext.insertSorted(chunk)
+        if evaluatorContext.count > experiment.triggerContext {
+            _ = evaluatorContext.popFirst()
         }
         
         // people usually pause to read prompts when they appear, so to avoid
@@ -158,5 +159,12 @@ actor TriggerService {
         onTrigger = nil
         logger.info("🛑 TriggerService stopped")
     }
-}
 
+    func restoreAfterForegrounding() {
+        evaluationTask?.cancel()
+        evaluationTask = nil
+        lastChunk = nil
+        lastEventAt = .distantPast
+        logger.info("🔄 TriggerService restored after app foreground")
+    }
+}
