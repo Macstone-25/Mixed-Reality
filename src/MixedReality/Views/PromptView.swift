@@ -28,7 +28,6 @@ struct PromptView: View {
         let fontSize: CGFloat = 30
         let hPad: CGFloat = 24
         let vPad: CGFloat = 14
-        let bottomSafety: CGFloat = 18
 
         let candidateWidths: [CGFloat] = [420, 480, 540, 600]
 
@@ -40,36 +39,36 @@ struct PromptView: View {
 
         let shape = RoundedRectangle(cornerRadius: 28, style: .continuous)
 
-        // Base text
         let promptText = Text(sessionViewModel.prompt)
             .font(.system(size: fontSize))
-            .foregroundStyle(.white)
+            .bold()
             .multilineTextAlignment(.center)
             .lineLimit(nil)
-            .frame(maxWidth: .infinity, alignment: .center)
-            .fixedSize(horizontal: false, vertical: true)
-            .padding(.top, 2)
-            .padding(.bottom, bottomSafety)
-
-        // Visible bubble (No ScrollView)
-        let visible = promptText
             .padding(.horizontal, hPad)
             .padding(.vertical, vPad)
+
+        let visible =
+            ZStack {
+                shape
+                    .fill(.black)
+                    .overlay(shape.stroke(.white.opacity(0.18), lineWidth: 1))
+                    .shadow(color: .black.opacity(0.25), radius: 12, x: 0, y: 6)
+                    .opacity(viewModel.isVisible ? 0.7 : 0)
+                    .animation(.easeInOut(duration: 0.25), value: viewModel.isVisible)
+
+                promptText
+                    .foregroundStyle(.white)
+                    .opacity(viewModel.isVisible ? 1 : 0)
+                    .animation(.easeInOut(duration: 0.25), value: viewModel.isVisible)
+            }
             .frame(width: chosenWidth, height: chosenHeight, alignment: .center)
-            .background(.thickMaterial, in: shape)
-            .overlay(shape.stroke(.white.opacity(0.18), lineWidth: 1))
-            .shadow(color: .black.opacity(0.25), radius: 12, x: 0, y: 6)
             .contentShape(shape)
             .onTapGesture { sessionViewModel.prompt = "" }
-            .opacity(viewModel.isVisible ? 1 : 0)
-            .animation(.easeInOut(duration: 0.25), value: viewModel.isVisible)
 
         // Hidden measurers for each candidate width
         let measurers = ZStack {
             ForEach(candidateWidths, id: \.self) { w in
                 promptText
-                    .padding(.horizontal, hPad)
-                    .padding(.vertical, vPad)
                     .frame(width: w, alignment: .center)
                     .background(
                         GeometryReader { proxy in
