@@ -222,7 +222,6 @@ class SpeechService: WebSocketDelegate {
             case .cancelled:
                 await artifacts.logEvent(type: "Deepgram", message: "WebSocket cancelled")
             case .disconnected(let reason, let code):
-                // TODO: depending on the code, attempt to reconnect
                 await artifacts.logEvent(type: "Deepgram", message: "WebSocket disconnected (\(code)): \(reason)")
             case .text(let text):
                 if let data = text.data(using: .utf8) {

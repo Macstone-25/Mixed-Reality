@@ -17,13 +17,11 @@ actor PromptService {
     private let miniLLM: LLMService
     private let speechService: SpeechService
     
-    private var summary = ""
     private var recentTranscript = Deque<TranscriptChunk>()
-
-    private var pendingForSummary = Deque<TranscriptChunk>()
+    
+    private var summary = ""
+    private var pendingSummarization = Deque<TranscriptChunk>()
     private var isSummarizing = false
-
-    private let maxSummaryChars = 900
     
     private static let systemPrompt = """
         You are a conversational support assistant for a mixed-reality environment that helps older adults continue conversations naturally.
@@ -42,8 +40,7 @@ actor PromptService {
     """
 
     private static let summarySystemPrompt = """
-        You maintain a rolling summary of a two-person conversation to support later prompt generation.
-
+        You maintain a rolling summary of a conversation transcript to reduce the context window for larger LLMs.
         Requirements:
         - Keep it short and concrete (prefer 4-8 bullet points or a compact paragraph).
         - Preserve key nouns: people, places, activities, and open questions.
@@ -65,94 +62,71 @@ actor PromptService {
 
         recentTranscript.insertSorted(chunk)
 
-        // Maintain bounded window for prompt + summary logic (same existing behavior)
+        // update summary when context is sufficiently large
         if self.recentTranscript.count == self.experiment.promptContextWindow + self.experiment.summaryContextWindow {
-            // Move the oldest N lines into the summary buffer (don’t lose them)
-            let toSummarizeCount = self.experiment.summaryContextWindow
-            let oldChunks = self.recentTranscript.prefix(toSummarizeCount)
-
-            for c in oldChunks {
-                self.pendingForSummary.append(c)
-            }
-
-            self.recentTranscript.removeFirst(toSummarizeCount)
-
-            logger.info("Queued \(toSummarizeCount) lines for summary; pending=\(self.pendingForSummary.count)")
-        }
-
-        // Trigger summary update when enough pending chunks have accumulated
-        if self.pendingForSummary.count >= self.experiment.summaryContextWindow {
-            await self.updateSummaryIfNeeded()
+            let newSummaryContext = recentTranscript.prefix(experiment.summaryContextWindow)
+            pendingSummarization.append(contentsOf: newSummaryContext)
+            recentTranscript.removeFirst(experiment.summaryContextWindow)
+            if !isSummarizing { await updateSummary() }
         }
     }
     
-    private func updateSummaryIfNeeded() async {
+    private func updateSummary() async {
         guard !isSummarizing else { return }
-        guard !pendingForSummary.isEmpty else { return }
-
         isSummarizing = true
         defer { isSummarizing = false }
 
-        // Take a snapshot so we don’t block incoming transcript handling too long
-        let block = Array(pendingForSummary)
-        let blockText = await MainActor.run {
-            block.map { $0.description }.joined(separator: "\n")
-        }
-
-        let userPrompt = """
-            Current summary:
-            \(summary.isEmpty ? "(none)" : summary)
-
-            New transcript lines to incorporate:
-            \(blockText)
-
-            Return an updated rolling summary only.
-            """
-
-        do {
-            let start = CFAbsoluteTimeGetCurrent()
-            var newSummary = try await miniLLM.generate(
-                systemPrompt: Self.summarySystemPrompt,
-                userPrompt: userPrompt
-            )
-            let end = CFAbsoluteTimeGetCurrent()
-            let duration = String(format: "%.1f", end - start)
-
-            // Hard cap to prevent runaway growth (simple + effective)
-            if newSummary.count > maxSummaryChars {
-                newSummary = String(newSummary.prefix(maxSummaryChars))
+        while !pendingSummarization.isEmpty {
+            let summaryContextChunks = Array(pendingSummarization)
+            pendingSummarization.removeAll()
+            
+            let summaryContext = await MainActor.run {
+                summaryContextChunks.map { $0.description }.joined(separator: "\n")
             }
-
-            self.summary = newSummary
-            self.pendingForSummary.removeAll() // clear only after success
-            await artifacts.logEvent(
-                type: "Summary",
-                message: "Updated summary (\(block.count) lines) (\(duration)s)"
-            )
-        } catch {
-            logger.error("Failed to update summary: \(error.localizedDescription)")
-            await artifacts.logEvent(
-                type: "Summary",
-                message: "FAILED to update summary: \(error.localizedDescription)"
-            )
-            // keep pendingForSummary for retry later
+            
+            logger.info("Summarizing \(summaryContextChunks.count) transcript chunks...")
+            
+            let userPrompt = """
+                Current summary:
+                \(summary.isEmpty ? "(none)" : summary)
+                
+                New transcript lines to incorporate:
+                \(summaryContext)
+                
+                Return an updated summary only.
+            """
+            
+            do {
+                let start = CFAbsoluteTimeGetCurrent()
+                // TODO: consider adding configurations to cut this off after some length
+                self.summary = try await miniLLM.generate(
+                    systemPrompt: Self.summarySystemPrompt,
+                    userPrompt: userPrompt
+                )
+                let end = CFAbsoluteTimeGetCurrent()
+                let duration = String(format: "%.1f", end - start)
+                await artifacts.logEvent(type: "Summary", message: "(\(duration)s delay) \"\(summary)\"")
+            } catch {
+                logger.error("Failed to update summary: \(error.localizedDescription)")
+                await artifacts.logEvent(type: "Summary", message: "Failed to update summary: \(error.localizedDescription)")
+            }
         }
     }
 
     func generatePrompt(eventId: UInt64) async -> String {
         logger.info("💡 Generating prompt #\(eventId) from \(self.recentTranscript.count) transcript lines")
         let snapshot = self.recentTranscript
-        let recentText = await MainActor.run {
+        let recentLines = await MainActor.run {
             snapshot.map { $0.description }.joined(separator: "\n")
         }
 
         let promptContext = """
-            Rolling summary:
+            Summary of Conversation:
             \(summary.isEmpty ? "(none)" : summary)
 
-            Recent transcript:
-            \(recentText)
-            """
+            Recent Transcript Lines (spoken after summary):
+            \(recentLines)
+        """
 
         do {
             let start = CFAbsoluteTimeGetCurrent()
