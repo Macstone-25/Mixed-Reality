@@ -45,18 +45,13 @@ enum SpeechServiceError: Error {
     case permissionError(String)
 }
 
-enum AudioAnonymizationPolicy {
-    case none
-    case pitchShift(semitones: Float, deleteOriginal: Bool)
-}
-
 class SpeechService: WebSocketDelegate {
     private let logger = Logger(subsystem: "SpeechService", category: "Services")
     
     private let artifacts: ArtifactService
     private let experiment: ExperimentModel
     private let config: DeepgramConfig
-    private let anonymizationPolicy: AudioAnonymizationPolicy
+    private let anonymizer: (any AudioAnonymizer)?
     
     /// Fired any time a transcript chunk is received from Deepgram
     let transcriptChunkEvent = PassthroughSubject<TranscriptChunk, Never>()
@@ -78,12 +73,12 @@ class SpeechService: WebSocketDelegate {
         artifacts: ArtifactService,
         experiment: ExperimentModel,
         config: DeepgramConfig,
-        anonymizationPolicy: AudioAnonymizationPolicy
+        anonymizer: (any AudioAnonymizer)? = nil
     ) async throws {
         self.artifacts = artifacts
         self.experiment = experiment
         self.config = config
-        self.anonymizationPolicy = anonymizationPolicy
+        self.anonymizer = anonymizer
         
         /// Configure audio session
         let isPermissionGranted = await AVAudioApplication.requestRecordPermission()
@@ -230,33 +225,30 @@ class SpeechService: WebSocketDelegate {
         } else {
             await artifacts.logEvent(
                 type: "SpeechService",
-                message: "Audio recording saved to \(conversationFileURL.lastPathComponent)"
+                message: "Audio saved to \(conversationFileURL.lastPathComponent)"
             )
-            
-            switch anonymizationPolicy {
-            case .none:
-                await artifacts.logEvent(
-                    type: "SpeechService",
-                    message: "Audio anonymization disabled"
-                )
-                
-            case .pitchShift(let semitones, let deleteOriginal):
+
+            if let anonymizer {
                 do {
-                    let anonymizedURL = try await anonymizeConversationAudio(
-                        pitchSemitones: semitones,
-                        deleteOriginal: deleteOriginal
+                    let outputURL = try await anonymizer.anonymize(
+                        inputURL: conversationFileURL,
+                        artifacts: artifacts
                     )
-                    
                     await artifacts.logEvent(
                         type: "SpeechService",
-                        message: "Anonymized audio created: \(anonymizedURL.lastPathComponent)"
+                        message: "Anonymization complete: \(outputURL.lastPathComponent)"
                     )
                 } catch {
                     await artifacts.logEvent(
                         type: "SpeechService",
-                        message: "Audio anonymization failed: \(error.localizedDescription)"
+                        message: "Anonymization failed: \(error.localizedDescription)"
                     )
                 }
+            } else {
+                await artifacts.logEvent(
+                    type: "SpeechService",
+                    message: "No anonymizer configured — skipping"
+                )
             }
         }
         
@@ -407,72 +399,6 @@ class SpeechService: WebSocketDelegate {
             
             transcriptChunkEvent.send(chunk)
         }
-    }
-    
-    private func anonymizeConversationAudio(
-        outputName: String = "Conversation_Anonymized.m4a",
-        pitchSemitones: Float,
-        deleteOriginal: Bool
-    ) async throws -> URL {
-        let inputURL = conversationFileURL
-        let outputURL = try await artifacts.getFileURL(name: outputName)
-
-        let inputFile = try AVAudioFile(forReading: inputURL)
-        let format = inputFile.processingFormat
-
-        let engine = AVAudioEngine()
-        let player = AVAudioPlayerNode()
-        let pitch = AVAudioUnitTimePitch()
-
-        pitch.pitch = pitchSemitones * 100 // cents
-
-        engine.attach(player)
-        engine.attach(pitch)
-        engine.connect(player, to: pitch, format: format)
-        engine.connect(pitch, to: engine.mainMixerNode, format: format)
-
-        try engine.enableManualRenderingMode(
-            .offline,
-            format: format,
-            maximumFrameCount: 4096
-        )
-
-        try engine.start()
-
-        let outputFile = try AVAudioFile(
-            forWriting: outputURL,
-            settings: inputFile.fileFormat.settings
-        )
-
-        player.scheduleFile(inputFile, at: nil, completionHandler: nil)
-        player.play()
-
-        let buffer = AVAudioPCMBuffer(
-            pcmFormat: engine.manualRenderingFormat,
-            frameCapacity: engine.manualRenderingMaximumFrameCount
-        )!
-
-        while engine.manualRenderingSampleTime < inputFile.length {
-            let status = try engine.renderOffline(
-                buffer.frameCapacity,
-                to: buffer
-            )
-
-            if status == .success {
-                try outputFile.write(from: buffer)
-            }
-        }
-
-        engine.stop()
-        engine.reset()
-
-        if deleteOriginal {
-            try? FileManager.default.removeItem(at: inputURL)
-            logger.info("Deleted original conversation audio after anonymization")
-        }
-
-        logger.info("Anonymized audio written to \(outputURL.lastPathComponent)")
-        return outputURL
     }
 
 }
