@@ -16,68 +16,55 @@ enum TriggerEvaluationStrategy: String, Hashable, Codable, CaseIterable {
 
 actor TriggerService {
     private let logger = Logger(subsystem: "TriggerService", category: "Services")
-    
+
     private let artifacts: ArtifactService
     private let experiment: ExperimentModel
     private let speechService: SpeechService
     private let miniLLM: LLMService
-    
-    private let heuristicEvaluators: [TriggerEvaluator]
-    private let llmEvaluator: TriggerEvaluator?
+
+    private let evaluators: [TriggerEvaluator]
     private var evaluatorContext = Deque<TranscriptChunk>()
     private var evaluationTask: Task<Void, Never>?
-    
+
     private var onTrigger: (@Sendable (InterventionEvent) -> (Void))?
     private var nextEventId: UInt64 = 1
     private var lastEventAt: Date = Date.distantPast
     private var lastChunk: TranscriptChunk?
-    
+
     init(artifacts: ArtifactService, experiment: ExperimentModel, speechService: SpeechService, miniLLM: LLMService) async {
         self.artifacts = artifacts
         self.experiment = experiment
         self.speechService = speechService
         self.miniLLM = miniLLM
-        
-        let (heuristicEvaluators, llmEvaluator) = await MainActor.run { () -> ([TriggerEvaluator], TriggerEvaluator?) in
-            var heuristicEvaluators: [TriggerEvaluator] = []
-            var llmEvaluator: TriggerEvaluator?
-            
-            for strategy in experiment.triggerEvaluationStrategies {
+
+        self.evaluators = await MainActor.run {
+            experiment.triggerEvaluationStrategies.map { strategy in
                 switch strategy {
                 case .pauseEvaluator:
-                    heuristicEvaluators.append(PauseEvaluator(experiment: experiment))
+                    return PauseEvaluator(experiment: experiment)
                 case .fillerEvaluator:
-                    heuristicEvaluators.append(FillerEvaluator())
+                    return FillerEvaluator()
                 case .llmEvaluator:
-                    llmEvaluator = LLMTriggerEvaluator(artifacts: artifacts, miniLLM: miniLLM)
+                    return LLMTriggerEvaluator(artifacts: artifacts, miniLLM: miniLLM)
                 }
             }
-            
-            return (heuristicEvaluators, llmEvaluator)
         }
-        
-        self.heuristicEvaluators = heuristicEvaluators
-        self.llmEvaluator = llmEvaluator
-        
-        for evaluator in heuristicEvaluators {
+
+        for evaluator in evaluators {
             logger.info("Added evaluator: \(String(describing: type(of: evaluator)))")
         }
-        
-        if let llmEvaluator = llmEvaluator {
-            logger.info("Added evaluator: \(String(describing: type(of: llmEvaluator)))")
-        }
     }
-    
+
     func setOnTrigger(_ handler: @Sendable @escaping (InterventionEvent) -> Void) {
         self.onTrigger = handler
     }
-    
+
     func getNextId(_ at: Date) -> UInt64 {
         nextEventId += 1
         lastEventAt = at
         return nextEventId - 1
     }
-    
+
     func handleTranscriptChunk(chunk: TranscriptChunk) {
         // update context if this is a finalized chunk
         if chunk.isFinal {
@@ -100,12 +87,11 @@ actor TriggerService {
             return
         }
         lastChunk = chunk
-        
+
         // launch (or relaunch) evaluation
         var chunkContext = Array(evaluatorContext)
         let triggerDelayMs = experiment.triggerDelayMs
-        let heuristicEvaluators = self.heuristicEvaluators
-        let llmEvaluator = self.llmEvaluator
+        let evaluators = self.evaluators
         evaluationTask?.cancel()
         evaluationTask = Task { [weak self] in
             do {
@@ -113,41 +99,40 @@ actor TriggerService {
                 try Task.checkCancellation()
                 try await Task.sleep(nanoseconds: UInt64(triggerDelayMs) * 1_000_000)
                 try Task.checkCancellation()
-                
-                let interventionReason = await TriggerService.evaluateWithFallback(
+
+                let interventionReason = await TriggerService.evaluateWithRace(
                     chunk: chunk,
                     context: chunkContext,
-                    heuristicEvaluators: heuristicEvaluators,
-                    llmEvaluator: llmEvaluator
+                    evaluators: evaluators
                 )
-                
+
                 // if no intervention reason was found or the task was cancelled, end the evaluation
-                
+
                 guard let reason = interventionReason else { return }
                 let reasonString = await MainActor.run { reason.description }
                 try Task.checkCancellation()
-                
+
                 // if an intervention reason was found, we need to trigger an event
-                
+
                 if chunk != chunkContext.last {
                     chunkContext.append(chunk)
                 }
-                
+
                 let at = Date.now
                 guard let id = await self?.getNextId(at) else { return }
                 try Task.checkCancellation()
-                
+
                 let event = InterventionEvent(
                     id: id,
                     at: at,
                     reason: reason,
                     context: chunkContext
                 )
-                
+
                 let message = "(#\(event.id)) \(reasonString) @ \(String(format: "%.1f", chunk.endAt))s"
                 await self?.artifacts.logEvent(type: "Intervention", message: message)
                 try Task.checkCancellation()
-                
+
                 guard let onTrigger = await self?.onTrigger else {
                     self?.logger.warning("No trigger callback set, dropping intervention event: \(reasonString)")
                     return
@@ -157,41 +142,30 @@ actor TriggerService {
             } catch { }
         }
     }
-    
-    static func evaluateWithFallback(
+
+    static func evaluateWithRace(
         chunk: TranscriptChunk,
         context: [TranscriptChunk],
-        heuristicEvaluators: [TriggerEvaluator],
-        llmEvaluator: TriggerEvaluator?
+        evaluators: [TriggerEvaluator]
     ) async -> InterventionReason? {
-        let heuristicReason = await withTaskGroup(of: InterventionReason?.self) { group in
-            for evaluator in heuristicEvaluators {
+        await withTaskGroup(of: InterventionReason?.self) { group in
+            for evaluator in evaluators {
                 group.addTask {
                     await evaluator.evaluate(chunk: chunk, context: context)
                 }
             }
-            
+
             for await result in group {
                 if result != nil {
                     group.cancelAll()
                     return result
                 }
             }
-            
+
             return InterventionReason?(nil)
         }
-        
-        if let heuristicReason {
-            return heuristicReason
-        }
-        
-        guard let llmEvaluator else {
-            return nil
-        }
-        
-        return await llmEvaluator.evaluate(chunk: chunk, context: context)
     }
-    
+
     func stop() {
         evaluationTask?.cancel()
         onTrigger = nil

@@ -2,74 +2,53 @@ import XCTest
 @testable import MRCS
 
 final class TriggerServiceLLMFallbackTests: XCTestCase {
-    func testEvaluateWithFallback_WhenHeuristicTriggers_DoesNotRunLLM() async {
+    func testEvaluateWithRace_WhenEvaluatorTriggers_ReturnsFirstReason() async {
         let chunk = makeChunk()
-        
-        let heuristic = StubEvaluator(result: .filler(words: "um, uh, hmm"))
-        let llm = StubEvaluator(result: .llmSuggested(rationale: "LLM should not run"))
-        
-        let reason = await TriggerService.evaluateWithFallback(
+
+        let slowNilEvaluator = StubEvaluator(result: nil, delayMs: 50)
+        let fastTriggeringEvaluator = StubEvaluator(result: .filler(words: "um, uh, hmm"), delayMs: 1)
+        let slowerTriggeringEvaluator = StubEvaluator(
+            result: .llmSuggested(rationale: "Should not win race"),
+            delayMs: 75
+        )
+
+        let reason = await TriggerService.evaluateWithRace(
             chunk: chunk,
             context: [chunk],
-            heuristicEvaluators: [heuristic],
-            llmEvaluator: llm
+            evaluators: [slowNilEvaluator, fastTriggeringEvaluator, slowerTriggeringEvaluator]
         )
-        
+
         guard case .filler(let words)? = reason else {
             return XCTFail("Expected filler reason")
         }
-        
-        let heuristicCallCount = await heuristic.callCount()
-        let llmCallCount = await llm.callCount()
-        
+
         XCTAssertEqual(words, "um, uh, hmm")
-        XCTAssertEqual(heuristicCallCount, 1)
-        XCTAssertEqual(llmCallCount, 0)
     }
-    
-    func testEvaluateWithFallback_WhenHeuristicsDoNotTrigger_RunsLLM() async {
+
+    func testEvaluateWithRace_WhenAllEvaluatorsReturnNil_ReturnsNil() async {
         let chunk = makeChunk()
-        
-        let heuristic = StubEvaluator(result: nil)
-        let llm = StubEvaluator(result: .llmSuggested(rationale: "Conversation appears stalled"))
-        
-        let reason = await TriggerService.evaluateWithFallback(
+
+        let reason = await TriggerService.evaluateWithRace(
             chunk: chunk,
             context: [chunk],
-            heuristicEvaluators: [heuristic],
-            llmEvaluator: llm
+            evaluators: [StubEvaluator(result: nil), StubEvaluator(result: nil, delayMs: 5)]
         )
-        
-        guard case .llmSuggested(let rationale)? = reason else {
-            return XCTFail("Expected llmSuggested reason")
-        }
-        
-        let heuristicCallCount = await heuristic.callCount()
-        let llmCallCount = await llm.callCount()
-        
-        XCTAssertEqual(rationale, "Conversation appears stalled")
-        XCTAssertEqual(heuristicCallCount, 1)
-        XCTAssertEqual(llmCallCount, 1)
-    }
-    
-    func testEvaluateWithFallback_WhenNoLLMEvaluatorConfigured_ReturnsNil() async {
-        let chunk = makeChunk()
-        
-        let heuristic = StubEvaluator(result: nil)
-        
-        let reason = await TriggerService.evaluateWithFallback(
-            chunk: chunk,
-            context: [chunk],
-            heuristicEvaluators: [heuristic],
-            llmEvaluator: nil
-        )
-        
-        let heuristicCallCount = await heuristic.callCount()
-        
+
         XCTAssertNil(reason)
-        XCTAssertEqual(heuristicCallCount, 1)
     }
-    
+
+    func testEvaluateWithRace_WhenNoEvaluatorsConfigured_ReturnsNil() async {
+        let chunk = makeChunk()
+
+        let reason = await TriggerService.evaluateWithRace(
+            chunk: chunk,
+            context: [chunk],
+            evaluators: []
+        )
+
+        XCTAssertNil(reason)
+    }
+
     private func makeChunk() -> TranscriptChunk {
         TranscriptChunk(
             text: "Can you remind me what I was saying?",
@@ -83,18 +62,17 @@ final class TriggerServiceLLMFallbackTests: XCTestCase {
 
 private actor StubEvaluator: TriggerEvaluator {
     private let result: InterventionReason?
-    private var count: Int = 0
-    
-    init(result: InterventionReason?) {
+    private let delayNanoseconds: UInt64
+
+    init(result: InterventionReason?, delayMs: UInt64 = 0) {
         self.result = result
+        self.delayNanoseconds = delayMs * 1_000_000
     }
-    
+
     func evaluate(chunk: TranscriptChunk, context: [TranscriptChunk]) async -> InterventionReason? {
-        count += 1
+        if delayNanoseconds > 0 {
+            try? await Task.sleep(nanoseconds: delayNanoseconds)
+        }
         return result
-    }
-    
-    func callCount() -> Int {
-        count
     }
 }
