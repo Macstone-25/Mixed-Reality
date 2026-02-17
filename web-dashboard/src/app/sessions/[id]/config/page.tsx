@@ -4,6 +4,7 @@ import { useState } from 'react';
 import Link from 'next/link';
 import { ArrowLeft, Copy, Check, Menu } from 'lucide-react';
 import { getSessionById } from '@/lib/mockData';
+import { ExperimentConfig } from '@/lib/types';
 import { Sidenav } from '@/components/Sidenav';
 
 interface Props {
@@ -102,7 +103,7 @@ export default function ConfigPage({ params }: PageProps) {
   );
 }
 
-function ConfigCard({ config, sessionId }: { config: any; sessionId: string }) {
+function ConfigCard({ config, sessionId }: { config: ExperimentConfig; sessionId: string }) {
   const [copiedKey, setCopiedKey] = useState<string | null>(null);
 
   const handleCopy = (key: string, value: any) => {
