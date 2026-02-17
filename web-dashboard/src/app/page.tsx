@@ -15,6 +15,16 @@ export default function Home() {
   const stats = getAggregateStats();
   const recentSessions = allSessions.slice(0, 10);
 
+  // Calculate coherence percentage safely
+  const calculateCoherence = (interventions: number, transcriptChunks?: number) => {
+    if (!transcriptChunks || transcriptChunks === 0) {
+      return null; // No data available
+    }
+    return Math.max(0, Math.min(100, 100 - ((interventions / transcriptChunks) * 100)));
+  };
+
+  const coherence = mostRecentSession ? calculateCoherence(mostRecentSession.interventions, mostRecentSession.transcriptChunks) : null;
+
   const toggleSidenav = () => {
     setSidenavOpen(!sidenavOpen);
   };
@@ -64,32 +74,36 @@ export default function Home() {
                       }}
                       topLeftContent={
                         <div className="flex flex-col items-center justify-center">
-                          <div className="relative w-32 h-32 mb-4">
-                            <svg className="w-full h-full transform -rotate-90" viewBox="0 0 100 100">
-                              <circle cx="50" cy="50" r="45" fill="none" stroke="#DDB892" strokeWidth="2" />
-                              <circle 
-                                cx="50" 
-                                cy="50" 
-                                r="45" 
-                                fill="none" 
-                                stroke="#E6CCB2" 
-                                strokeWidth="8" 
-                                strokeDasharray={`${
-                                  (2 * Math.PI * 45) * 
-                                  (Math.max(1 - (mostRecentSession.interventions / Math.max(mostRecentSession.transcriptChunks || 1, 1)), 0))
-                                } ${2 * Math.PI * 45}`}
-                                strokeLinecap="round" 
-                              />
-                            </svg>
-                            <div className="absolute inset-0 flex flex-col items-center justify-center">
-                              <span className="text-3xl font-bold" style={{ color: '#F5F1ED' }}>
-                                {Math.round(
-                                  100 - ((mostRecentSession.interventions / Math.max(mostRecentSession.transcriptChunks || 1, 1)) * 100)
-                                )}%
-                              </span>
-                              <span className="text-xs" style={{ color: 'rgba(245, 241, 237, 0.7)' }}>per 100 turns</span>
+                          {coherence !== null ? (
+                            <>
+                              <div className="relative w-32 h-32 mb-4">
+                                <svg className="w-full h-full transform -rotate-90" viewBox="0 0 100 100">
+                                  <circle cx="50" cy="50" r="45" fill="none" stroke="#DDB892" strokeWidth="2" />
+                                  <circle 
+                                    cx="50" 
+                                    cy="50" 
+                                    r="45" 
+                                    fill="none" 
+                                    stroke="#E6CCB2" 
+                                    strokeWidth="8" 
+                                    strokeDasharray={`${(2 * Math.PI * 45) * (coherence / 100)} ${2 * Math.PI * 45}`}
+                                    strokeLinecap="round" 
+                                  />
+                                </svg>
+                                <div className="absolute inset-0 flex flex-col items-center justify-center">
+                                  <span className="text-3xl font-bold" style={{ color: '#F5F1ED' }}>
+                                    {Math.round(coherence)}%
+                                  </span>
+                                  <span className="text-xs" style={{ color: 'rgba(245, 241, 237, 0.7)' }}>per 100 turns</span>
+                                </div>
+                              </div>
+                            </>
+                          ) : (
+                            <div className="flex flex-col items-center justify-center h-32 mb-4">
+                              <span className="text-3xl font-bold" style={{ color: '#F5F1ED' }}>—</span>
+                              <span className="text-xs mt-2" style={{ color: 'rgba(245, 241, 237, 0.7)' }}>Insufficient data</span>
                             </div>
-                          </div>
+                          )}
                           
                           {/* Coherence Label with Tooltip */}
                           <div className="relative group">
