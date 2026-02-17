@@ -22,34 +22,16 @@ struct MixedRealityApp: App {
             Task {
                 switch(activeScene) {
                 case(.immersiveSpace):
-                    let result = await openImmersiveSpace(id: SceneID.immersiveSpace.rawValue)
-                    switch result {
-                    case .opened:
-                        appModel.logger.info("Opened immersive space")
-                        dismissWindow(id: SceneID.windowGroup.rawValue)
-                    default:
-                        appModel.logger.error("Failed to open immersive space")
-                        appModel.endSession()
-                    }
+                    await openImmersiveForSession()
                 case(.windowGroup):
-                    await dismissImmersiveSpace()
-                    openWindow(id: SceneID.windowGroup.rawValue)
-                    appModel.logger.info("Dismissed immersive space")
+                    await showWindowGroup()
                 }
             }
         }
         .onChange(of: appModel.immersiveOpenRequest) { _, _ in
             guard appModel.session != nil else { return }
             Task {
-                let result = await openImmersiveSpace(id: SceneID.immersiveSpace.rawValue)
-                switch result {
-                case .opened:
-                    appModel.logger.info("Opened immersive space")
-                    dismissWindow(id: SceneID.windowGroup.rawValue)
-                default:
-                    appModel.logger.error("Failed to open immersive space")
-                    appModel.endSession()
-                }
+                await openImmersiveForSession()
             }
         }
         .onChange(of: scenePhase) { _, phase in
@@ -62,5 +44,23 @@ struct MixedRealityApp: App {
                 .environment(appModel)
         }
         .immersionStyle(selection: .constant(.mixed), in: .mixed)
+    }
+
+    private func openImmersiveForSession() async {
+        let result = await openImmersiveSpace(id: SceneID.immersiveSpace.rawValue)
+        switch result {
+        case .opened:
+            appModel.logger.info("Opened immersive space")
+            dismissWindow(id: SceneID.windowGroup.rawValue)
+        default:
+            appModel.logger.error("Failed to open immersive space")
+            appModel.endSession()
+        }
+    }
+
+    private func showWindowGroup() async {
+        await dismissImmersiveSpace()
+        openWindow(id: SceneID.windowGroup.rawValue)
+        appModel.logger.info("Dismissed immersive space")
     }
 }

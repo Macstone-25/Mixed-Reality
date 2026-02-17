@@ -62,6 +62,7 @@ class AppModel {
 
     func restoreSessionAfterForegrounding() {
         guard !isLaunchingSession, !isEndingSession, let session else { return }
+        let currentSession = session
 
         logger.info("🪟 Restoring session after app foreground")
 
@@ -71,8 +72,13 @@ class AppModel {
             activeScene = .immersiveSpace
         }
 
-        Task {
-            await session.restoreAfterForegrounding()
+        Task { [weak self] in
+            guard let self else { return }
+            guard !self.isEndingSession, self.session === currentSession else {
+                self.logger.info("🔄 Skipping session restore after foreground because the session changed or is ending")
+                return
+            }
+            await currentSession.restoreAfterForegrounding()
         }
     }
 }

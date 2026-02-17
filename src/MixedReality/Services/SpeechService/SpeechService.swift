@@ -64,6 +64,7 @@ class SpeechService: WebSocketDelegate {
     private var socket: Starscream.WebSocket
     private var keepAliveTimer: Timer?
     private var isConnected = false
+    private var socketIsConnected = false
     private var hasInputTapInstalled = false
     
     private let audioEngine = AVAudioEngine()
@@ -183,16 +184,10 @@ class SpeechService: WebSocketDelegate {
             message: "Connecting to \(socket.request.url?.absoluteString ?? "nil")"
         )
         
+        socketIsConnected = false
         socket.connect()
         isConnected = true
-        
-        keepAliveTimer?.invalidate()
-        keepAliveTimer = Timer.scheduledTimer(
-            withTimeInterval: 5.0,
-            repeats: true
-        ) { [weak self] _ in
-            self?.sendKeepAlive()
-        }
+        startKeepAliveTimer()
     }
     
     
@@ -205,6 +200,7 @@ class SpeechService: WebSocketDelegate {
         
         logger.info("🔌 Disconnecting SpeechService...")
         isConnected = false
+        socketIsConnected = false
         
         if hasInputTapInstalled {
             audioEngine.inputNode.removeTap(onBus: 0)
@@ -278,6 +274,15 @@ class SpeechService: WebSocketDelegate {
                 try audioEngine.start()
             }
 
+            if !socketIsConnected {
+                await artifacts.logEvent(
+                    type: "SpeechService",
+                    message: "WebSocket disconnected during restore; reconnecting"
+                )
+                socket.connect()
+                startKeepAliveTimer()
+            }
+
             await artifacts.logEvent(
                 type: "SpeechService",
                 message: "Audio pipeline reactivated after app foreground"
@@ -295,12 +300,22 @@ class SpeechService: WebSocketDelegate {
         Task {
             switch event {
             case .connected:
+                socketIsConnected = true
                 await artifacts.logEvent(type: "Deepgram", message: "WebSocket connected")
             case .peerClosed:
+                socketIsConnected = false
+                keepAliveTimer?.invalidate()
+                keepAliveTimer = nil
                 await artifacts.logEvent(type: "Deepgram", message: "WebSocket closed")
             case .cancelled:
+                socketIsConnected = false
+                keepAliveTimer?.invalidate()
+                keepAliveTimer = nil
                 await artifacts.logEvent(type: "Deepgram", message: "WebSocket cancelled")
             case .disconnected(let reason, let code):
+                socketIsConnected = false
+                keepAliveTimer?.invalidate()
+                keepAliveTimer = nil
                 await artifacts.logEvent(
                     type: "Deepgram",
                     message: "WebSocket disconnected (\(code)): \(reason)"
@@ -344,6 +359,16 @@ class SpeechService: WebSocketDelegate {
         }
     }
 
+    private func startKeepAliveTimer() {
+        keepAliveTimer?.invalidate()
+        keepAliveTimer = Timer.scheduledTimer(
+            withTimeInterval: 5.0,
+            repeats: true
+        ) { [weak self] _ in
+            self?.sendKeepAlive()
+        }
+    }
+
     private func installInputTapIfNeeded() {
         guard !hasInputTapInstalled else { return }
 
@@ -363,7 +388,7 @@ class SpeechService: WebSocketDelegate {
         guard isConnected else { return }
         
         /// Send audio buffer to Deepgram via WebSocket (in PCM16 format)
-        if let pcmData = AudioBufferUtils.convertBufferToPCM16(
+        if socketIsConnected, let pcmData = AudioBufferUtils.convertBufferToPCM16(
             buffer: buffer,
             targetChannelCount: config.channels
         ) {

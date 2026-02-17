@@ -64,9 +64,12 @@ actor TriggerService {
     }
     
     func handleTranscriptChunk(chunk: TranscriptChunk) {
-        // Only finalized chunks should drive trigger timing. Interim updates can be noisy
-        // and would otherwise keep cancelling pause detection.
-        guard chunk.isFinal else { return }
+        // Treat interim chunks as activity so long utterances do not false-trigger pauses.
+        // Only finalized chunks should contribute context and launch new evaluations.
+        guard chunk.isFinal else {
+            evaluationTask?.cancel()
+            return
+        }
 
         evaluatorContext.insertSorted(chunk)
         if evaluatorContext.count > experiment.triggerContext {
