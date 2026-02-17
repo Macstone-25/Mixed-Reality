@@ -95,7 +95,7 @@ class SessionModel {
 
         soundService.prepareDing()
 
-        try await speechService.connect()
+        try await speechService.activate()
     }
 
     func restoreAfterForegrounding() async {
@@ -106,7 +106,7 @@ class SessionModel {
     
     func end() async {
         await artifacts.logEvent(type: "Session", message: "Ending session...")
-        await speechService.disconnect()
+        await speechService.deactivate()
         await triggerService.stop()
         await artifacts.finalize()
     }

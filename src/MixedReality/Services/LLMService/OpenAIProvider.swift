@@ -154,20 +154,6 @@ final class OpenAIProvider : LLMProvider {
         return false
     }
 
-    private static func shouldRefreshSession(for error: Error) -> Bool {
-        if let urlError = error as? URLError {
-            return urlError.code == .networkConnectionLost || urlError.code == .timedOut
-        }
-
-        let nsError = error as NSError
-        if nsError.domain == NSURLErrorDomain {
-            let code = URLError.Code(rawValue: nsError.code)
-            return code == .networkConnectionLost || code == .timedOut
-        }
-
-        return false
-    }
-
     private static func isTransient(urlErrorCode: URLError.Code) -> Bool {
         switch urlErrorCode {
         case .networkConnectionLost,
@@ -185,5 +171,19 @@ final class OpenAIProvider : LLMProvider {
         default:
             return false
         }
+    }
+
+    private static func shouldRefreshSession(for error: Error) -> Bool {
+        if let urlError = error as? URLError {
+            return urlError.code == .networkConnectionLost || urlError.code == .timedOut
+        }
+
+        let nsError = error as NSError
+        if nsError.domain == NSURLErrorDomain {
+            let code = URLError.Code(rawValue: nsError.code)
+            return code == .networkConnectionLost || code == .timedOut
+        }
+
+        return false
     }
 }

@@ -63,8 +63,8 @@ class SpeechService: WebSocketDelegate {
     
     private var socket: Starscream.WebSocket
     private var keepAliveTimer: Timer?
+    private var isActive = false
     private var isConnected = false
-    private var socketIsConnected = false
     private var hasInputTapInstalled = false
     
     private let audioEngine = AVAudioEngine()
@@ -88,21 +88,24 @@ class SpeechService: WebSocketDelegate {
         self.anonymizationPolicy = anonymizationPolicy
         
         /// Configure audio session
-        let isPermissionGranted = await AVAudioApplication.requestRecordPermission()
-        guard isPermissionGranted else {
-            throw SpeechServiceError.permissionError("Recording permission was not granted")
-        }
-        
-        let session = AVAudioSession.sharedInstance()
-        try session.setCategory(
-            .playAndRecord,
-            mode: .measurement,
-            options: [.allowBluetoothA2DP, .defaultToSpeaker]
-        )
-        
-        try session.setPreferredSampleRate(config.preferredSampleRate)
-        try session.setPreferredIOBufferDuration(0.005) // 5 ms
-        try session.setActive(true, options: .notifyOthersOnDeactivation)
+        let preferredSampleRate = config.preferredSampleRate
+        try await Task.detached(priority: nil) {
+            let isPermissionGranted = await AVAudioApplication.requestRecordPermission()
+            guard isPermissionGranted else {
+                throw SpeechServiceError.permissionError("Recording permission was not granted")
+            }
+            
+            let session = AVAudioSession.sharedInstance()
+            try session.setCategory(
+                .playAndRecord,
+                mode: .measurement,
+                options: [.allowBluetoothA2DP, .defaultToSpeaker]
+            )
+            
+            try session.setPreferredSampleRate(preferredSampleRate)
+            try session.setPreferredIOBufferDuration(0.005) // 5 ms
+            try session.setActive(true, options: .notifyOthersOnDeactivation)
+        }.value
         
         /// Create AssetWriter
         let fileURL = try await artifacts.getFileURL(name: "Conversation.m4a")
@@ -167,8 +170,8 @@ class SpeechService: WebSocketDelegate {
     }
     
     /// Connects to Deepgram and begins streaming audio
-    func connect() async throws {
-        guard !isConnected else {
+    func activate() async throws {
+        guard !isActive else {
             throw SpeechServiceError.runtimeError("Already connected")
         }
         
@@ -184,23 +187,21 @@ class SpeechService: WebSocketDelegate {
             message: "Connecting to \(socket.request.url?.absoluteString ?? "nil")"
         )
         
-        socketIsConnected = false
         socket.connect()
-        isConnected = true
+        isActive = true
         startKeepAliveTimer()
     }
     
     
     /// Disconnect from Deepgram WebSocket and deactivate microphone
-    func disconnect() async {
-        guard isConnected else {
+    func deactivate() async {
+        guard isActive else {
             logger.error("Already disconnected")
             return
         }
         
         logger.info("🔌 Disconnecting SpeechService...")
-        isConnected = false
-        socketIsConnected = false
+        isActive = false
         
         if hasInputTapInstalled {
             audioEngine.inputNode.removeTap(onBus: 0)
@@ -259,7 +260,7 @@ class SpeechService: WebSocketDelegate {
     }
 
     func reactivateIfNeeded() async {
-        guard isConnected else {
+        guard isActive else {
             await artifacts.logEvent(
                 type: "SpeechService",
                 message: "Skipping foreground restore because service is disconnected"
@@ -269,12 +270,11 @@ class SpeechService: WebSocketDelegate {
 
         do {
             try AVAudioSession.sharedInstance().setActive(true, options: .notifyOthersOnDeactivation)
-            installInputTapIfNeeded()
             if !audioEngine.isRunning {
                 try audioEngine.start()
             }
 
-            if !socketIsConnected {
+            if !isConnected {
                 await artifacts.logEvent(
                     type: "SpeechService",
                     message: "WebSocket disconnected during restore; reconnecting"
@@ -300,20 +300,20 @@ class SpeechService: WebSocketDelegate {
         Task {
             switch event {
             case .connected:
-                socketIsConnected = true
+                isConnected = true
                 await artifacts.logEvent(type: "Deepgram", message: "WebSocket connected")
             case .peerClosed:
-                socketIsConnected = false
+                isConnected = false
                 keepAliveTimer?.invalidate()
                 keepAliveTimer = nil
                 await artifacts.logEvent(type: "Deepgram", message: "WebSocket closed")
             case .cancelled:
-                socketIsConnected = false
+                isConnected = false
                 keepAliveTimer?.invalidate()
                 keepAliveTimer = nil
                 await artifacts.logEvent(type: "Deepgram", message: "WebSocket cancelled")
             case .disconnected(let reason, let code):
-                socketIsConnected = false
+                isConnected = false
                 keepAliveTimer?.invalidate()
                 keepAliveTimer = nil
                 await artifacts.logEvent(
@@ -385,10 +385,10 @@ class SpeechService: WebSocketDelegate {
     
     /// Performs format conversions and sends audio data to the WebSocket and AssetWriter
     private func processAudioBuffer(buffer: AVAudioPCMBuffer, time: AVAudioTime) {
-        guard isConnected else { return }
+        guard isActive else { return }
         
         /// Send audio buffer to Deepgram via WebSocket (in PCM16 format)
-        if socketIsConnected, let pcmData = AudioBufferUtils.convertBufferToPCM16(
+        if isConnected, let pcmData = AudioBufferUtils.convertBufferToPCM16(
             buffer: buffer,
             targetChannelCount: config.channels
         ) {

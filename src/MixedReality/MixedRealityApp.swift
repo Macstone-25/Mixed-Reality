@@ -29,7 +29,7 @@ struct MixedRealityApp: App {
             }
         }
         .onChange(of: appModel.immersiveOpenRequest) { _, _ in
-            guard appModel.session != nil else { return }
+            guard appModel.session != nil && appModel.activeScene == .immersiveSpace else { return }
             Task {
                 await openImmersiveForSession()
             }
