@@ -1,8 +1,4 @@
-import Link from 'next/link';
-import { ArrowLeft } from 'lucide-react';
 import { getSessionById } from '@/lib/mockData';
-import { SessionSummary } from '@/components/SessionSummary';
-import { TabsContent } from '@/components/SessionDetailTabs';
 import SessionDetailPageClient from '@/components/SessionDetailPageClient';
 
 interface Props {
