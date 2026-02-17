@@ -25,9 +25,12 @@ class SessionModel {
     
     var onPrompt: ((String) -> (Void))?
     
+    private static let sessionNumberKey = "SessionModel.sessionNumber"
+    
     init(config: ConfigModel) async throws {
-        // TODO: Add random id to display (#57)
-        self.id = "Session"
+        let sessionNumber = UserDefaults.standard.integer(forKey: Self.sessionNumberKey) + 1
+        UserDefaults.standard.set(sessionNumber, forKey: Self.sessionNumberKey)
+        self.id = "Session-\(String(format: "%03d", sessionNumber))"
         
         self.artifacts = try ArtifactService(id: id)
         self.experiment = try ExperimentModel(config: config)

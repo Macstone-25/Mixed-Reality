@@ -38,6 +38,8 @@ struct ConfigModel: Codable {
     var selectedMiniLLMs: Set<LLMConfig> = [
         .openAI(.gpt_4_1_mini),
     ]
+    
+    var isDeleteEnabled: Bool = false
 }
 
 extension ConfigModel {

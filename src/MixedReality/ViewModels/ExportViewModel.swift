@@ -104,6 +104,42 @@ class ExportViewModel: ObservableObject {
         }
     }
     
+    func deleteData() {
+        guard !isBusy && appModel.config.isDeleteEnabled else { return }
+        isExporting = true
+        exportError = nil
+        
+        let fm = FileManager.default
+        let selection = selection
+        
+        Task.detached { [weak self] in
+            do {
+                for src in selection {
+                    var isDir: ObjCBool = false
+                    guard fm.fileExists(atPath: src.path, isDirectory: &isDir), isDir.boolValue else {
+                        continue
+                    }
+                    try fm.removeItem(at: src)
+                }
+                
+                await MainActor.run { [weak self] in
+                    guard let self = self else { return }
+                    self.appModel.logger.info("Deleted \(selection.count) sessions")
+                    self.isExporting = false
+                    self.refreshFolders()
+                }
+            } catch {
+                await MainActor.run { [weak self] in
+                    guard let self = self else { return }
+                    let errorMessage = "Failed to delete session data: \(error.localizedDescription)"
+                    self.appModel.logger.error("\(errorMessage, privacy: .public)")
+                    self.exportError = errorMessage
+                    self.isExporting = false
+                }
+            }
+        }
+    }
+    
     func exportData() {
         guard !isBusy else { return }
         isExporting = true
