@@ -266,13 +266,13 @@ export default function Home() {
                             <td className="px-2 sm:px-4 md:px-6 py-3 sm:py-4" style={{ color: '#2D2D2D' }}>
                               {formatDateTimeFull(session.startTime)}
                             </td>
-                            <td className="px-2 sm:px-4 md:px-6 py-3 sm:py-4 text-center\">
+                            <td className="px-2 sm:px-4 md:px-6 py-3 sm:py-4 text-center">
                               <span className="inline-flex items-center gap-1 px-2 py-1 rounded text-xs whitespace-nowrap" style={{ backgroundColor: 'rgba(230, 204, 178, 0.2)', color: '#9C6644' }}>
                                 <Zap size={14} />
                                 {session.interventions}
                               </span>
                             </td>
-                            <td className="px-2 sm:px-4 md:px-6 py-3 sm:py-4 text-center\">
+                            <td className="px-2 sm:px-4 md:px-6 py-3 sm:py-4 text-center">
                               <span className="inline-flex items-center gap-1 px-2 py-1 rounded text-xs whitespace-nowrap" style={{ backgroundColor: 'rgba(214, 186, 164, 0.2)', color: '#9C6644' }}>
                                 <MessageSquare size={14} />
                                 {session.prompts}
@@ -281,7 +281,7 @@ export default function Home() {
                             <td className="px-2 sm:px-4 md:px-6 py-3 sm:py-4 text-center" style={{ color: '#2D2D2D' }}>
                               {session.averageLatency ? `${session.averageLatency}s` : '—'}
                             </td>
-                            <td className="px-2 sm:px-4 md:px-6 py-3 sm:py-4 text-center\">
+                            <td className="px-2 sm:px-4 md:px-6 py-3 sm:py-4 text-center">
                               {session.errorCount > 0 ? (
                                 <span className="inline-flex items-center gap-1 px-2 py-1 rounded text-xs whitespace-nowrap" style={{ backgroundColor: 'rgba(255, 107, 91, 0.2)', color: '#FF6B5B' }}>
                                   <AlertCircle size={14} />
@@ -293,7 +293,7 @@ export default function Home() {
                                 </span>
                               )}
                             </td>
-                            <td className="px-2 sm:px-4 md:px-6 py-3 sm:py-4 text-center\">
+                            <td className="px-2 sm:px-4 md:px-6 py-3 sm:py-4 text-center">
                               <Link
                                 href={`/sessions/${session.sessionId}`}
                                 className="inline-block px-2 sm:px-3 py-1 rounded text-xs sm:text-sm font-medium transition-colors whitespace-nowrap"
