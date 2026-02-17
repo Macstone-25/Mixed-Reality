@@ -6,6 +6,7 @@
 import Combine
 import Foundation
 import OSLog
+import AVFoundation
 
 class SessionModel {
     let id: String
@@ -34,7 +35,28 @@ class SessionModel {
         
         self.llm = LLMService(artifacts: self.artifacts, experiment: experiment, llm: experiment.llm)
         self.miniLLM = LLMService(artifacts: self.artifacts, experiment: experiment, llm: experiment.miniLLM)
-        self.speechService = try await SpeechService(artifacts: self.artifacts, experiment: experiment, config: DeepgramConfig(), anonymizationPolicy: .pitchShift(semitones: Float.random(in: -3 ... -1), deleteOriginal: true))
+        
+        /// Get the audio format from the input device
+        let tempEngine = AVAudioEngine()
+        let audioFormat = tempEngine.inputNode.inputFormat(forBus: 0)
+
+        // Initialize the intended speech engine
+        let engine = try DeepgramEngine(
+            artifacts: self.artifacts,
+            config: DeepgramConfig(),
+            audioFormat: audioFormat
+        )
+
+        self.speechService = try await SpeechService(
+            artifacts: self.artifacts,
+            experiment: experiment,
+            engine: engine,
+            anonymizer: PitchShiftAnonymizer(
+                semitones: Float.random(in: -3 ... -1),
+                deleteOriginal: true
+            )
+        )
+        
         self.triggerService = await TriggerService(artifacts: self.artifacts, experiment: experiment, speechService: self.speechService, miniLLM: self.miniLLM)
         self.soundService = SoundService()
         self.promptService = PromptService(artifacts: self.artifacts, experiment: experiment, llm: self.llm, miniLLM: self.miniLLM,  speechService: self.speechService)
