@@ -37,7 +37,8 @@ struct ExportView: View {
                 .tint(.red)
                 .buttonStyle(.borderedProminent)
                 .glassBackgroundEffect()
-                .disabled(viewModel.actionsDisabled)
+                .disabled(viewModel.actionsDisabled || !appModel.config.isDeleteEnabled)
+                .allowsHitTesting(appModel.config.isDeleteEnabled)
                 .opacity(appModel.config.isDeleteEnabled ? 1 : 0)
                 
                 Spacer()
