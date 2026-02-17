@@ -87,16 +87,6 @@ export default function SessionsPage() {
           </div>
 
           <div className="flex-1 overflow-y-auto w-full">
-        {/* Header */}
-        <div className="mb-8">
-          <h1 className="text-4xl font-bold mb-2" style={{ color: '#2D2D2D' }}>
-            All Sessions
-          </h1>
-          <p className="text-sm" style={{ color: 'rgba(45, 45, 45, 0.7)' }}>
-            Browse and filter all research sessions
-          </p>
-        </div>
-
         {/* Filters Section */}
         <div className="bg-white rounded-xl p-6 mb-8 shadow-md" style={{ borderLeft: '4px solid #7F5539' }}>
           <div className="flex items-center gap-2 mb-4">
