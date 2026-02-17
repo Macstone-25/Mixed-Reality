@@ -3,9 +3,10 @@
 import { useState, useRef } from 'react';
 import { EventsTable } from '@/components/EventsTable';
 import { TranscriptView } from '@/components/TranscriptView';
+import { ExperimentConfig, SessionDetail } from '@/lib/types';
 
 interface TabsContentProps {
-  session: any;
+  session: SessionDetail;
 }
 
 const TABS = [
@@ -122,7 +123,7 @@ export function TabsContent({ session }: TabsContentProps) {
   );
 }
 
-function ConfigView({ config }: { config: any }) {
+function ConfigView({ config }: { config: ExperimentConfig }) {
   return (
     <div className="bg-white rounded-xl shadow-md overflow-hidden">
       <div className="px-6 py-4" style={{ backgroundColor: '#7F5539', color: '#F5F1ED' }}>

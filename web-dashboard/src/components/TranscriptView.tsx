@@ -5,14 +5,22 @@ interface TranscriptViewProps {
   transcript: string[];
 }
 
+/**
+ * Escapes special regex characters in a string to treat it as a literal string
+ */
+function escapeRegExp(value: string): string {
+  return value.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+}
+
 export function TranscriptView({ transcript }: TranscriptViewProps) {
   const [searchQuery, setSearchQuery] = useState('');
 
   const highlighted = useMemo(() => {
     if (!searchQuery) return transcript;
 
+    const escapedQuery = escapeRegExp(searchQuery);
     return transcript.map(line => {
-      const regex = new RegExp(`(${searchQuery})`, 'gi');
+      const regex = new RegExp(`(${escapedQuery})`, 'gi');
       return line.replace(regex, (match) => `__HIGHLIGHT_START__${match}__HIGHLIGHT_END__`);
     });
   }, [transcript, searchQuery]);
