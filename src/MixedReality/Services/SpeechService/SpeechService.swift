@@ -42,14 +42,12 @@ class SpeechService {
     init(
         artifacts: ArtifactService,
         experiment: ExperimentModel,
-        engine: any SpeechEngine,
         anonymizer: (any AudioAnonymizer)? = nil
     ) async throws {
         self.artifacts = artifacts
         self.experiment = experiment
-        self.engine = engine
         self.anonymizer = anonymizer
-
+        
         /// Configure audio session
         let isPermissionGranted = await AVAudioApplication.requestRecordPermission()
         guard isPermissionGranted else {
@@ -62,9 +60,22 @@ class SpeechService {
             mode: .measurement,
             options: [.allowBluetoothA2DP, .defaultToSpeaker]
         )
-
+        
+        try session.setPreferredSampleRate(48_000)
         try session.setPreferredIOBufferDuration(0.005) // 5 ms
         try session.setActive(true, options: .notifyOthersOnDeactivation)
+        
+        audioFormat = audioEngine.inputNode.inputFormat(forBus: 0)
+        
+        guard let engine = SpeechService.configureSpeechEngine(
+                artifacts: artifacts,
+                audioFormat: audioFormat,
+                logger: self.logger) else {
+                logger.error("Failed to initialize a speech engine")
+                throw SpeechServiceError.configError("Failed to initialize a speech engine")
+            }
+            self.engine = engine
+            logger.info("Speech engine initialized successfully")
 
         /// Create AssetWriter
         let fileURL = try await artifacts.getFileURL(name: "Conversation.m4a")
@@ -72,7 +83,6 @@ class SpeechService {
 
         assetWriter = try AVAssetWriter(outputURL: fileURL, fileType: .m4a)
 
-        audioFormat = audioEngine.inputNode.inputFormat(forBus: 0)
         guard audioFormat.channelCount > 0, audioFormat.sampleRate > 0 else {
             throw SpeechServiceError.runtimeError(
                 "Invalid input format — channels: \(audioFormat.channelCount), sample rate: \(audioFormat.sampleRate)"
@@ -155,7 +165,7 @@ class SpeechService {
                     )
                     await artifacts.logEvent(
                         type: "SpeechService",
-                        message: "Anonymization complete: \(outputURL.lastPathComponent)"
+                        message: "Anonymization complete: \(outputURL?.lastPathComponent)"
                     )
                 } catch {
                     await artifacts.logEvent(
@@ -196,4 +206,40 @@ class SpeechService {
             }
         }
     }
+    
+    private static func configureSpeechEngine(
+        artifacts: ArtifactService,
+        audioFormat: AVAudioFormat,
+        logger: Logger) -> SpeechEngine? {
+        // Randomly select a speech engine
+        let allEngines = SpeechEngines.allCases
+        guard let selectedEngine = allEngines.randomElement() else { return nil }
+
+        let engine: any SpeechEngine
+
+        do {
+            switch selectedEngine {
+            case .deepgram:
+                engine = try DeepgramEngine(
+                    artifacts: artifacts,
+                    config: DeepgramConfig(),
+                    audioFormat: audioFormat
+                )
+
+            case .openai:
+                engine = try OpenAIEngine(
+                    artifacts: artifacts,
+                    config: OpenAIConfig()
+                )
+            }
+
+            logger.info("Selected engine: \(selectedEngine.rawValue)")
+            return engine
+
+        } catch {
+            logger.error("Failed to initialize speech engine: \(error)")
+            return nil
+        }
+    }
+
 }

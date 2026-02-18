@@ -36,21 +36,21 @@ class SessionModel {
         self.llm = LLMService(artifacts: self.artifacts, experiment: experiment, llm: experiment.llm)
         self.miniLLM = LLMService(artifacts: self.artifacts, experiment: experiment, llm: experiment.miniLLM)
         
-        /// Get the audio format from the input device
-        let tempEngine = AVAudioEngine()
-        let audioFormat = tempEngine.inputNode.inputFormat(forBus: 0)
+        let sampleRate = 48_000.0
+        let channelCount: AVAudioChannelCount = 1
+        guard let audioFormat = AVAudioFormat(standardFormatWithSampleRate: sampleRate,
+                                              channels: channelCount) else {
+            throw NSError(
+                domain: "SessionModel",
+                code: -1,
+                userInfo: [NSLocalizedDescriptionKey: "Failed to create audio format"]
+            )
+        }
 
-        // Initialize the intended speech engine
-        let engine = try DeepgramEngine(
-            artifacts: self.artifacts,
-            config: DeepgramConfig(),
-            audioFormat: audioFormat
-        )
-
+        // Create the SpeechService with the chosen engine
         self.speechService = try await SpeechService(
             artifacts: self.artifacts,
             experiment: experiment,
-            engine: engine,
             anonymizer: PitchShiftAnonymizer(
                 semitones: Float.random(in: -3 ... -1),
                 deleteOriginal: true

@@ -70,8 +70,7 @@ class OpenAIEngine: NSObject, SpeechEngine, WebSocketDelegate {
     let transcriptChunkEvent = PassthroughSubject<TranscriptChunk, Never>()
 
     private let artifacts: ArtifactService
-    private let model: String
-    private let voice: String
+    private let config: OpenAIConfig
 
     private var socket: Starscream.WebSocket
     private var sessionStartTime: Date = Date()
@@ -84,17 +83,15 @@ class OpenAIEngine: NSObject, SpeechEngine, WebSocketDelegate {
 
     init(
         artifacts: ArtifactService,
-        model: String = "gpt-4o-realtime-preview-2024-12-17",
-        voice: String = "alloy",
+        config: OpenAIConfig = OpenAIConfig()
     ) throws {
+        self.config = config
         self.artifacts = artifacts
-        self.model = model
-        self.voice = voice
 
         /// Construct OpenAI Realtime API WebSocket URL
-        guard let url = URL(string: "wss://api.openai.com/v1/realtime?model=\(model)")
+        guard let url = URL(string: "wss://api.openai.com/v1/realtime?model=\(config.model)")
         else {
-            throw SpeechServiceError.apiError("Invalid OpenAI Realtime WebSocket URL for model: \(model)")
+            throw SpeechServiceError.apiError("Invalid OpenAI Realtime WebSocket URL for model: \(config.model)")
         }
 
         guard let apiKey = ProcessInfo.processInfo.environment["OPENAI_API_KEY"] else {
@@ -201,19 +198,19 @@ class OpenAIEngine: NSObject, SpeechEngine, WebSocketDelegate {
     private func sendSessionConfiguration() async {
         let config = SessionUpdateMessage(
             session: SessionUpdateMessage.SessionConfig(
-                modalities: ["text", "audio"],
-                instructions: "You are a helpful assistant. Transcribe the user's speech accurately.",
-                voice: voice,
-                input_audio_format: "pcm16",
-                output_audio_format: "pcm16",
+                modalities: config.modalities,
+                instructions: config.instructions,
+                voice: config.voice,
+                input_audio_format: config.inputAudioFormat,
+                output_audio_format: config.outputAudioFormat,
                 input_audio_transcription: SessionUpdateMessage.SessionConfig.TranscriptionConfig(
-                    model: "whisper-1"
+                    model: config.transcriptionModel
                 ),
                 turn_detection: SessionUpdateMessage.SessionConfig.TurnDetectionConfig(
-                    type: "server_vad",
-                    threshold: 0.5,
-                    prefix_padding_ms: 300,
-                    silence_duration_ms: 500
+                    type: config.turnDetectionType,
+                    threshold: config.turnDetectionThreshold,
+                    prefix_padding_ms: config.turnDetectionPrefixPaddingMs,
+                    silence_duration_ms: config.turnDetectionSilenceDurationMs
                 )
             )
         )
@@ -328,7 +325,7 @@ class OpenAIEngine: NSObject, SpeechEngine, WebSocketDelegate {
     
     private func estimatedSpeechDuration(for text: String) -> TimeInterval {
         let words = text.split(whereSeparator: \.isWhitespace).count
-        return Double(words) / 2.7
+        return Double(words) / config.wordsPerSecond
     }
 
 }

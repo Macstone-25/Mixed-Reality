@@ -7,6 +7,11 @@ import Foundation
 import AVFoundation
 import Combine
 
+enum SpeechEngines: String, CaseIterable {
+    case deepgram
+    case openai
+}
+
 protocol SpeechEngine: AnyObject {
     /// Fired whenever a transcript chunk is produced
     var transcriptChunkEvent: PassthroughSubject<TranscriptChunk, Never> { get }
