@@ -24,7 +24,7 @@ class PitchShiftAnonymizer: AudioAnonymizer {
         self.outputName = outputName
     }
 
-    func anonymize(inputURL: URL, artifacts: ArtifactService) async throws -> URL {
+    func anonymize(inputURL: URL, artifacts: ArtifactService) async throws -> URL? {
         let outputURL = try await artifacts.getFileURL(name: outputName)
 
         let inputFile = try AVAudioFile(forReading: inputURL)
@@ -57,10 +57,13 @@ class PitchShiftAnonymizer: AudioAnonymizer {
         player.scheduleFile(inputFile, at: nil, completionHandler: nil)
         player.play()
 
-        let buffer = AVAudioPCMBuffer(
+        guard let buffer = AVAudioPCMBuffer(
             pcmFormat: engine.manualRenderingFormat,
             frameCapacity: engine.manualRenderingMaximumFrameCount
-        )!
+        ) else {
+            logger.error("Issue initializing PCM Buffer.")
+            return nil
+        }
 
         while engine.manualRenderingSampleTime < inputFile.length {
             let status = try engine.renderOffline(buffer.frameCapacity, to: buffer)

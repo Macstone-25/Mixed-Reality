@@ -70,10 +70,8 @@ class OpenAIEngine: NSObject, SpeechEngine, WebSocketDelegate {
     let transcriptChunkEvent = PassthroughSubject<TranscriptChunk, Never>()
 
     private let artifacts: ArtifactService
-    private let audioFormat: AVAudioFormat
     private let model: String
     private let voice: String
-    private let language: String
 
     private var socket: Starscream.WebSocket
     private var sessionStartTime: Date = Date()
@@ -86,19 +84,18 @@ class OpenAIEngine: NSObject, SpeechEngine, WebSocketDelegate {
 
     init(
         artifacts: ArtifactService,
-        audioFormat: AVAudioFormat,
         model: String = "gpt-4o-realtime-preview-2024-12-17",
         voice: String = "alloy",
-        language: String = "en"
     ) throws {
         self.artifacts = artifacts
-        self.audioFormat = audioFormat
         self.model = model
         self.voice = voice
-        self.language = language
 
         /// Construct OpenAI Realtime API WebSocket URL
-        let url = URL(string: "wss://api.openai.com/v1/realtime?model=\(model)")!
+        guard let url = URL(string: "wss://api.openai.com/v1/realtime?model=\(model)")
+        else {
+            throw SpeechServiceError.apiError("Invalid OpenAI Realtime WebSocket URL for model: \(model)")
+        }
 
         guard let apiKey = ProcessInfo.processInfo.environment["OPENAI_API_KEY"] else {
             throw SpeechServiceError.apiError("OPENAI_API_KEY not set")
@@ -247,7 +244,7 @@ class OpenAIEngine: NSObject, SpeechEngine, WebSocketDelegate {
             try await handleTranscriptionCompleted(data: data)
 
         case "conversation.item.input_audio_transcription.delta":
-            try await handleTranscriptionDelta(data: data)
+            try await handleTranscriptionPartial(data: data)
 
         case "session.created", "session.updated":
             await artifacts.logEvent(type: "OpenAI", message: "Session \(envelope.type)")
@@ -272,15 +269,16 @@ class OpenAIEngine: NSObject, SpeechEngine, WebSocketDelegate {
 
         /// Clear any partial state for this item
         partialTranscripts.removeValue(forKey: event.item_id)
-
-        let duration = Date().timeIntervalSince(sessionStartTime)
+        
+        let endAt = Date().timeIntervalSince(sessionStartTime)
+        let speechDuration = estimatedSpeechDuration(for: trimmedText)
 
         let chunk = TranscriptChunk(
             text: trimmedText,
-            speakerID: "Speaker:User",
+            speakerID: "Speaker:User", // OpenAI currently does not support multiple speaker IDs
             isFinal: true,
-            startAt: max(0, duration - 2.0),  // approximate window
-            endAt: duration
+            startAt: max(0, endAt - speechDuration),
+            endAt: endAt
         )
 
         let timeRange = String(format: "(%.1fs - %.1fs)", chunk.startAt, chunk.endAt)
@@ -292,8 +290,8 @@ class OpenAIEngine: NSObject, SpeechEngine, WebSocketDelegate {
         transcriptChunkEvent.send(chunk)
     }
 
-    /// Handles partial transcription deltas (interim results)
-    private func handleTranscriptionDelta(data: Data) async throws {
+    /// Handles partial transcriptions
+    private func handleTranscriptionPartial(data: Data) async throws {
         let event = try jsonDecoder.decode(TranscriptionPartial.self, from: data)
 
         /// Accumulate deltas for this item
@@ -304,14 +302,20 @@ class OpenAIEngine: NSObject, SpeechEngine, WebSocketDelegate {
         let trimmedText = updated.trimmingCharacters(in: .whitespaces)
         guard !trimmedText.isEmpty else { return }
 
-        let duration = Date().timeIntervalSince(sessionStartTime)
+        /// Approximate timing window for interim partial results.
+        /// This is intentionally separate from the window used for final transcripts.
+        let endAt = Date().timeIntervalSince(sessionStartTime)
+        let speechDuration = estimatedSpeechDuration(for: trimmedText)
+
+        // Show only the *most recent* part of speech
+        let partialWindow = min(speechDuration, 1.2)
 
         let chunk = TranscriptChunk(
             text: trimmedText,
             speakerID: "Speaker:User",
             isFinal: false,
-            startAt: max(0, duration - 2.0),
-            endAt: duration
+            startAt: max(0, endAt - partialWindow),
+            endAt: endAt
         )
 
         let timeRange = String(format: "(%.1fs - %.1fs)", chunk.startAt, chunk.endAt)
@@ -321,4 +325,10 @@ class OpenAIEngine: NSObject, SpeechEngine, WebSocketDelegate {
 
         transcriptChunkEvent.send(chunk)
     }
+    
+    private func estimatedSpeechDuration(for text: String) -> TimeInterval {
+        let words = text.split(whereSeparator: \.isWhitespace).count
+        return Double(words) / 2.7
+    }
+
 }
