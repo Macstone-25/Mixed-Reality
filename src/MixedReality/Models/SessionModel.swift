@@ -35,20 +35,10 @@ class SessionModel {
         
         self.llm = LLMService(artifacts: self.artifacts, experiment: experiment, llm: experiment.llm)
         self.miniLLM = LLMService(artifacts: self.artifacts, experiment: experiment, llm: experiment.miniLLM)
-        
-        let sampleRate = 48_000.0
-        let channelCount: AVAudioChannelCount = 1
-        guard let audioFormat = AVAudioFormat(standardFormatWithSampleRate: sampleRate,
-                                              channels: channelCount) else {
-            throw NSError(
-                domain: "SessionModel",
-                code: -1,
-                userInfo: [NSLocalizedDescriptionKey: "Failed to create audio format"]
-            )
-        }
 
         // Create the SpeechService with the chosen engine
         self.speechService = try await SpeechService(
+            engine: experiment.speechEngine,
             artifacts: self.artifacts,
             experiment: experiment,
             anonymizer: PitchShiftAnonymizer(

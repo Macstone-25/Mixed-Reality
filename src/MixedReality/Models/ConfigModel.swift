@@ -38,6 +38,11 @@ struct ConfigModel: Codable {
     var selectedMiniLLMs: Set<LLMConfig> = [
         .openAI(.gpt_4_1_mini),
     ]
+    
+    var selectedSpeechEngines: Set<SpeechEngines> = [
+        .openai,
+        .deepgram
+    ]
 }
 
 extension ConfigModel {

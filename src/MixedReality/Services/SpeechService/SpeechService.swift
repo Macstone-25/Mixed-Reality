@@ -28,7 +28,7 @@ class SpeechService {
         engine.transcriptChunkEvent.eraseToAnyPublisher()
     }
 
-    private let engine: any SpeechEngine
+    private let engine: SpeechEngine
 
     private var isConnected = false
 
@@ -40,6 +40,7 @@ class SpeechService {
     private let conversationFileURL: URL
 
     init(
+        engine: SpeechEngines,
         artifacts: ArtifactService,
         experiment: ExperimentModel,
         anonymizer: (any AudioAnonymizer)? = nil
@@ -67,15 +68,21 @@ class SpeechService {
         
         audioFormat = audioEngine.inputNode.inputFormat(forBus: 0)
         
-        guard let engine = SpeechService.configureSpeechEngine(
+        /// Initialize the correct SpeechEngine
+        switch engine {
+        case .openai:
+            self.engine = try OpenAIEngine(
                 artifacts: artifacts,
-                audioFormat: audioFormat,
-                logger: self.logger) else {
-                logger.error("Failed to initialize a speech engine")
-                throw SpeechServiceError.configError("Failed to initialize a speech engine")
-            }
-            self.engine = engine
-            logger.info("Speech engine initialized successfully")
+                config: OpenAIConfig()
+            )
+
+        case .deepgram:
+            self.engine = try DeepgramEngine(
+                artifacts: artifacts,
+                config: DeepgramConfig(),
+                audioFormat: audioFormat
+            )
+        }
 
         /// Create AssetWriter
         let fileURL = try await artifacts.getFileURL(name: "Conversation.m4a")
@@ -206,40 +213,4 @@ class SpeechService {
             }
         }
     }
-    
-    private static func configureSpeechEngine(
-        artifacts: ArtifactService,
-        audioFormat: AVAudioFormat,
-        logger: Logger) -> SpeechEngine? {
-        // Randomly select a speech engine
-        let allEngines = SpeechEngines.allCases
-        guard let selectedEngine = allEngines.randomElement() else { return nil }
-
-        let engine: any SpeechEngine
-
-        do {
-            switch selectedEngine {
-            case .deepgram:
-                engine = try DeepgramEngine(
-                    artifacts: artifacts,
-                    config: DeepgramConfig(),
-                    audioFormat: audioFormat
-                )
-
-            case .openai:
-                engine = try OpenAIEngine(
-                    artifacts: artifacts,
-                    config: OpenAIConfig()
-                )
-            }
-
-            logger.info("Selected engine: \(selectedEngine.rawValue)")
-            return engine
-
-        } catch {
-            logger.error("Failed to initialize speech engine: \(error)")
-            return nil
-        }
-    }
-
 }

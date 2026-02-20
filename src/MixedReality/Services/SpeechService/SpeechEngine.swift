@@ -7,7 +7,7 @@ import Foundation
 import AVFoundation
 import Combine
 
-enum SpeechEngines: String, CaseIterable {
+enum SpeechEngines: Encodable, Decodable {
     case deepgram
     case openai
 }
