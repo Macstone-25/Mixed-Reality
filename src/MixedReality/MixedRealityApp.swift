@@ -18,6 +18,9 @@ struct MixedRealityApp: App {
                  .environment(appModel)
         }
         .defaultSize(width: 750, height: 500)
+        .defaultWindowPlacement { _, context in
+            return WindowPlacement(.utilityPanel)
+        }
         .onChange(of: appModel.activeScene) { _, activeScene in
             Task {
                 switch(activeScene) {
