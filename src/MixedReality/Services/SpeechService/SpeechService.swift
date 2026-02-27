@@ -61,17 +61,18 @@ class SpeechService: WebSocketDelegate {
     /// Fired any time a transcript chunk is received from Deepgram
     let transcriptChunkEvent = PassthroughSubject<TranscriptChunk, Never>()
     
-    private var socket: Starscream.WebSocket
+    private var socket: Starscream.WebSocket?
     private var keepAliveTimer: Timer?
     private var isActive = false
     private var isConnected = false
     private var hasInputTapInstalled = false
     
     private let audioEngine = AVAudioEngine()
-    private let audioFormat: AVAudioFormat
+    private var audioFormat: AVAudioFormat?
+    private let audioBootstrapper: AudioSessionBootstrapping
     
     private let assetWriter: AVAssetWriter
-    private let assetWriterInput: AVAssetWriterInput
+    private var assetWriterInput: AVAssetWriterInput?
     private let conversationFileURL: URL
     
     private let jsonDecoder = JSONDecoder()
@@ -80,93 +81,20 @@ class SpeechService: WebSocketDelegate {
         artifacts: ArtifactService,
         experiment: ExperimentModel,
         config: DeepgramConfig,
-        anonymizationPolicy: AudioAnonymizationPolicy
+        anonymizationPolicy: AudioAnonymizationPolicy,
+        audioBootstrapper: AudioSessionBootstrapping
     ) async throws {
         self.artifacts = artifacts
         self.experiment = experiment
         self.config = config
         self.anonymizationPolicy = anonymizationPolicy
-        
-        /// Configure audio session
-        let preferredSampleRate = config.preferredSampleRate
-        try await Task.detached(priority: nil) {
-            let isPermissionGranted = await AVAudioApplication.requestRecordPermission()
-            guard isPermissionGranted else {
-                throw SpeechServiceError.permissionError("Recording permission was not granted")
-            }
-            
-            let session = AVAudioSession.sharedInstance()
-            try session.setCategory(
-                .playAndRecord,
-                mode: .measurement,
-                options: [.allowBluetoothA2DP, .defaultToSpeaker]
-            )
-            
-            try session.setPreferredSampleRate(preferredSampleRate)
-            try session.setPreferredIOBufferDuration(0.005) // 5 ms
-            try session.setActive(true, options: .notifyOthersOnDeactivation)
-        }.value
+        self.audioBootstrapper = audioBootstrapper
         
         /// Create AssetWriter
         let fileURL = try await artifacts.getFileURL(name: "Conversation.m4a")
         self.conversationFileURL = fileURL
         
         assetWriter = try AVAssetWriter(outputURL: fileURL, fileType: .m4a)
-        
-        audioFormat = audioEngine.inputNode.inputFormat(forBus: 0)
-        guard audioFormat.channelCount > 0, audioFormat.sampleRate > 0 else {
-            throw SpeechServiceError.runtimeError(
-                "Invalid input format — channels: \(audioFormat.channelCount), sample rate: \(audioFormat.sampleRate)"
-            )
-        }
-        
-        let sr = audioFormat.sampleRate
-        let safeSampleRate: Double = (sr == 44_100 || sr == 48_000) ? sr : 48_000
-
-        assetWriterInput = AVAssetWriterInput(mediaType: .audio, outputSettings: [
-            AVFormatIDKey: kAudioFormatMPEG4AAC,
-            AVSampleRateKey: safeSampleRate,
-            AVNumberOfChannelsKey: min(Int(audioFormat.channelCount), 2),
-            AVEncoderBitRateKey: 128_000
-        ])
-        
-        if assetWriter.canAdd(assetWriterInput) {
-            assetWriterInput.expectsMediaDataInRealTime = true
-            assetWriter.add(assetWriterInput)
-        }
-        
-        /// Construct Deepgram WebSocket URL with audio and transcription parameters
-        var urlComponents = URLComponents()
-        urlComponents.scheme = "wss"
-        urlComponents.host = "api.deepgram.com"
-        urlComponents.path = "/v1/listen"
-        urlComponents.queryItems = [
-            URLQueryItem(name: "encoding", value: "linear16"),
-            URLQueryItem(name: "sample_rate", value: String(Int(audioFormat.sampleRate))),
-            URLQueryItem(name: "model", value: config.model),
-            URLQueryItem(name: "language", value: config.language),
-            URLQueryItem(name: "channels", value: String(config.channels)),
-            URLQueryItem(name: "endpointing", value: String(config.endpointingMs)),
-            URLQueryItem(name: "diarize", value: config.diarize ? "true" : "false"),
-            URLQueryItem(name: "punctuate", value: config.punctuate ? "true" : "false"),
-            URLQueryItem(name: "filler_words", value: config.fillerWords ? "true" : "false"),
-            URLQueryItem(name: "interim_results", value: config.interimResults ? "true" : "false"),
-            URLQueryItem(name: "vad_events", value: config.vadEvents ? "true" : "false")
-        ]
-        
-        guard let url = urlComponents.url else {
-            throw SpeechServiceError.configError("Invalid WebSocket URL")
-        }
-        
-        guard let deepgramKey = ProcessInfo.processInfo.environment["DEEPGRAM_API_KEY"] else {
-            throw SpeechServiceError.apiError("DEEPGRAM_API_KEY not set")
-        }
-        
-        var request = URLRequest(url: url)
-        request.setValue("Token \(deepgramKey)", forHTTPHeaderField: "Authorization")
-        
-        socket = Starscream.WebSocket(request: request)
-        socket.delegate = self
     }
     
     /// Connects to Deepgram and begins streaming audio
@@ -174,9 +102,17 @@ class SpeechService: WebSocketDelegate {
         guard !isActive else {
             throw SpeechServiceError.runtimeError("Already connected")
         }
-        
+
+        let resolvedAudioFormat = try await audioBootstrapper.resolveInputFormat(
+            for: audioEngine.inputNode,
+            preferredSampleRate: config.preferredSampleRate
+        )
+        audioFormat = resolvedAudioFormat
+
         try AVAudioSession.sharedInstance().setActive(true, options: .notifyOthersOnDeactivation)
-        installInputTapIfNeeded()
+        configureAssetWriterInputIfNeeded(audioFormat: resolvedAudioFormat)
+        try configureSocketIfNeeded(audioFormat: resolvedAudioFormat)
+        installInputTapIfNeeded(audioFormat: resolvedAudioFormat)
 
         if !audioEngine.isRunning {
             try audioEngine.start()
@@ -184,10 +120,10 @@ class SpeechService: WebSocketDelegate {
         
         await artifacts.logEvent(
             type: "SpeechService",
-            message: "Connecting to \(socket.request.url?.absoluteString ?? "nil")"
+            message: "Connecting to \(socket?.request.url?.absoluteString ?? "nil")"
         )
-        
-        socket.connect()
+
+        socket?.connect()
         isActive = true
         startKeepAliveTimer()
     }
@@ -214,7 +150,7 @@ class SpeechService: WebSocketDelegate {
         keepAliveTimer?.invalidate()
         keepAliveTimer = nil
         
-        socket.disconnect(closeCode: 1000)
+        socket?.disconnect(closeCode: 1000)
         
         await assetWriter.finishWriting()
         
@@ -275,11 +211,19 @@ class SpeechService: WebSocketDelegate {
             }
 
             if !isConnected {
+                if socket == nil {
+                    let resolvedAudioFormat = try await audioBootstrapper.resolveInputFormat(
+                        for: audioEngine.inputNode,
+                        preferredSampleRate: config.preferredSampleRate
+                    )
+                    audioFormat = resolvedAudioFormat
+                    try configureSocketIfNeeded(audioFormat: resolvedAudioFormat)
+                }
                 await artifacts.logEvent(
                     type: "SpeechService",
                     message: "WebSocket disconnected during restore; reconnecting"
                 )
-                socket.connect()
+                socket?.connect()
                 startKeepAliveTimer()
             }
 
@@ -350,7 +294,7 @@ class SpeechService: WebSocketDelegate {
         do {
             let data = try JSONSerialization.data(withJSONObject: keepAlive, options: [])
             if let jsonString = String(data: data, encoding: .utf8) {
-                socket.write(string: jsonString)
+                socket?.write(string: jsonString)
             } else {
                 logger.warning("Failed to convert data to UTF-8 string: \(data)")
             }
@@ -369,7 +313,7 @@ class SpeechService: WebSocketDelegate {
         }
     }
 
-    private func installInputTapIfNeeded() {
+    private func installInputTapIfNeeded(audioFormat: AVAudioFormat) {
         guard !hasInputTapInstalled else { return }
 
         audioEngine.inputNode.installTap(
@@ -382,6 +326,66 @@ class SpeechService: WebSocketDelegate {
 
         hasInputTapInstalled = true
     }
+
+    private func configureAssetWriterInputIfNeeded(audioFormat: AVAudioFormat) {
+        guard assetWriterInput == nil else { return }
+
+        let sampleRate = audioFormat.sampleRate
+        let safeSampleRate: Double = (sampleRate == 44_100 || sampleRate == 48_000) ? sampleRate : 48_000
+
+        let writerInput = AVAssetWriterInput(mediaType: .audio, outputSettings: [
+            AVFormatIDKey: kAudioFormatMPEG4AAC,
+            AVSampleRateKey: safeSampleRate,
+            AVNumberOfChannelsKey: min(Int(audioFormat.channelCount), 2),
+            AVEncoderBitRateKey: 128_000
+        ])
+
+        guard assetWriter.canAdd(writerInput) else {
+            logger.error("AssetWriter cannot add audio input")
+            return
+        }
+
+        writerInput.expectsMediaDataInRealTime = true
+        assetWriter.add(writerInput)
+        assetWriterInput = writerInput
+    }
+
+    private func configureSocketIfNeeded(audioFormat: AVAudioFormat) throws {
+        guard socket == nil else { return }
+
+        var urlComponents = URLComponents()
+        urlComponents.scheme = "wss"
+        urlComponents.host = "api.deepgram.com"
+        urlComponents.path = "/v1/listen"
+        urlComponents.queryItems = [
+            URLQueryItem(name: "encoding", value: "linear16"),
+            URLQueryItem(name: "sample_rate", value: String(Int(audioFormat.sampleRate))),
+            URLQueryItem(name: "model", value: config.model),
+            URLQueryItem(name: "language", value: config.language),
+            URLQueryItem(name: "channels", value: String(config.channels)),
+            URLQueryItem(name: "endpointing", value: String(config.endpointingMs)),
+            URLQueryItem(name: "diarize", value: config.diarize ? "true" : "false"),
+            URLQueryItem(name: "punctuate", value: config.punctuate ? "true" : "false"),
+            URLQueryItem(name: "filler_words", value: config.fillerWords ? "true" : "false"),
+            URLQueryItem(name: "interim_results", value: config.interimResults ? "true" : "false"),
+            URLQueryItem(name: "vad_events", value: config.vadEvents ? "true" : "false")
+        ]
+
+        guard let url = urlComponents.url else {
+            throw SpeechServiceError.configError("Invalid WebSocket URL")
+        }
+
+        guard let deepgramKey = ProcessInfo.processInfo.environment["DEEPGRAM_API_KEY"] else {
+            throw SpeechServiceError.apiError("DEEPGRAM_API_KEY not set")
+        }
+
+        var request = URLRequest(url: url)
+        request.setValue("Token \(deepgramKey)", forHTTPHeaderField: "Authorization")
+
+        let socket = Starscream.WebSocket(request: request)
+        socket.delegate = self
+        self.socket = socket
+    }
     
     /// Performs format conversions and sends audio data to the WebSocket and AssetWriter
     private func processAudioBuffer(buffer: AVAudioPCMBuffer, time: AVAudioTime) {
@@ -392,7 +396,7 @@ class SpeechService: WebSocketDelegate {
             buffer: buffer,
             targetChannelCount: config.channels
         ) {
-            socket.write(data: pcmData)
+            socket?.write(data: pcmData)
         }
         
         /// Send audio buffer to asset writer (in native format)
@@ -405,6 +409,7 @@ class SpeechService: WebSocketDelegate {
             }
             
             if assetWriter.status == .writing,
+               let assetWriterInput,
                assetWriterInput.isReadyForMoreMediaData {
                 assetWriterInput.append(sampleBuffer)
             }
@@ -510,7 +515,7 @@ class SpeechService: WebSocketDelegate {
             settings: inputFile.fileFormat.settings
         )
 
-        player.scheduleFile(inputFile, at: nil, completionHandler: nil)
+        await player.scheduleFile(inputFile, at: nil)
         player.play()
 
         let buffer = AVAudioPCMBuffer(

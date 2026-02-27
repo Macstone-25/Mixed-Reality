@@ -16,6 +16,9 @@ struct MixedRealityApp: App {
         WindowGroup(id: SceneID.windowGroup.rawValue) {
              NavigationView(appModel)
                  .environment(appModel)
+                 .task {
+                     appModel.prewarmAudioIfNeeded()
+                 }
         }
         .defaultSize(width: 750, height: 500)
         .onChange(of: appModel.activeScene) { _, activeScene in

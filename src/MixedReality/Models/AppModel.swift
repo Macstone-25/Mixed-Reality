@@ -26,8 +26,53 @@ class AppModel {
     
     var activeScene: SceneID = SceneID.windowGroup
     var immersiveOpenRequest: UInt64 = 0
-    
-    var config = ConfigModel.load()
+    var isAudioWarmupInProgress = false
+    var audioWarmupError: String?
+
+    var config: ConfigModel
+
+    private let audioBootstrapper: AudioSessionBootstrapping
+    private var hasAttemptedAudioWarmup = false
+
+    init(config: ConfigModel, audioBootstrapper: AudioSessionBootstrapping) {
+        self.config = config
+        self.audioBootstrapper = audioBootstrapper
+    }
+
+    convenience init() {
+        self.init(
+            config: ConfigModel.load(),
+            audioBootstrapper: AudioSessionBootstrapper.shared
+        )
+    }
+
+    convenience init(audioBootstrapper: AudioSessionBootstrapping) {
+        self.init(
+            config: ConfigModel.load(),
+            audioBootstrapper: audioBootstrapper
+        )
+    }
+
+    func prewarmAudioIfNeeded() {
+        guard !hasAttemptedAudioWarmup else { return }
+        hasAttemptedAudioWarmup = true
+        isAudioWarmupInProgress = true
+        audioWarmupError = nil
+
+        Task { @MainActor [weak self] in
+            guard let self else { return }
+            defer { self.isAudioWarmupInProgress = false }
+
+            do {
+                try await self.audioBootstrapper.prewarm(
+                    preferredSampleRate: DeepgramConfig().preferredSampleRate
+                )
+            } catch {
+                self.logger.error("❌ Failed to prewarm audio session: \(error.localizedDescription)")
+                self.audioWarmupError = error.localizedDescription
+            }
+        }
+    }
     
     func startSession() {
         guard !isLaunchingSession && session == nil else { return }
