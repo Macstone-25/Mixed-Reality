@@ -66,6 +66,19 @@ private struct TranscriptionPartial: Codable {
 class OpenAIEngine: NSObject, SpeechEngine, WebSocketDelegate {
     private let logger = Logger(subsystem: "OpenAIRealtimeSpeechEngine", category: "Services")
 
+    /// OpenAI Realtime API requires exactly 24 kHz mono PCM16
+    private static let targetSampleRate: Double = 24_000
+    private static let targetFormat = AVAudioFormat(
+        commonFormat: .pcmFormatInt16,
+        sampleRate: targetSampleRate,
+        channels: 1,
+        interleaved: true
+    )!
+
+    /// Reusable converter — rebuilt whenever the input format changes
+    private var audioConverter: AVAudioConverter?
+    private var lastInputFormat: AVAudioFormat?
+
     /// Fired any time a transcript chunk is received
     let transcriptChunkEvent = PassthroughSubject<TranscriptChunk, Never>()
 
@@ -127,15 +140,15 @@ class OpenAIEngine: NSObject, SpeechEngine, WebSocketDelegate {
         await artifacts.logEvent(type: "OpenAIRealtimeSpeechEngine", message: "Disconnected")
     }
 
-    /// Called for every audio buffer captured by the microphone tap — sends base64-encoded PCM16 to OpenAI
+    /// Called for every audio buffer captured by the microphone tap.
+    /// Resamples to mono PCM16 @ 24 kHz before sending to OpenAI.
     func processAudioBuffer(buffer: AVAudioPCMBuffer, time: AVAudioTime) {
-        guard let pcmData = AudioBufferUtils.convertBufferToPCM16(
-            buffer: buffer,
-            targetChannelCount: 1  // OpenAI Realtime expects mono
-        ) else { return }
+        guard let pcm16Data = resampleToPCM16_24kHz(buffer: buffer) else {
+            logger.warning("Failed to resample audio buffer to PCM16 24kHz")
+            return
+        }
 
-        let base64Audio = pcmData.base64EncodedString()
-
+        let base64Audio = pcm16Data.base64EncodedString()
         let message = AudioAppendMessage(audio: base64Audio)
 
         guard let jsonData = try? jsonEncoder.encode(message),
@@ -147,7 +160,76 @@ class OpenAIEngine: NSObject, SpeechEngine, WebSocketDelegate {
         socket.write(string: jsonString)
     }
 
-    /// Starscream WebSocket delegate method for handling connection, messages, and errors
+    /// Converts any AVAudioPCMBuffer to interleaved mono PCM16 at 24 kHz.
+    /// Returns raw bytes ready to base64-encode and send to the Realtime API.
+    ///
+    /// The OpenAI Realtime API is strict: it expects exactly PCM16 @ 24 kHz mono.
+    /// Sending the microphone's native rate (44.1 kHz or 48 kHz) causes the API
+    /// to receive sped-up audio, producing hallucinated transcriptions.
+    private func resampleToPCM16_24kHz(buffer: AVAudioPCMBuffer) -> Data? {
+        let inputFormat = buffer.format
+
+        /// Rebuild converter only when the upstream format changes (e.g. first call)
+        if audioConverter == nil || lastInputFormat != inputFormat {
+            guard let converter = AVAudioConverter(from: inputFormat, to: Self.targetFormat) else {
+                logger.error(
+                    "Cannot create AVAudioConverter: \(inputFormat) → PCM16 24kHz"
+                )
+                return nil
+            }
+            converter.downmix = true        /// fold stereo → mono if needed
+            audioConverter  = converter
+            lastInputFormat = inputFormat
+            logger.info(
+                "AVAudioConverter created: \(inputFormat.sampleRate) Hz → 24000 Hz"
+            )
+        }
+
+        guard let converter = audioConverter else { return nil }
+
+        /// Calculate the number of output frames proportional to the input
+        let inputFrames  = AVAudioFrameCount(buffer.frameLength)
+        let sampleRatio  = Self.targetSampleRate / inputFormat.sampleRate
+        let outputFrames = AVAudioFrameCount((Double(inputFrames) * sampleRatio).rounded(.up))
+
+        guard let outputBuffer = AVAudioPCMBuffer(
+            pcmFormat: Self.targetFormat,
+            frameCapacity: outputFrames
+        ) else {
+            logger.error("Failed to allocate output AVAudioPCMBuffer")
+            return nil
+        }
+
+        var conversionError: NSError?
+        var sourceConsumed = false  /// AVAudioConverter input block is called repeatedly; supply data once
+
+        let status = converter.convert(to: outputBuffer, error: &conversionError) { _, outStatus in
+            if sourceConsumed {
+                outStatus.pointee = .noDataNow
+                return nil
+            }
+            outStatus.pointee = .haveData
+            sourceConsumed = true
+            return buffer
+        }
+
+        if status == .error || conversionError != nil {
+            logger.error(
+                "Audio conversion failed: \(conversionError?.localizedDescription ?? "unknown")"
+            )
+            return nil
+        }
+
+        guard outputBuffer.frameLength > 0 else { return nil }
+
+        /// Copy raw Int16 samples into a Data blob (interleaved, mono)
+        let frameCount = Int(outputBuffer.frameLength)
+        let byteCount  = frameCount * 2     // 2 bytes per Int16 sample
+        guard let int16Ptr = outputBuffer.int16ChannelData?.pointee else { return nil }
+
+        return Data(bytes: int16Ptr, count: byteCount)
+    }
+
     func didReceive(event: Starscream.WebSocketEvent, client: any Starscream.WebSocketClient) {
         Task {
             switch event {
@@ -194,7 +276,6 @@ class OpenAIEngine: NSObject, SpeechEngine, WebSocketDelegate {
         }
     }
 
-    /// Sends session configuration immediately after connection
     private func sendSessionConfiguration() async {
         let config = SessionUpdateMessage(
             session: SessionUpdateMessage.SessionConfig(
@@ -232,7 +313,6 @@ class OpenAIEngine: NSObject, SpeechEngine, WebSocketDelegate {
         )
     }
 
-    /// Parses JSON events from the Realtime API
     private func processJSON(data: Data) async throws {
         let envelope = try jsonDecoder.decode(RealtimeEnvelope.self, from: data)
 
@@ -252,27 +332,24 @@ class OpenAIEngine: NSObject, SpeechEngine, WebSocketDelegate {
             }
 
         default:
-            // Many event types we don't need to handle (input_audio_buffer.committed, etc.)
             break
         }
     }
 
-    /// Handles completed transcription events (final results)
     private func handleTranscriptionCompleted(data: Data) async throws {
         let event = try jsonDecoder.decode(TranscriptionComplete.self, from: data)
 
         let trimmedText = event.transcript.trimmingCharacters(in: .whitespaces)
         guard !trimmedText.isEmpty else { return }
 
-        /// Clear any partial state for this item
         partialTranscripts.removeValue(forKey: event.item_id)
-        
+
         let endAt = Date().timeIntervalSince(sessionStartTime)
         let speechDuration = estimatedSpeechDuration(for: trimmedText)
 
         let chunk = TranscriptChunk(
             text: trimmedText,
-            speakerID: "Speaker:User", // OpenAI currently does not support multiple speaker IDs
+            speakerID: "Speaker:User",
             isFinal: true,
             startAt: max(0, endAt - speechDuration),
             endAt: endAt
@@ -287,11 +364,9 @@ class OpenAIEngine: NSObject, SpeechEngine, WebSocketDelegate {
         transcriptChunkEvent.send(chunk)
     }
 
-    /// Handles partial transcriptions
     private func handleTranscriptionPartial(data: Data) async throws {
         let event = try jsonDecoder.decode(TranscriptionPartial.self, from: data)
 
-        /// Accumulate deltas for this item
         let existing = partialTranscripts[event.item_id] ?? ""
         let updated = existing + event.delta
         partialTranscripts[event.item_id] = updated
@@ -299,12 +374,8 @@ class OpenAIEngine: NSObject, SpeechEngine, WebSocketDelegate {
         let trimmedText = updated.trimmingCharacters(in: .whitespaces)
         guard !trimmedText.isEmpty else { return }
 
-        /// Approximate timing window for interim partial results.
-        /// This is intentionally separate from the window used for final transcripts.
         let endAt = Date().timeIntervalSince(sessionStartTime)
         let speechDuration = estimatedSpeechDuration(for: trimmedText)
-
-        // Show only the *most recent* part of speech
         let partialWindow = min(speechDuration, 1.2)
 
         let chunk = TranscriptChunk(
@@ -316,16 +387,13 @@ class OpenAIEngine: NSObject, SpeechEngine, WebSocketDelegate {
         )
 
         let timeRange = String(format: "(%.1fs - %.1fs)", chunk.startAt, chunk.endAt)
-        let logMessage = "\(timeRange) \(chunk)"
-
-        logger.info("\(logMessage)")
+        logger.info("\(timeRange) \(chunk)")
 
         transcriptChunkEvent.send(chunk)
     }
-    
+
     private func estimatedSpeechDuration(for text: String) -> TimeInterval {
         let words = text.split(whereSeparator: \.isWhitespace).count
         return Double(words) / config.wordsPerSecond
     }
-
 }
