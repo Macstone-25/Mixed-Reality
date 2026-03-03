@@ -43,6 +43,8 @@ struct ConfigModel: Codable {
         .openai,
         .deepgram
     ]
+  
+    var isDeleteEnabled: Bool = false
 }
 
 extension ConfigModel {

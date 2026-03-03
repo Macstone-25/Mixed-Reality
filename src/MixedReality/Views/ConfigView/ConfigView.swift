@@ -143,6 +143,10 @@ struct ConfigView: View {
                         ))
                     }
                 }
+                
+                Section("Session Management") {
+                    Toggle("Allow deleting session data", isOn: $viewModel.config.isDeleteEnabled)
+                }
             }
             
             HStack(spacing: 12) {
