@@ -30,7 +30,9 @@ class SpeechService {
 
     private let engine: SpeechEngine
 
+    private var isActive = false
     private var isConnected = false
+    private var hasInputTapInstalled = false
 
     private let audioEngine = AVAudioEngine()
     private let audioFormat: AVAudioFormat
@@ -48,7 +50,7 @@ class SpeechService {
         self.artifacts = artifacts
         self.experiment = experiment
         self.anonymizer = anonymizer
-        
+
         /// Configure audio session
         let isPermissionGranted = await AVAudioApplication.requestRecordPermission()
         guard isPermissionGranted else {
@@ -61,13 +63,13 @@ class SpeechService {
             mode: .measurement,
             options: [.allowBluetoothA2DP, .defaultToSpeaker]
         )
-        
+
         try session.setPreferredSampleRate(48_000)
         try session.setPreferredIOBufferDuration(0.005) // 5 ms
         try session.setActive(true, options: .notifyOthersOnDeactivation)
-        
+
         audioFormat = audioEngine.inputNode.inputFormat(forBus: 0)
-        
+
         /// Initialize the correct SpeechEngine
         switch engine {
         case .openai:
@@ -114,37 +116,36 @@ class SpeechService {
 
     /// Connects to the active SpeechEngine and begins streaming audio
     func connect() async throws {
-        guard !isConnected else {
+        guard !isActive else {
             throw SpeechServiceError.runtimeError("Already connected")
         }
 
         try AVAudioSession.sharedInstance().setActive(true, options: .notifyOthersOnDeactivation)
+        installInputTapIfNeeded()
 
-        audioEngine.inputNode.installTap(
-            onBus: 0,
-            bufferSize: 4096,
-            format: audioFormat
-        ) { [weak self] buffer, time in
-            self?.processAudioBuffer(buffer: buffer, time: time)
+        if !audioEngine.isRunning {
+            try audioEngine.start()
         }
 
-        try audioEngine.start()
         try await engine.start()
 
-        isConnected = true
+        isActive = true
     }
 
     /// Disconnect from the active SpeechEngine and deactivate microphone
     func disconnect() async {
-        guard isConnected else {
+        guard isActive else {
             logger.error("Already disconnected")
             return
         }
 
         logger.info("Disconnecting SpeechService...")
-        isConnected = false
+        isActive = false
 
-        audioEngine.inputNode.removeTap(onBus: 0)
+        if hasInputTapInstalled {
+            audioEngine.inputNode.removeTap(onBus: 0)
+            hasInputTapInstalled = false
+        }
         if audioEngine.isRunning { audioEngine.stop() }
         audioEngine.reset()
         try? AVAudioSession.sharedInstance().setActive(false)
@@ -191,9 +192,53 @@ class SpeechService {
         logger.info("SpeechService stopped")
     }
 
+    /// Reactivates the audio session and engine after the app returns to the foreground.
+    /// No-ops if the service was intentionally disconnected.
+    func reactivateIfNeeded() async {
+        guard isActive else {
+            await artifacts.logEvent(
+                type: "SpeechService",
+                message: "Skipping foreground restore because service is disconnected"
+            )
+            return
+        }
+
+        do {
+            try AVAudioSession.sharedInstance().setActive(true, options: .notifyOthersOnDeactivation)
+            if !audioEngine.isRunning {
+                installInputTapIfNeeded()
+                try audioEngine.start()
+            }
+
+            await artifacts.logEvent(
+                type: "SpeechService",
+                message: "Audio pipeline reactivated after app foreground"
+            )
+        } catch {
+            await artifacts.logEvent(
+                type: "SpeechService",
+                message: "Failed to reactivate audio after app foreground: \(error.localizedDescription)"
+            )
+        }
+    }
+
+    private func installInputTapIfNeeded() {
+        guard !hasInputTapInstalled else { return }
+
+        audioEngine.inputNode.installTap(
+            onBus: 0,
+            bufferSize: 4096,
+            format: audioFormat
+        ) { [weak self] buffer, time in
+            self?.processAudioBuffer(buffer: buffer, time: time)
+        }
+
+        hasInputTapInstalled = true
+    }
+
     /// Performs format conversions and sends audio data to the SpeechEngine and AssetWriter
     private func processAudioBuffer(buffer: AVAudioPCMBuffer, time: AVAudioTime) {
-        guard isConnected else { return }
+        guard isActive else { return }
 
         /// Send audio buffer to the active SpeechEngine for transcription
         engine.processAudioBuffer(buffer: buffer, time: time)
