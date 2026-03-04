@@ -79,3 +79,29 @@ jobs:
           export SCRIPT_INPUT_FILE_COUNT="$i"
 
           swiftlint lint --strict --use-script-input-files
+  test:
+    runs-on: macos-26
+
+    steps:
+      - name: Checkout Code
+        uses: actions/checkout@v4
+
+      - name: Install xcbeautify
+        run: brew install xcbeautify
+        
+      - name: Select Xcode 26.3
+        run: sudo xcode-select -s /Applications/Xcode_26.3.app/Contents/Developer
+
+      - name: Boot Simulator
+        # This "warms up" the simulator so xcodebuild doesn't time out
+        run: |
+          xcrun simctl list devices visionOS
+          xcrun simctl boot "Apple Vision Pro" || true
+
+      - name: Run visionOS Tests
+        # Run unit tests and pipe the output to "xcbeautify" for readability
+        run: |
+          set -o pipefail && xcodebuild test \
+            -scheme MixedRealityTests \
+            -destination 'platform=visionOS Simulator,name=Apple Vision Pro' \
+            -parallel-testing-enabled NO | xcbeautify --renderer github-actions
