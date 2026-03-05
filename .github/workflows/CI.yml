@@ -47,38 +47,22 @@ jobs:
           COUNT="$(wc -l < changed_swift_files.txt | tr -d ' ')"
           echo "count=$COUNT" >> "$GITHUB_OUTPUT"
 
-      - name: swift-format lint
-        if: ${{ !cancelled() && steps.changed.outputs.count != '0' }}
+      - name: swift-format
+        if: ${{ steps.changed.outputs.count != '0' }}
         shell: bash
         run: |
           set -euo pipefail
           SWIFTFORMAT="$(xcrun --find swift-format)"
           "$SWIFTFORMAT" lint --strict --parallel $(cat changed_swift_files.txt)
 
-      - name: swift-format check
-        if: ${{ !cancelled() && steps.changed.outputs.count != '0' }}
-        shell: bash
-        run: |
-          set -euo pipefail
-          SWIFTFORMAT="$(xcrun --find swift-format)"
-          "$SWIFTFORMAT" format --in-place --parallel $(cat changed_swift_files.txt)
-          git diff --exit-code
-
-      - name: SwiftLint
-        if: ${{ !cancelled() && steps.changed.outputs.count != '0' }}
-        shell: bash
-        run: |
-          set -euo pipefail
-
-          # Build SCRIPT_INPUT_FILE_* variables for --use-script-input-files
-          i=0
-          while IFS= read -r f; do
-            export "SCRIPT_INPUT_FILE_$i=$f"
-            i=$((i+1))
-          done < changed_swift_files.txt
-          export SCRIPT_INPUT_FILE_COUNT="$i"
-
-          swiftlint lint --strict --use-script-input-files
+      - name: swiftlint
+        if: ${{ !cancelled() }}
+        uses: norio-nomura/action-swiftlint@3.2.1
+        with:
+          args: --strict
+        env:
+          DIFF_BASE: ${{ github.base_ref }}
+          WORKING_DIRECTORY: src
   test:
     runs-on: macos-26
     name: Test
