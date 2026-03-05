@@ -82,7 +82,7 @@ jobs:
           key: ${{ runner.os }}-brew-xcbeautify
 
       - name: Install xcbeautify
-        run: brew install xcbeautify || true
+        run: brew install xcbeautify
 
       - name: Cache Swift PM
         uses: actions/cache@v4
@@ -96,10 +96,8 @@ jobs:
         run: sudo xcode-select -s /Applications/Xcode_26.3.app/Contents/Developer
 
       - name: Boot Simulator
-        run: |
-          # Booting in background while SPM resolves saves time.
-          xcrun simctl boot "Apple Vision Pro" || true
-
+        run: xcrun simctl boot "Apple Vision Pro"
+          
       - name: Run Unit Tests
         working-directory: ./src
         run: |
