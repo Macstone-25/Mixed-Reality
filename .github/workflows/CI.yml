@@ -81,6 +81,7 @@ jobs:
           swiftlint lint --strict --use-script-input-files
   test:
     runs-on: macos-26
+    name: Test
 
     steps:
       - name: Checkout Code
@@ -91,6 +92,9 @@ jobs:
         
       - name: Select Xcode 26.3
         run: sudo xcode-select -s /Applications/Xcode_26.3.app/Contents/Developer
+
+      - name: Change Directory
+        run: cd src
 
       - name: Boot Simulator
         # This "warms up" the simulator so xcodebuild doesn't time out
