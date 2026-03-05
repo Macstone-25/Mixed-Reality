@@ -48,7 +48,7 @@ jobs:
           echo "count=$COUNT" >> "$GITHUB_OUTPUT"
 
       - name: swift-format lint
-        if: steps.changed.outputs.count != '0'
+        if: ${{ !cancelled() && steps.changed.outputs.count != '0' }}
         shell: bash
         run: |
           set -euo pipefail
@@ -56,7 +56,7 @@ jobs:
           "$SWIFTFORMAT" lint --strict --parallel $(cat changed_swift_files.txt)
 
       - name: swift-format check
-        if: steps.changed.outputs.count != '0'
+        if: ${{ !cancelled() && steps.changed.outputs.count != '0' }}
         shell: bash
         run: |
           set -euo pipefail
@@ -65,7 +65,7 @@ jobs:
           git diff --exit-code
 
       - name: SwiftLint
-        if: steps.changed.outputs.count != '0'
+        if: ${{ !cancelled() && steps.changed.outputs.count != '0' }}
         shell: bash
         run: |
           set -euo pipefail
