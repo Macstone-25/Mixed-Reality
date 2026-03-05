@@ -6,9 +6,9 @@ on:
   pull_request:
 
 jobs:
-  format:
+  lint:
     runs-on: macos-latest
-    name: Format
+    name: Lint
     steps:
       - name: Checkout Code
         uses: actions/checkout@v4
@@ -48,30 +48,23 @@ jobs:
           echo "count=$COUNT" >> "$GITHUB_OUTPUT"
 
       - name: Run swift-format
-        if: ${{ steps.changed.outputs.count != '0' }}
+        if: ${{ !cancelled() && steps.changed.outputs.count != '0' }}
         shell: bash
         run: |
           set -euo pipefail
           SWIFTFORMAT="$(xcrun --find swift-format)"
           "$SWIFTFORMAT" lint --strict --parallel $(cat changed_swift_files.txt)
-          
-  lint:
-    runs-on: ubuntu-latest
-    name: Lint
-    steps:
-      - name: Checkout Code
-        uses: actions/checkout@v4
 
-      - name: Mark workspace as safe
-        run: git config --global --add safe.directory /github/workspace
-        
+      - name: Install SwiftLint
+        if: ${{ !cancelled() && steps.changed.outputs.count != '0' }}
+        run: brew install swiftlint
+  
       - name: Run SwiftLint
-        uses: norio-nomura/action-swiftlint@3.2.1
-        with:
-          args: --strict
-        env:
-          DIFF_BASE: ${{ github.base_ref }}
-          WORKING_DIRECTORY: src
+        if: ${{ !cancelled() && steps.changed.outputs.count != '0' }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          swiftlint lint --strict $(cat changed_swift_files.txt)
           
   test:
     runs-on: macos-26
