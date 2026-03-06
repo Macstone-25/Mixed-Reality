@@ -39,13 +39,17 @@ public struct TranscriptChunk: Sendable, Codable, Hashable, CustomStringConverti
             .joined(separator: " ")
             .lowercased()
     }
-
-    /// Number of words (simple whitespace split).
-    public var wordCount: Int {
+    
+    /// Lowercased words with punctuation removed.
+    var words: [String] {
         plainText
             .components(separatedBy: CharacterSet.whitespacesAndNewlines)
             .filter({ !$0.isEmpty })
-            .count
+    }
+
+    /// Number of words (simple whitespace split).
+    public var wordCount: Int {
+        words.count
     }
 
     /// A list of words classified as fillers / hesitation.
@@ -53,6 +57,13 @@ public struct TranscriptChunk: Sendable, Codable, Hashable, CustomStringConverti
     private static let fillerWords: Set<String> = [
         "um", "umm", "uh", "uhh", "oh", "hm", "hmm", "er", "ah", "like", "huh"
     ]
+    
+    /// Words that should only count when repeated several times in a row.
+    private static let repeatedOnlyFillerWords: Set<String> = [
+        "and"
+    ]
+    
+    private static let repeatedFillerWords = fillerWords.union(repeatedOnlyFillerWords)
     
     /// True if the chunk is only a filler / hesitation word.
     public var isFiller: Bool {
@@ -63,7 +74,34 @@ public struct TranscriptChunk: Sendable, Codable, Hashable, CustomStringConverti
     /// True if the chunk ends with a filler / hesitation word.
     public var endsWithFiller: Bool {
         // TODO: make this more advanced with a small LLM
-        TranscriptChunk.fillerWords.contains(plainText.components(separatedBy: CharacterSet.whitespacesAndNewlines).last ?? "")
+        TranscriptChunk.fillerWords.contains(words.last ?? "")
+    }
+    
+    /// Returns a consecutive run of repeated filler words, if present.
+    func repeatedFillerRun(minCount: Int = 3) -> [String]? {
+        var currentWord: String?
+        var currentCount = 0
+        
+        for word in words {
+            guard TranscriptChunk.repeatedFillerWords.contains(word) else {
+                currentWord = nil
+                currentCount = 0
+                continue
+            }
+            
+            if word == currentWord {
+                currentCount += 1
+            } else {
+                currentWord = word
+                currentCount = 1
+            }
+            
+            if currentCount >= minCount, let currentWord {
+                return Array(repeating: currentWord, count: currentCount)
+            }
+        }
+        
+        return nil
     }
 }
 

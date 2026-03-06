@@ -8,7 +8,7 @@
 import Collections
 import Foundation
 
-/// Triggers an intervention if the past 3 transcript chunks have ended with filler words.
+/// Triggers an intervention when filler words repeat excessively.
 class FillerEvaluator: TriggerEvaluator {
     private let chunksToCheck: Int
     
@@ -17,26 +17,20 @@ class FillerEvaluator: TriggerEvaluator {
     }
     
     func evaluate(chunk: TranscriptChunk, context: [TranscriptChunk]) async -> InterventionReason? {
-        // If we don't have enough chunks to check yet, we can immediately ignore this chunk
-        guard context.count > chunksToCheck else { return nil }
-        
-        // If the current chunk was already added to the context, we need to look back one more element
-        let chunksToCheck = chunk == context.last ? chunksToCheck + 1 : chunksToCheck
-        
-        // Check that the current chunk ends with filler
-        guard chunk.endsWithFiller else { return nil }
-        
-        // Check that the previous chunksToCheck chunks end with filler
-        guard context.suffix(chunksToCheck).allSatisfy({ $0.endsWithFiller }) else { return nil }
-        
-        var fillers = context.suffix(chunksToCheck).map({
-            $0.plainText.components(separatedBy: CharacterSet.whitespacesAndNewlines).last ?? ""
-        })
-        
-        if chunk != context.last {
-            fillers.append(chunk.plainText.components(separatedBy: CharacterSet.whitespacesAndNewlines).last ?? "")
+        if chunk.isFinal, let repeatedFillers = chunk.repeatedFillerRun(minCount: chunksToCheck) {
+            return InterventionReason.filler(words: repeatedFillers.joined(separator: ", "))
         }
         
+        let recentChunks = recentChunksEndingWithCurrent(chunk: chunk, context: context)
+        guard recentChunks.count >= chunksToCheck else { return nil }
+        guard recentChunks.allSatisfy({ $0.endsWithFiller }) else { return nil }
+        
+        let fillers = recentChunks.map({ $0.words.last ?? "" })
         return InterventionReason.filler(words: fillers.joined(separator: ", "))
+    }
+    
+    private func recentChunksEndingWithCurrent(chunk: TranscriptChunk, context: [TranscriptChunk]) -> ArraySlice<TranscriptChunk> {
+        let chunks = chunk == context.last ? context : context + [chunk]
+        return chunks.suffix(chunksToCheck)
     }
 }
