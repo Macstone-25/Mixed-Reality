@@ -67,17 +67,10 @@ final class LLMTriggerEvaluator: TriggerEvaluator {
         """
         
         do {
-            let rawDecision: String
-
-            if let llmService = miniLLM as? LLMService {
-                rawDecision = try await llmService.generate(
-                    systemPrompt: Self.systemPrompt,
-                    userPrompt: userPrompt,
-                    logCancellationAsError: false
-                )
-            } else {
-                rawDecision = try await miniLLM.generate(systemPrompt: Self.systemPrompt, userPrompt: userPrompt)
-            }
+            let rawDecision = try await miniLLM.generate(
+                systemPrompt: Self.systemPrompt,
+                userPrompt: userPrompt
+            )
             
             guard let decision = Self.parseDecision(rawDecision) else {
                 await logParseFailure(rawDecision)
