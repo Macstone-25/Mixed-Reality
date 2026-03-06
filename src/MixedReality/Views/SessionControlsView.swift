@@ -16,8 +16,10 @@ struct SessionControlsView: View {
         let hPad: CGFloat = 32
         let vPad: CGFloat = 18
         
+        let sessionLabel: String = appModel.lastSessionId ?? "Session"
+        
         if appModel.isEndingSession {
-            Text("Ending session...")
+            Text("Ending \(sessionLabel)...")
                 .font(.system(size: 24, weight: .medium, design: .monospaced))
                 .padding(.horizontal, hPad)
                 .padding(.vertical, vPad)
@@ -30,7 +32,7 @@ struct SessionControlsView: View {
                 HStack(spacing: 12) {
                     Image(systemName: "stop.circle.fill")
                         .symbolRenderingMode(.monochrome)
-                    Text("Stop Session")
+                    Text("Stop \(sessionLabel)")
                 }
                 .font(.system(size: 28, weight: .semibold))
                 .foregroundColor(.white)

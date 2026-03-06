@@ -3,8 +3,8 @@
 //  MixedReality
 //
 
-import Foundation
 import Combine
+import Foundation
 import OSLog
 
 class SessionModel {
@@ -25,9 +25,12 @@ class SessionModel {
     
     var onPrompt: ((String) -> (Void))?
     
+    private static let sessionNumberKey = "SessionModel.sessionNumber"
+    
     init(config: ConfigModel) async throws {
-        // TODO: Add random id to display (#57)
-        self.id = "Session"
+        let sessionNumber = UserDefaults.standard.integer(forKey: Self.sessionNumberKey) + 1
+        UserDefaults.standard.set(sessionNumber, forKey: Self.sessionNumberKey)
+        self.id = "Session-\(String(format: "%03d", sessionNumber))"
         
         self.artifacts = try ArtifactService(id: id)
         self.experiment = try ExperimentModel(config: config)
@@ -37,7 +40,7 @@ class SessionModel {
         self.speechService = try await SpeechService(artifacts: self.artifacts, experiment: experiment, config: DeepgramConfig(), anonymizationPolicy: .pitchShift(semitones: Float.random(in: -3 ... -1), deleteOriginal: true))
         self.triggerService = await TriggerService(artifacts: self.artifacts, experiment: experiment, speechService: self.speechService, miniLLM: self.miniLLM)
         self.soundService = SoundService()
-        self.promptService = PromptService(artifacts: self.artifacts, experiment: experiment, llm: self.llm, speechService: self.speechService)
+        self.promptService = PromptService(artifacts: self.artifacts, experiment: experiment, llm: self.llm, miniLLM: self.miniLLM,  speechService: self.speechService)
     }
     
     func start() async throws {
@@ -86,21 +89,27 @@ class SessionModel {
                         self.logger.warning("Dropping trigger \(event.id), no prompt callback set")
                         return
                     }
-                    
+
                     self.soundService.playDing()
                     onPrompt(prompt)
                 }
             }
         }
-        
+
         soundService.prepareDing()
-        
-        try await speechService.connect()
+
+        try await speechService.activate()
+    }
+
+    func restoreAfterForegrounding() async {
+        await artifacts.logEvent(type: "Session", message: "Restoring session after app foreground")
+        await triggerService.restoreAfterForegrounding()
+        await speechService.reactivateIfNeeded()
     }
     
     func end() async {
         await artifacts.logEvent(type: "Session", message: "Ending session...")
-        await speechService.disconnect()
+        await speechService.deactivate()
         await triggerService.stop()
         await artifacts.finalize()
     }

@@ -25,6 +25,8 @@ struct StartView: View {
             .controlSize(.extraLarge)
             .font(.extraLargeTitle2)
             .disabled(viewModel.isLaunching)
+            // account for navigation buttons
+            .padding(.bottom, 48)
 
             if let error = appModel.launchError {
                 Text(error)
@@ -33,10 +35,15 @@ struct StartView: View {
                     .multilineTextAlignment(.center)
                     .padding(.horizontal)
             }
+            
+            if let prevSession = appModel.lastSessionId {
+                Text("Previous: \(prevSession)")
+                    .monospaced()
+                    .multilineTextAlignment(.center)
+                    .padding(.horizontal)
+            }
         }
         .frame(maxWidth: .infinity)
-        // account for navigation buttons
-        .padding(.bottom, 48)
     }
 }
 

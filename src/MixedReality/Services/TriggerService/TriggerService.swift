@@ -66,7 +66,8 @@ actor TriggerService {
     }
 
     func handleTranscriptChunk(chunk: TranscriptChunk) {
-        // update context if this is a finalized chunk
+        // Update context only for finalized chunks, but allow all chunks to drive
+        // trigger timing so evaluations are not delayed by endpointing finalization.
         if chunk.isFinal {
             evaluatorContext.insertSorted(chunk)
             if evaluatorContext.count > experiment.triggerContext {
@@ -170,5 +171,11 @@ actor TriggerService {
         evaluationTask?.cancel()
         onTrigger = nil
         logger.info("🛑 TriggerService stopped")
+    }
+
+    func restoreAfterForegrounding() {
+        evaluationTask?.cancel()
+        evaluationTask = nil
+        logger.info("🔄 TriggerService restored after app foreground")
     }
 }

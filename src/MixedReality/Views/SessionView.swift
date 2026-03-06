@@ -18,7 +18,7 @@ struct SessionView: View {
             content.add(headAnchor)
 
             if let uiAttachmentEntity = attachments.entity(for: "sessionControls") {
-                uiAttachmentEntity.transform.translation = [0, 0.22, -0.58]
+                uiAttachmentEntity.transform.translation = [0, 0.05, -0.3]
                 headAnchor.addChild(uiAttachmentEntity)
             }
 

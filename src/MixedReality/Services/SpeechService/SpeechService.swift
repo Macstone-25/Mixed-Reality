@@ -63,7 +63,9 @@ class SpeechService: WebSocketDelegate {
     
     private var socket: Starscream.WebSocket
     private var keepAliveTimer: Timer?
+    private var isActive = false
     private var isConnected = false
+    private var hasInputTapInstalled = false
     
     private let audioEngine = AVAudioEngine()
     private let audioFormat: AVAudioFormat
@@ -86,21 +88,24 @@ class SpeechService: WebSocketDelegate {
         self.anonymizationPolicy = anonymizationPolicy
         
         /// Configure audio session
-        let isPermissionGranted = await AVAudioApplication.requestRecordPermission()
-        guard isPermissionGranted else {
-            throw SpeechServiceError.permissionError("Recording permission was not granted")
-        }
-        
-        let session = AVAudioSession.sharedInstance()
-        try session.setCategory(
-            .playAndRecord,
-            mode: .measurement,
-            options: [.allowBluetoothA2DP, .defaultToSpeaker]
-        )
-        
-        try session.setPreferredSampleRate(config.preferredSampleRate)
-        try session.setPreferredIOBufferDuration(0.005) // 5 ms
-        try session.setActive(true, options: .notifyOthersOnDeactivation)
+        let preferredSampleRate = config.preferredSampleRate
+        try await Task.detached(priority: nil) {
+            let isPermissionGranted = await AVAudioApplication.requestRecordPermission()
+            guard isPermissionGranted else {
+                throw SpeechServiceError.permissionError("Recording permission was not granted")
+            }
+            
+            let session = AVAudioSession.sharedInstance()
+            try session.setCategory(
+                .playAndRecord,
+                mode: .measurement,
+                options: [.allowBluetoothA2DP, .defaultToSpeaker]
+            )
+            
+            try session.setPreferredSampleRate(preferredSampleRate)
+            try session.setPreferredIOBufferDuration(0.005) // 5 ms
+            try session.setActive(true, options: .notifyOthersOnDeactivation)
+        }.value
         
         /// Create AssetWriter
         let fileURL = try await artifacts.getFileURL(name: "Conversation.m4a")
@@ -165,22 +170,17 @@ class SpeechService: WebSocketDelegate {
     }
     
     /// Connects to Deepgram and begins streaming audio
-    func connect() async throws {
-        guard !isConnected else {
+    func activate() async throws {
+        guard !isActive else {
             throw SpeechServiceError.runtimeError("Already connected")
         }
         
         try AVAudioSession.sharedInstance().setActive(true, options: .notifyOthersOnDeactivation)
-        
-        audioEngine.inputNode.installTap(
-            onBus: 0,
-            bufferSize: 4096,
-            format: audioFormat
-        ) { [weak self] buffer, time in
-            self?.processAudioBuffer(buffer: buffer, time: time)
+        installInputTapIfNeeded()
+
+        if !audioEngine.isRunning {
+            try audioEngine.start()
         }
-        
-        try audioEngine.start()
         
         await artifacts.logEvent(
             type: "SpeechService",
@@ -188,29 +188,25 @@ class SpeechService: WebSocketDelegate {
         )
         
         socket.connect()
-        isConnected = true
-        
-        keepAliveTimer?.invalidate()
-        keepAliveTimer = Timer.scheduledTimer(
-            withTimeInterval: 5.0,
-            repeats: true
-        ) { [weak self] _ in
-            self?.sendKeepAlive()
-        }
+        isActive = true
+        startKeepAliveTimer()
     }
     
     
     /// Disconnect from Deepgram WebSocket and deactivate microphone
-    func disconnect() async {
-        guard isConnected else {
+    func deactivate() async {
+        guard isActive else {
             logger.error("Already disconnected")
             return
         }
         
         logger.info("🔌 Disconnecting SpeechService...")
-        isConnected = false
+        isActive = false
         
-        audioEngine.inputNode.removeTap(onBus: 0)
+        if hasInputTapInstalled {
+            audioEngine.inputNode.removeTap(onBus: 0)
+            hasInputTapInstalled = false
+        }
         if audioEngine.isRunning { audioEngine.stop() }
         audioEngine.reset()
         try? AVAudioSession.sharedInstance().setActive(false)
@@ -262,18 +258,64 @@ class SpeechService: WebSocketDelegate {
         
         logger.info("🛑 SpeechService stopped")
     }
+
+    func reactivateIfNeeded() async {
+        guard isActive else {
+            await artifacts.logEvent(
+                type: "SpeechService",
+                message: "Skipping foreground restore because service is disconnected"
+            )
+            return
+        }
+
+        do {
+            try AVAudioSession.sharedInstance().setActive(true, options: .notifyOthersOnDeactivation)
+            if !audioEngine.isRunning {
+                try audioEngine.start()
+            }
+
+            if !isConnected {
+                await artifacts.logEvent(
+                    type: "SpeechService",
+                    message: "WebSocket disconnected during restore; reconnecting"
+                )
+                socket.connect()
+                startKeepAliveTimer()
+            }
+
+            await artifacts.logEvent(
+                type: "SpeechService",
+                message: "Audio pipeline reactivated after app foreground"
+            )
+        } catch {
+            await artifacts.logEvent(
+                type: "SpeechService",
+                message: "Failed to reactivate audio after app foreground: \(error.localizedDescription)"
+            )
+        }
+    }
     
     /// Starscream WebSocket delegate method for handling connection, messages, and errors
     func didReceive(event: Starscream.WebSocketEvent, client: any Starscream.WebSocketClient) {
         Task {
             switch event {
             case .connected:
+                isConnected = true
                 await artifacts.logEvent(type: "Deepgram", message: "WebSocket connected")
             case .peerClosed:
+                isConnected = false
+                keepAliveTimer?.invalidate()
+                keepAliveTimer = nil
                 await artifacts.logEvent(type: "Deepgram", message: "WebSocket closed")
             case .cancelled:
+                isConnected = false
+                keepAliveTimer?.invalidate()
+                keepAliveTimer = nil
                 await artifacts.logEvent(type: "Deepgram", message: "WebSocket cancelled")
             case .disconnected(let reason, let code):
+                isConnected = false
+                keepAliveTimer?.invalidate()
+                keepAliveTimer = nil
                 await artifacts.logEvent(
                     type: "Deepgram",
                     message: "WebSocket disconnected (\(code)): \(reason)"
@@ -316,13 +358,37 @@ class SpeechService: WebSocketDelegate {
             logger.warning("Failed to encode KeepAlive message: \(error)")
         }
     }
+
+    private func startKeepAliveTimer() {
+        keepAliveTimer?.invalidate()
+        keepAliveTimer = Timer.scheduledTimer(
+            withTimeInterval: 5.0,
+            repeats: true
+        ) { [weak self] _ in
+            self?.sendKeepAlive()
+        }
+    }
+
+    private func installInputTapIfNeeded() {
+        guard !hasInputTapInstalled else { return }
+
+        audioEngine.inputNode.installTap(
+            onBus: 0,
+            bufferSize: 4096,
+            format: audioFormat
+        ) { [weak self] buffer, time in
+            self?.processAudioBuffer(buffer: buffer, time: time)
+        }
+
+        hasInputTapInstalled = true
+    }
     
     /// Performs format conversions and sends audio data to the WebSocket and AssetWriter
     private func processAudioBuffer(buffer: AVAudioPCMBuffer, time: AVAudioTime) {
-        guard isConnected else { return }
+        guard isActive else { return }
         
         /// Send audio buffer to Deepgram via WebSocket (in PCM16 format)
-        if let pcmData = AudioBufferUtils.convertBufferToPCM16(
+        if isConnected, let pcmData = AudioBufferUtils.convertBufferToPCM16(
             buffer: buffer,
             targetChannelCount: config.channels
         ) {
@@ -410,11 +476,10 @@ class SpeechService: WebSocketDelegate {
     }
     
     private func anonymizeConversationAudio(
-        outputName: String = "conversation_anonymized.m4a",
+        outputName: String = "Conversation_Anonymized.m4a",
         pitchSemitones: Float,
         deleteOriginal: Bool
     ) async throws -> URL {
-
         let inputURL = conversationFileURL
         let outputURL = try await artifacts.getFileURL(name: outputName)
 
@@ -445,7 +510,7 @@ class SpeechService: WebSocketDelegate {
             settings: inputFile.fileFormat.settings
         )
 
-        await player.scheduleFile(inputFile, at: nil)
+        player.scheduleFile(inputFile, at: nil, completionHandler: nil)
         player.play()
 
         let buffer = AVAudioPCMBuffer(
