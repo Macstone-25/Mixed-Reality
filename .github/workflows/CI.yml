@@ -6,15 +6,15 @@ on:
   pull_request:
 
 jobs:
-  lint:
+  format:
     runs-on: macos-latest
-    name: Lint
-
+    name: Format
     steps:
-      - uses: actions/checkout@v4
+      - name: Checkout Code
+        uses: actions/checkout@v4
         with:
           fetch-depth: 0  # needed to diff base..head reliably
-
+          
       - name: Find modified files
         id: changed
         shell: bash
@@ -47,35 +47,70 @@ jobs:
           COUNT="$(wc -l < changed_swift_files.txt | tr -d ' ')"
           echo "count=$COUNT" >> "$GITHUB_OUTPUT"
 
-      - name: swift-format lint
-        if: steps.changed.outputs.count != '0'
+      - name: Run swift-format
+        if: ${{ steps.changed.outputs.count != '0' }}
         shell: bash
         run: |
           set -euo pipefail
           SWIFTFORMAT="$(xcrun --find swift-format)"
           "$SWIFTFORMAT" lint --strict --parallel $(cat changed_swift_files.txt)
+          
+  lint:
+    runs-on: ubuntu-latest
+    name: Lint
+    steps:
+      - name: Checkout Code
+        uses: actions/checkout@v4
+        
+      - name: Run SwiftLint
+        uses: norio-nomura/action-swiftlint@3.2.1
+        with:
+          args: --strict
+        env:
+          DIFF_BASE: ${{ github.base_ref }}
+          WORKING_DIRECTORY: src
+          
+  test:
+    runs-on: macos-26
+    name: Unit Tests
+    steps:
+      - name: Checkout Code
+        uses: actions/checkout@v4
 
-      - name: swift-format check
-        if: steps.changed.outputs.count != '0'
-        shell: bash
+      - name: Cache Homebrew
+        uses: actions/cache@v4
+        with:
+          path: |
+            /usr/local/Homebrew
+            ~/Library/Caches/Homebrew
+          key: ${{ runner.os }}-brew-xcbeautify
+
+      - name: Install xcbeautify
+        run: brew install xcbeautify || true
+
+      - name: Cache Swift PM
+        uses: actions/cache@v4
+        with:
+          path: .build
+          key: ${{ runner.os }}-spm-${{ hashFiles('**/Package.resolved', '**/project.pbxproj') }}
+          restore-keys: |
+            ${{ runner.os }}-spm-
+
+      - name: Select Xcode 26.3
+        run: sudo xcode-select -s /Applications/Xcode_26.3.app/Contents/Developer
+
+      - name: Boot Simulator
         run: |
-          set -euo pipefail
-          SWIFTFORMAT="$(xcrun --find swift-format)"
-          "$SWIFTFORMAT" format --in-place --parallel $(cat changed_swift_files.txt)
-          git diff --exit-code
+          # Booting in background while SPM resolves saves time.
+          xcrun simctl boot "Apple Vision Pro" || true
 
-      - name: SwiftLint
-        if: steps.changed.outputs.count != '0'
-        shell: bash
+      - name: Run Unit Tests
+        working-directory: ./src
         run: |
-          set -euo pipefail
-
-          # Build SCRIPT_INPUT_FILE_* variables for --use-script-input-files
-          i=0
-          while IFS= read -r f; do
-            export "SCRIPT_INPUT_FILE_$i=$f"
-            i=$((i+1))
-          done < changed_swift_files.txt
-          export SCRIPT_INPUT_FILE_COUNT="$i"
-
-          swiftlint lint --strict --use-script-input-files
+          set -o pipefail
+          xcodebuild test \
+            -scheme MixedRealityTests \
+            -destination 'platform=visionOS Simulator,name=Apple Vision Pro' \
+            -derivedDataPath '../build' \
+            -resultBundlePath 'TestResults.xcresult' \
+            -parallel-testing-enabled NO | xcbeautify --renderer github-actions
