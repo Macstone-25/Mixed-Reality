@@ -282,7 +282,8 @@ class SpeechService {
     private func logChunk(_ chunk: TranscriptChunk) {
         let timeRange = String(format: "(%.1fs - %.1fs)", chunk.startAt, chunk.endAt)
         let status = chunk.isFinal ? "[FINAL]" : "[PARTIAL]"
-        let logMessage = "\(timeRange) \(status) \(chunk.text)"
+        let speakerID = chunk.speakerID
+        let logMessage = "\(timeRange) \(status) \(speakerID): \(chunk.text)"
 
         logger.info("\(logMessage)")
 

@@ -399,7 +399,7 @@ class OpenAIEngine: NSObject, SpeechEngine, WebSocketDelegate {
 
         let chunk = TranscriptChunk(
             text: trimmedText,
-            speakerID: "Speaker:User",
+            speakerID: "Speaker:?",
             isFinal: false,
             startAt: max(0, endAt - partialWindow),
             endAt: endAt
