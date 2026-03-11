@@ -5,10 +5,13 @@ on:
     branches: main
   pull_request:
 
+env:
+  BRANCH_NAME: ${{ github.head_ref || github.ref_name }}
+
 jobs:
-  format:
+  lint:
     runs-on: macos-latest
-    name: Format
+    name: Lint
     steps:
       - name: Checkout Code
         uses: actions/checkout@v4
@@ -48,62 +51,50 @@ jobs:
           echo "count=$COUNT" >> "$GITHUB_OUTPUT"
 
       - name: Run swift-format
-        if: ${{ steps.changed.outputs.count != '0' }}
+        if: ${{ !cancelled() && steps.changed.outputs.count != '0' }}
         shell: bash
         run: |
           set -euo pipefail
           SWIFTFORMAT="$(xcrun --find swift-format)"
           "$SWIFTFORMAT" lint --strict --parallel $(cat changed_swift_files.txt)
+
+      - name: Install SwiftLint
+        if: ${{ !cancelled() && steps.changed.outputs.count != '0' }}
+        run: brew install swiftlint
+  
+      - name: Run SwiftLint
+        if: ${{ !cancelled() && steps.changed.outputs.count != '0' }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          swiftlint lint --strict $(cat changed_swift_files.txt)
           
-  lint:
-    runs-on: ubuntu-latest
-    name: Lint
+  test:
+    runs-on: macos-26
+    name: Test
     steps:
       - name: Checkout Code
         uses: actions/checkout@v4
         
-      - name: Run SwiftLint
-        uses: norio-nomura/action-swiftlint@3.2.1
-        with:
-          args: --strict
-        env:
-          DIFF_BASE: ${{ github.base_ref }}
-          WORKING_DIRECTORY: src
-          
-  test:
-    runs-on: macos-26
-    name: Unit Tests
-    steps:
-      - name: Checkout Code
-        uses: actions/checkout@v4
-
-      - name: Cache Homebrew
-        uses: actions/cache@v4
-        with:
-          path: |
-            /usr/local/Homebrew
-            ~/Library/Caches/Homebrew
-          key: ${{ runner.os }}-brew-xcbeautify
-
       - name: Install xcbeautify
-        run: brew install xcbeautify || true
-
-      - name: Cache Swift PM
+        run: brew install xcbeautify
+  
+      - name: Cache Xcode DerivedData
         uses: actions/cache@v4
         with:
-          path: .build
-          key: ${{ runner.os }}-spm-${{ hashFiles('**/Package.resolved', '**/project.pbxproj') }}
+          path: ~/Library/Developer/Xcode/DerivedData
+          key: ${{ runner.os }}-deriveddata-${{ env.BRANCH_NAME }}
           restore-keys: |
-            ${{ runner.os }}-spm-
-
+            ${{ runner.os }}-deriveddata-
+  
       - name: Select Xcode 26.3
         run: sudo xcode-select -s /Applications/Xcode_26.3.app/Contents/Developer
 
-      - name: Boot Simulator
+      - name: Boot Vision Pro Simulator
         run: |
-          # Booting in background while SPM resolves saves time.
-          xcrun simctl boot "Apple Vision Pro" || true
-
+          UDID=$(xcrun simctl list devices available | grep "Apple Vision Pro" | head -n1 | awk -F '[()]' '{print $2}')
+          xcrun simctl boot "$UDID" || true
+  
       - name: Run Unit Tests
         working-directory: ./src
         run: |
@@ -111,6 +102,8 @@ jobs:
           xcodebuild test \
             -scheme MixedRealityTests \
             -destination 'platform=visionOS Simulator,name=Apple Vision Pro' \
-            -derivedDataPath '../build' \
-            -resultBundlePath 'TestResults.xcresult' \
-            -parallel-testing-enabled NO | xcbeautify --renderer github-actions
+            -resultBundlePath TestResults.xcresult \
+            -parallelizeTargets \
+            -parallel-testing-enabled YES \
+            COMPILER_INDEX_STORE_ENABLE=NO \
+          | xcbeautify --renderer github-actions
