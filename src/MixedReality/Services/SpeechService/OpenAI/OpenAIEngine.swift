@@ -66,6 +66,7 @@ private struct TranscriptionPartial: Codable {
 struct SpeechFragment {
     let startTime: TimeInterval
     var content: String
+    var lastUpdated: Date = Date()
     
     // You could even calculate duration on the fly if needed
     func relativeTimestamp(from sessionStart: Date) -> TimeInterval {
@@ -371,11 +372,22 @@ class OpenAIEngine: NSObject, SpeechEngine, WebSocketDelegate {
     private func handleTranscriptionPartial(data: Data) async throws {
         let event = try jsonDecoder.decode(TranscriptionPartial.self, from: data)
 
+        // Set a TTL for partials
+        let ttl: TimeInterval = 60 // seconds
+        let currTime = Date()
+        
+        // Remove items older than TTL seconds
+        partialTranscripts = partialTranscripts.filter { _, fragment in
+            currTime.timeIntervalSince(fragment.lastUpdated) < ttl
+        }
+
         var existing = partialTranscripts[event.item_id] ?? SpeechFragment(
             startTime: Date().timeIntervalSince(sessionStartTime),
             content: ""
         )
+        
         existing.content += event.delta
+        existing.lastUpdated = currTime
         partialTranscripts[event.item_id] = existing
 
         let trimmedText = existing.content.trimmingCharacters(in: .whitespaces)
