@@ -10,7 +10,7 @@ protocol AudioAnonymizer {
     /// Takes the recorded conversation file, processes it, and returns the output URL.
     /// - Parameters:
     ///   - inputURL: The original recorded audio file
-    ///   - artifacts: Used for logging and resolving output file URLs
+    ///   - outputURL: The intended URL for the anonymized output file
     /// - Returns: The URL of the anonymized output file
-    func anonymize(inputURL: URL, artifacts: ArtifactService) async throws -> URL?
+    func anonymize(inputURL: URL, outputURL: URL) async throws -> URL?
 }

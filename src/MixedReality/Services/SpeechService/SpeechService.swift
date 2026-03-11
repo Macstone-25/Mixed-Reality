@@ -25,7 +25,11 @@ class SpeechService {
 
     /// Fired any time a transcript chunk is received from the active SpeechEngine
     var transcriptChunkEvent: AnyPublisher<TranscriptChunk, Never> {
-        engine.transcriptChunkEvent.eraseToAnyPublisher()
+        engine.transcriptChunkEvent
+            .handleEvents(receiveOutput: { [weak self] chunk in
+                self?.logChunk(chunk)
+            })
+            .eraseToAnyPublisher()
     }
 
     private let engine: SpeechEngine
@@ -40,6 +44,7 @@ class SpeechService {
     private let assetWriter: AVAssetWriter
     private let assetWriterInput: AVAssetWriterInput
     private let conversationFileURL: URL
+    private let outputName: String
 
     init(
         engine: SpeechEngines,
@@ -89,6 +94,7 @@ class SpeechService {
         /// Create AssetWriter
         let fileURL = try await artifacts.getFileURL(name: "Conversation.m4a")
         self.conversationFileURL = fileURL
+        self.outputName = "Anonymized_Conversation.m4a"
 
         assetWriter = try AVAssetWriter(outputURL: fileURL, fileType: .m4a)
 
@@ -167,14 +173,27 @@ class SpeechService {
 
             if let anonymizer {
                 do {
-                    let outputURL = try await anonymizer.anonymize(
+                    let outputURL = try await artifacts.getFileURL(name: outputName)
+                    let finalURL = try await anonymizer.anonymize(
                         inputURL: conversationFileURL,
-                        artifacts: artifacts
+                        outputURL: outputURL
                     )
+                    
+                    // Log the success
                     await artifacts.logEvent(
                         type: "SpeechService",
-                        message: "Anonymization complete: \(outputURL?.lastPathComponent)"
+                        message: "Anonymization complete: \(finalURL?.lastPathComponent ?? "unknown")"
                     )
+                    
+                    // Delete the original file now that we have the anonymized version
+                    if finalURL != nil {
+                        try FileManager.default.removeItem(at: conversationFileURL)
+                        await artifacts.logEvent(
+                            type: "SpeechService",
+                            message: "Original file deleted: \(conversationFileURL.lastPathComponent)"
+                        )
+                    }
+                    
                 } catch {
                     await artifacts.logEvent(
                         type: "SpeechService",
@@ -255,6 +274,22 @@ class SpeechService {
             if assetWriter.status == .writing,
                assetWriterInput.isReadyForMoreMediaData {
                 assetWriterInput.append(sampleBuffer)
+            }
+        }
+    }
+
+    /// Helper to handle the logging logic
+    private func logChunk(_ chunk: TranscriptChunk) {
+        let timeRange = String(format: "(%.1fs - %.1fs)", chunk.startAt, chunk.endAt)
+        let status = chunk.isFinal ? "[FINAL]" : "[PARTIAL]"
+        let logMessage = "\(timeRange) \(status) \(chunk.text)"
+
+        logger.info("\(logMessage)")
+
+        // Only log to persistent artifacts if it's the final transcript
+        if chunk.isFinal {
+            Task {
+                await artifacts.logEvent(type: "Transcript", message: logMessage)
             }
         }
     }

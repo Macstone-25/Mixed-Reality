@@ -9,24 +9,15 @@ import OSLog
 
 class PitchShiftAnonymizer: AudioAnonymizer {
     private let logger = Logger(subsystem: "PitchShiftAnonymizer", category: "Services")
-
     private let semitones: Float
-    private let deleteOriginal: Bool
-    private let outputName: String
 
     init(
-        semitones: Float,
-        deleteOriginal: Bool = false,
-        outputName: String = "Conversation_Anonymized.m4a"
+        semitones: Float
     ) {
         self.semitones = semitones
-        self.deleteOriginal = deleteOriginal
-        self.outputName = outputName
     }
 
-    func anonymize(inputURL: URL, artifacts: ArtifactService) async throws -> URL? {
-        let outputURL = try await artifacts.getFileURL(name: outputName)
-
+    func anonymize(inputURL: URL, outputURL: URL) async throws -> URL? {
         let inputFile = try AVAudioFile(forReading: inputURL)
         let format = inputFile.processingFormat
 
@@ -75,17 +66,7 @@ class PitchShiftAnonymizer: AudioAnonymizer {
         engine.stop()
         engine.reset()
 
-        if deleteOriginal {
-            try? FileManager.default.removeItem(at: inputURL)
-            logger.info("Deleted original audio after anonymization")
-        }
-
         logger.info("Anonymized audio written to \(outputURL.lastPathComponent)")
-
-        await artifacts.logEvent(
-            type: "PitchShiftAnonymizer",
-            message: "Anonymized audio created: \(outputURL.lastPathComponent)"
-        )
 
         return outputURL
     }

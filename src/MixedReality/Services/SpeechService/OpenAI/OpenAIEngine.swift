@@ -63,6 +63,16 @@ private struct TranscriptionPartial: Codable {
     let delta: String
 }
 
+struct SpeechFragment {
+    let startTime: TimeInterval
+    var content: String
+    
+    // You could even calculate duration on the fly if needed
+    func relativeTimestamp(from sessionStart: Date) -> TimeInterval {
+        return Date().timeIntervalSince(sessionStart)
+    }
+}
+
 class OpenAIEngine: NSObject, SpeechEngine, WebSocketDelegate {
     private let logger = Logger(subsystem: "OpenAIRealtimeSpeechEngine", category: "Services")
 
@@ -89,7 +99,7 @@ class OpenAIEngine: NSObject, SpeechEngine, WebSocketDelegate {
     private var sessionStartTime: Date = Date()
 
     /// Tracks partial transcripts by item_id for delta accumulation
-    private var partialTranscripts: [String: String] = [:]
+    private var partialTranscripts: [String: SpeechFragment] = [:]
 
     private let jsonEncoder = JSONEncoder()
     private let jsonDecoder = JSONDecoder()
@@ -355,23 +365,20 @@ class OpenAIEngine: NSObject, SpeechEngine, WebSocketDelegate {
             endAt: endAt
         )
 
-        let timeRange = String(format: "(%.1fs - %.1fs)", chunk.startAt, chunk.endAt)
-        let logMessage = "\(timeRange) \(chunk)"
-
-        logger.info("\(logMessage)")
-        await artifacts.logEvent(type: "Transcript", message: logMessage)
-
         transcriptChunkEvent.send(chunk)
     }
 
     private func handleTranscriptionPartial(data: Data) async throws {
         let event = try jsonDecoder.decode(TranscriptionPartial.self, from: data)
 
-        let existing = partialTranscripts[event.item_id] ?? ""
-        let updated = existing + event.delta
-        partialTranscripts[event.item_id] = updated
+        var existing = partialTranscripts[event.item_id] ?? SpeechFragment(
+            startTime: Date().timeIntervalSince(sessionStartTime),
+            content: ""
+        )
+        existing.content += event.delta
+        partialTranscripts[event.item_id] = existing
 
-        let trimmedText = updated.trimmingCharacters(in: .whitespaces)
+        let trimmedText = existing.content.trimmingCharacters(in: .whitespaces)
         guard !trimmedText.isEmpty else { return }
 
         let endAt = Date().timeIntervalSince(sessionStartTime)
@@ -385,9 +392,6 @@ class OpenAIEngine: NSObject, SpeechEngine, WebSocketDelegate {
             startAt: max(0, endAt - partialWindow),
             endAt: endAt
         )
-
-        let timeRange = String(format: "(%.1fs - %.1fs)", chunk.startAt, chunk.endAt)
-        logger.info("\(timeRange) \(chunk)")
 
         transcriptChunkEvent.send(chunk)
     }

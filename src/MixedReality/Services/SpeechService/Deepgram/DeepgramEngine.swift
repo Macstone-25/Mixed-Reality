@@ -235,21 +235,6 @@ class DeepgramEngine: NSObject, SpeechEngine, WebSocketDelegate {
                 endAt: entry.end
             )
 
-            let timeRange = String(
-                format: "(%.1fs - %.1fs)",
-                chunk.startAt,
-                chunk.endAt
-            )
-
-            let logMessage = "\(timeRange) \(chunk)"
-
-            if chunk.isFinal {
-                logger.info("\(logMessage)")
-                await artifacts.logEvent(type: "Transcript", message: logMessage)
-            } else {
-                logger.info("\(logMessage)")
-            }
-
             transcriptChunkEvent.send(chunk)
         }
     }

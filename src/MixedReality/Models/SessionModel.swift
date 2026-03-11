@@ -45,8 +45,7 @@ class SessionModel {
             artifacts: self.artifacts,
             experiment: experiment,
             anonymizer: PitchShiftAnonymizer(
-                semitones: Float.random(in: -3 ... -1),
-                deleteOriginal: true
+                semitones: Float.random(in: -3 ... -1)
             )
         )
         
