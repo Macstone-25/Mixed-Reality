@@ -139,6 +139,8 @@ final class OpenAIProvider : LLMProvider {
                     return true
                 }
                 return (500 ... 599).contains(code)
+            case .runtimeError:
+                return false
             }
         }
 

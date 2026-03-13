@@ -7,11 +7,13 @@ import SwiftUI
 
 struct ConfigView: View {
     private let appModel: AppModel
+    private let onSave: () -> Void
     
     @StateObject private var viewModel: ConfigViewModel
     
-    init(_ appModel: AppModel) {
+    init(_ appModel: AppModel, onSave: @escaping () -> Void = {}) {
         self.appModel = appModel
+        self.onSave = onSave
         _viewModel = StateObject(wrappedValue: ConfigViewModel(appModel))
     }
     
@@ -125,6 +127,32 @@ struct ConfigView: View {
                             }
                         ))
                     }
+
+                    ForEach(GoogleModel.allCases, id: \.self) { (llm) in
+                        Toggle("\(llm.rawValue) (Google)", isOn: Binding<Bool>(
+                            get: { viewModel.config.selectedLLMs.contains(.google(llm)) },
+                            set: { isOn in
+                                if isOn {
+                                    viewModel.config.selectedLLMs.insert(.google(llm))
+                                } else {
+                                    viewModel.config.selectedLLMs.remove(.google(llm))
+                                }
+                            }
+                        ))
+                    }
+
+                    ForEach(AppleModel.allCases, id: \.self) { (llm) in
+                        Toggle("\(llm.rawValue) (Apple)", isOn: Binding<Bool>(
+                            get: { viewModel.config.selectedLLMs.contains(.apple(llm)) },
+                            set: { isOn in
+                                if isOn {
+                                    viewModel.config.selectedLLMs.insert(.apple(llm))
+                                } else {
+                                    viewModel.config.selectedLLMs.remove(.apple(llm))
+                                }
+                            }
+                        ))
+                    }
                 }
                 
                 Section("Mini AI Models") {
@@ -138,6 +166,32 @@ struct ConfigView: View {
                                     viewModel.config.selectedMiniLLMs.insert(.openAI(llm))
                                 } else {
                                     viewModel.config.selectedMiniLLMs.remove(.openAI(llm))
+                                }
+                            }
+                        ))
+                    }
+
+                    ForEach(GoogleModel.allCases, id: \.self) { (llm) in
+                        Toggle("\(llm.rawValue) (Google)", isOn: Binding<Bool>(
+                            get: { viewModel.config.selectedMiniLLMs.contains(.google(llm)) },
+                            set: { isOn in
+                                if isOn {
+                                    viewModel.config.selectedMiniLLMs.insert(.google(llm))
+                                } else {
+                                    viewModel.config.selectedMiniLLMs.remove(.google(llm))
+                                }
+                            }
+                        ))
+                    }
+
+                    ForEach(AppleModel.allCases, id: \.self) { (llm) in
+                        Toggle("\(llm.rawValue) (Apple)", isOn: Binding<Bool>(
+                            get: { viewModel.config.selectedMiniLLMs.contains(.apple(llm)) },
+                            set: { isOn in
+                                if isOn {
+                                    viewModel.config.selectedMiniLLMs.insert(.apple(llm))
+                                } else {
+                                    viewModel.config.selectedMiniLLMs.remove(.apple(llm))
                                 }
                             }
                         ))
@@ -167,6 +221,7 @@ struct ConfigView: View {
                 
                 Button("Save Changes") {
                     viewModel.applyChanges()
+                    onSave()
                 }
                 .buttonStyle(.borderedProminent)
                 .glassBackgroundEffect()
@@ -182,4 +237,3 @@ struct ConfigView: View {
         .frame(maxWidth: 750, maxHeight: 500)
         .glassBackgroundEffect()
 }
-

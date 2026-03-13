@@ -8,6 +8,8 @@ import OSLog
 
 enum LLMConfig: Hashable, Codable {
     case openAI(OpenAIModel)
+    case google(GoogleModel)
+    case apple(AppleModel)
 }
 
 class LLMService : LLMGenerator {
@@ -24,6 +26,10 @@ class LLMService : LLMGenerator {
         switch llm {
         case .openAI(let model):
             self.llmProvider = OpenAIProvider(artifacts: artifacts, experiment: experiment, model: model)
+        case .google(let model):
+            self.llmProvider = GoogleProvider(artifacts: artifacts, experiment: experiment, model: model)
+        case .apple(let model):
+            self.llmProvider = AppleProvider(artifacts: artifacts, experiment: experiment, model: model)
         }
     }
     
@@ -36,6 +42,9 @@ class LLMService : LLMGenerator {
         } catch LLMProviderError.httpError(let code, let body) {
             await artifacts.logEvent(type: "LLM", message: "HTTP Error: (\(code)) \(body)")
             throw LLMProviderError.httpError(code: code, body: body)
+        } catch LLMProviderError.runtimeError(let message) {
+            await artifacts.logEvent(type: "LLM", message: "Runtime Error: \(message)")
+            throw LLMProviderError.runtimeError(message)
         } catch {
             await artifacts.logEvent(type: "LLM", message: "Unknown Error: \(error.localizedDescription)")
             throw error
