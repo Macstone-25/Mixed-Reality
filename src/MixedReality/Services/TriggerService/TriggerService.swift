@@ -23,13 +23,15 @@ actor TriggerService {
     private let miniLLM: LLMService
     
     private let evaluators: [TriggerEvaluator]
-    private var evaluatorContext = Deque<TranscriptChunk>()
+    private var finalEvaluatorContext = Deque<TranscriptChunk>()
+    private var signalEvaluatorContext = Deque<TranscriptChunk>()
     private var evaluationTask: Task<Void, Never>?
     
     private var onTrigger: (@Sendable (InterventionEvent) -> (Void))?
     private var nextEventId: UInt64 = 1
     private var lastEventAt: Date = Date.distantPast
     private var lastChunk: TranscriptChunk?
+    private static let duplicateSuppressionThreshold: TimeInterval = 0.5
     
     init(artifacts: ArtifactService, experiment: ExperimentModel, speechService: SpeechService, miniLLM: LLMService) async {
         self.artifacts = artifacts
@@ -64,13 +66,20 @@ actor TriggerService {
     }
     
     func handleTranscriptChunk(chunk: TranscriptChunk) {
-        // Update context only for finalized chunks, but allow all chunks to drive
-        // trigger timing so evaluations are not delayed by endpointing finalization.
+        // Keep a final-only context for event payload quality.
         if chunk.isFinal {
-            evaluatorContext.insertSorted(chunk)
-            if evaluatorContext.count > experiment.triggerContext {
-                _ = evaluatorContext.popFirst()
+            finalEvaluatorContext.insertSorted(chunk)
+            if finalEvaluatorContext.count > experiment.triggerContext {
+                _ = finalEvaluatorContext.popFirst()
             }
+        }
+        
+        // Keep a larger signal context that includes interim updates to improve
+        // trigger reliability when fillers are dropped at finalization.
+        signalEvaluatorContext.insertSorted(chunk)
+        let signalContextLimit = max(experiment.triggerContext * 3, experiment.triggerContext + 5)
+        if signalEvaluatorContext.count > signalContextLimit {
+            _ = signalEvaluatorContext.popFirst()
         }
         
         // people usually pause to read prompts when they appear, so to avoid
@@ -82,13 +91,14 @@ actor TriggerService {
         // sometimes deepgram hesitates (1-2 seconds) to mark a chunk as final and will
         // "spam" the same chunk without any refinement during that period. we want to
         // ignore chunks without change to avoid unnecessarily delaying our triggers.
-        if chunk.text == lastChunk?.text && abs(chunk.endAt - (lastChunk?.endAt ?? 0)) < 0.5 {
+        if Self.shouldSuppressDuplicateChunk(chunk, comparedTo: lastChunk) {
             return
         }
         lastChunk = chunk
         
         // launch (or relaunch) evaluation
-        var chunkContext = Array(evaluatorContext)
+        var signalChunkContext = Array(signalEvaluatorContext)
+        var finalChunkContext = Array(finalEvaluatorContext)
         evaluationTask?.cancel()
         evaluationTask = Task { [weak self] in
             do {
@@ -103,7 +113,7 @@ actor TriggerService {
                     
                     for evaluator in evaluators {
                         group.addTask {
-                            return await evaluator.evaluate(chunk: chunk, context: chunkContext)
+                            return await evaluator.evaluate(chunk: chunk, context: signalChunkContext)
                         }
                     }
                     
@@ -125,8 +135,8 @@ actor TriggerService {
                 
                 // if an intervention reason was found, we need to trigger an event
                 
-                if chunk != chunkContext.last {
-                    chunkContext.append(chunk)
+                if chunk.isFinal && chunk != finalChunkContext.last {
+                    finalChunkContext.append(chunk)
                 }
                 
                 let at = Date.now
@@ -137,7 +147,7 @@ actor TriggerService {
                     id: id,
                     at: at,
                     reason: reason,
-                    context: chunkContext
+                    context: finalChunkContext
                 )
                 
                 let message = "(#\(event.id)) \(reasonString) @ \(String(format: "%.1f", chunk.endAt))s"
@@ -164,5 +174,14 @@ actor TriggerService {
         evaluationTask?.cancel()
         evaluationTask = nil
         logger.info("🔄 TriggerService restored after app foreground")
+    }
+    
+    nonisolated static func shouldSuppressDuplicateChunk(_ chunk: TranscriptChunk, comparedTo lastChunk: TranscriptChunk?) -> Bool {
+        guard let lastChunk else { return false }
+        guard chunk.text == lastChunk.text else { return false }
+        guard abs(chunk.endAt - lastChunk.endAt) < duplicateSuppressionThreshold else { return false }
+        
+        // Preserve rapid filler-only updates to improve recall for hesitation bursts.
+        return !chunk.isOnlyRepeatedFillerWords
     }
 }

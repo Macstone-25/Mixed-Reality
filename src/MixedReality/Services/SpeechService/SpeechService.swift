@@ -8,7 +8,6 @@ import Combine
 import Starscream
 import AVFoundation
 import OSLog
-import os
 
 /// Standard message envelope indicating the message type (e.g. Results, SpeechStarted, ...)
 private struct DeepgramEnvelope: Codable {
@@ -50,8 +49,50 @@ enum AudioAnonymizationPolicy {
     case pitchShift(semitones: Float, deleteOriginal: Bool)
 }
 
+final class PreConnectPCMBuffer {
+    private let queue = DispatchQueue(label: "SpeechService.PreConnectPCMBuffer")
+    private let byteCapacity: Int
+    private var frames: [Data] = []
+    private var totalBytes: Int = 0
+    
+    init(sampleRate: Double, channelCount: AVAudioChannelCount, durationSeconds: TimeInterval = 2.0) {
+        let channels = max(Int(channelCount), 1)
+        let bytesPerSecond = Int(sampleRate) * channels * MemoryLayout<Int16>.size
+        self.byteCapacity = max(Int(Double(bytesPerSecond) * durationSeconds), bytesPerSecond)
+    }
+    
+    @discardableResult
+    func enqueue(_ frame: Data) -> Int {
+        queue.sync {
+            frames.append(frame)
+            totalBytes += frame.count
+            
+            while totalBytes > byteCapacity, let first = frames.first {
+                totalBytes -= first.count
+                frames.removeFirst()
+            }
+            
+            return frames.count
+        }
+    }
+    
+    func drain() -> [Data] {
+        queue.sync {
+            let queuedFrames = frames
+            frames.removeAll(keepingCapacity: true)
+            totalBytes = 0
+            return queuedFrames
+        }
+    }
+    
+    func clear() {
+        _ = drain()
+    }
+}
+
 class SpeechService: WebSocketDelegate {
     private let logger = Logger(subsystem: "SpeechService", category: "Services")
+    private static let inputTapBufferSize: AVAudioFrameCount = 2048
     
     private let artifacts: ArtifactService
     private let experiment: ExperimentModel
@@ -75,6 +116,7 @@ class SpeechService: WebSocketDelegate {
     private let conversationFileURL: URL
     
     private let jsonDecoder = JSONDecoder()
+    private let preConnectPCMBuffer: PreConnectPCMBuffer
     
     init(
         artifacts: ArtifactService,
@@ -119,6 +161,11 @@ class SpeechService: WebSocketDelegate {
                 "Invalid input format — channels: \(audioFormat.channelCount), sample rate: \(audioFormat.sampleRate)"
             )
         }
+        
+        preConnectPCMBuffer = PreConnectPCMBuffer(
+            sampleRate: audioFormat.sampleRate,
+            channelCount: config.channels
+        )
         
         let sr = audioFormat.sampleRate
         let safeSampleRate: Double = (sr == 44_100 || sr == 48_000) ? sr : 48_000
@@ -176,6 +223,7 @@ class SpeechService: WebSocketDelegate {
         }
         
         try AVAudioSession.sharedInstance().setActive(true, options: .notifyOthersOnDeactivation)
+        
         installInputTapIfNeeded()
 
         if !audioEngine.isRunning {
@@ -215,6 +263,7 @@ class SpeechService: WebSocketDelegate {
         keepAliveTimer = nil
         
         socket.disconnect(closeCode: 1000)
+        preConnectPCMBuffer.clear()
         
         await assetWriter.finishWriting()
         
@@ -302,20 +351,24 @@ class SpeechService: WebSocketDelegate {
             case .connected:
                 isConnected = true
                 await artifacts.logEvent(type: "Deepgram", message: "WebSocket connected")
+                await flushQueuedPCMIfNeeded()
             case .peerClosed:
                 isConnected = false
                 keepAliveTimer?.invalidate()
                 keepAliveTimer = nil
+                preConnectPCMBuffer.clear()
                 await artifacts.logEvent(type: "Deepgram", message: "WebSocket closed")
             case .cancelled:
                 isConnected = false
                 keepAliveTimer?.invalidate()
                 keepAliveTimer = nil
+                preConnectPCMBuffer.clear()
                 await artifacts.logEvent(type: "Deepgram", message: "WebSocket cancelled")
             case .disconnected(let reason, let code):
                 isConnected = false
                 keepAliveTimer?.invalidate()
                 keepAliveTimer = nil
+                preConnectPCMBuffer.clear()
                 await artifacts.logEvent(
                     type: "Deepgram",
                     message: "WebSocket disconnected (\(code)): \(reason)"
@@ -374,7 +427,7 @@ class SpeechService: WebSocketDelegate {
 
         audioEngine.inputNode.installTap(
             onBus: 0,
-            bufferSize: 4096,
+            bufferSize: Self.inputTapBufferSize,
             format: audioFormat
         ) { [weak self] buffer, time in
             self?.processAudioBuffer(buffer: buffer, time: time)
@@ -388,11 +441,15 @@ class SpeechService: WebSocketDelegate {
         guard isActive else { return }
         
         /// Send audio buffer to Deepgram via WebSocket (in PCM16 format)
-        if isConnected, let pcmData = AudioBufferUtils.convertBufferToPCM16(
+        if let pcmData = AudioBufferUtils.convertBufferToPCM16(
             buffer: buffer,
             targetChannelCount: config.channels
         ) {
-            socket.write(data: pcmData)
+            if isConnected {
+                socket.write(data: pcmData)
+            } else {
+                _ = preConnectPCMBuffer.enqueue(pcmData)
+            }
         }
         
         /// Send audio buffer to asset writer (in native format)
@@ -472,6 +529,16 @@ class SpeechService: WebSocketDelegate {
             }
             
             transcriptChunkEvent.send(chunk)
+        }
+    }
+    
+    private func flushQueuedPCMIfNeeded() async {
+        let queuedFrames = preConnectPCMBuffer.drain()
+        guard !queuedFrames.isEmpty else { return }
+
+        for frame in queuedFrames {
+            if !isConnected { break }
+            socket.write(data: frame)
         }
     }
     

@@ -7,6 +7,8 @@ import Collections
 
 /// One piece of transcript coming from ASR (partial or final).
 public struct TranscriptChunk: Sendable, Codable, Hashable, CustomStringConvertible {
+    nonisolated private static let sentenceBoundaryCharacters = CharacterSet(charactersIn: ".!?")
+    
     /// The speech recognized for this chunk.
     public let text: String
     
@@ -39,13 +41,15 @@ public struct TranscriptChunk: Sendable, Codable, Hashable, CustomStringConverti
             .joined(separator: " ")
             .lowercased()
     }
+    
+    /// Lowercased words with punctuation removed.
+    var words: [String] {
+        TranscriptChunk.normalizedWords(in: text)
+    }
 
     /// Number of words (simple whitespace split).
     public var wordCount: Int {
-        plainText
-            .components(separatedBy: CharacterSet.whitespacesAndNewlines)
-            .filter({ !$0.isEmpty })
-            .count
+        words.count
     }
 
     /// A list of words classified as fillers / hesitation.
@@ -53,6 +57,75 @@ public struct TranscriptChunk: Sendable, Codable, Hashable, CustomStringConverti
     private static let fillerWords: Set<String> = [
         "um", "umm", "uh", "uhh", "oh", "hm", "hmm", "er", "ah", "like", "huh"
     ]
+    
+    /// Words that should only count when repeated several times in a row.
+    private static let repeatedOnlyFillerWords: Set<String> = [
+        "and"
+    ]
+    
+    private static let repeatedFillerWords = fillerWords.union(repeatedOnlyFillerWords)
+    
+    nonisolated private static func normalizedWords(in text: String) -> [String] {
+        text
+            .components(separatedBy: CharacterSet.punctuationCharacters)
+            .joined()
+            .components(separatedBy: CharacterSet.whitespacesAndNewlines)
+            .filter({ !$0.isEmpty })
+            .map({ $0.lowercased() })
+    }
+    
+    nonisolated static func repeatedFillerFamily(for word: String) -> String? {
+        guard repeatedFillerWords.contains(word) else { return nil }
+        
+        switch word {
+        case "um", "umm":
+            return "um"
+        case "uh", "uhh":
+            return "uh"
+        case "hm", "hmm":
+            return "hm"
+        default:
+            return word
+        }
+    }
+    
+    nonisolated static func repeatedNormalizedFillerFamilyRun(in families: [String], minCount: Int = 3) -> [String]? {
+        var currentFamily: String?
+        var currentCount = 0
+        
+        for family in families {
+            if family == currentFamily {
+                currentCount += 1
+            } else {
+                currentFamily = family
+                currentCount = 1
+            }
+            
+            if currentCount >= minCount, let currentFamily {
+                return Array(repeating: currentFamily, count: currentCount)
+            }
+        }
+        
+        return nil
+    }
+    
+    nonisolated static func repeatedFillerFamilyRun(in words: [String], minCount: Int = 3) -> [String]? {
+        var normalizedFamilies = [String]()
+        
+        for word in words {
+            guard let family = repeatedFillerFamily(for: word) else {
+                if let run = repeatedNormalizedFillerFamilyRun(in: normalizedFamilies, minCount: minCount) {
+                    return run
+                }
+                normalizedFamilies.removeAll(keepingCapacity: true)
+                continue
+            }
+            
+            normalizedFamilies.append(family)
+        }
+        
+        return repeatedNormalizedFillerFamilyRun(in: normalizedFamilies, minCount: minCount)
+    }
     
     /// True if the chunk is only a filler / hesitation word.
     public var isFiller: Bool {
@@ -63,7 +136,50 @@ public struct TranscriptChunk: Sendable, Codable, Hashable, CustomStringConverti
     /// True if the chunk ends with a filler / hesitation word.
     public var endsWithFiller: Bool {
         // TODO: make this more advanced with a small LLM
-        TranscriptChunk.fillerWords.contains(plainText.components(separatedBy: CharacterSet.whitespacesAndNewlines).last ?? "")
+        TranscriptChunk.fillerWords.contains(words.last ?? "")
+    }
+    
+    var endsSentence: Bool {
+        let trimmed = text.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard let lastCharacter = trimmed.last else { return false }
+        return ".!?".contains(lastCharacter)
+    }
+    
+    private var sentenceWordGroups: [[String]] {
+        text
+            .components(separatedBy: TranscriptChunk.sentenceBoundaryCharacters)
+            .map(TranscriptChunk.normalizedWords(in:))
+            .filter({ !$0.isEmpty })
+    }
+    
+    var hasSentenceBoundaryBeforeLastSentence: Bool {
+        sentenceWordGroups.count > 1
+    }
+    
+    var lastSentenceWords: [String] {
+        sentenceWordGroups.last ?? words
+    }
+    
+    var lastSentenceNormalizedFillerWords: [String] {
+        lastSentenceWords.compactMap(TranscriptChunk.repeatedFillerFamily(for:))
+    }
+    
+    var normalizedRepeatedFillerWords: [String] {
+        words.compactMap(TranscriptChunk.repeatedFillerFamily(for:))
+    }
+    
+    var isOnlyRepeatedFillerWords: Bool {
+        !words.isEmpty && words.count == normalizedRepeatedFillerWords.count
+    }
+    
+    /// Returns a consecutive run of repeated filler families, if present.
+    func repeatedFillerFamilyRun(minCount: Int = 3) -> [String]? {
+        TranscriptChunk.repeatedFillerFamilyRun(in: words, minCount: minCount)
+    }
+    
+    /// Backward-compatible alias for repeated filler-family runs.
+    func repeatedFillerRun(minCount: Int = 3) -> [String]? {
+        repeatedFillerFamilyRun(minCount: minCount)
     }
 }
 
