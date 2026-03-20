@@ -25,6 +25,7 @@
 /* End PBXContainerItemProxy section */
 
 /* Begin PBXFileReference section */
+		7A3E4A942FFB100100B8A001 /* Config.xcconfig */ = {isa = PBXFileReference; lastKnownFileType = text.xcconfig; path = Config.xcconfig; sourceTree = "<group>"; };
 		9B64710C2ECD3D7B0032BC9D /* MixedReality.xcodeproj */ = {isa = PBXFileReference; lastKnownFileType = "wrapper.pb-project"; path = MixedReality.xcodeproj; sourceTree = "<group>"; };
 		9B64712C2ECD408D0032BC9D /* MixedRealityTests.xctest */ = {isa = PBXFileReference; explicitFileType = wrapper.cfbundle; includeInIndex = 0; path = MixedRealityTests.xctest; sourceTree = BUILT_PRODUCTS_DIR; };
 		9B9B4CB22EB2E29700073840 /* MRCS.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = MRCS.app; sourceTree = BUILT_PRODUCTS_DIR; };
@@ -86,7 +87,7 @@
 		9B9B4CA92EB2E29700073840 = {
 			isa = PBXGroup;
 			children = (
-				FAC66E0C2F5A3B7E002C7FFC /* Config.xcconfig */,
+				7A3E4A942FFB100100B8A001 /* Config.xcconfig */,
 				9B9B4CB42EB2E29700073840 /* MixedReality */,
 				9B64712D2ECD408D0032BC9D /* MixedRealityTests */,
 				9B9B4CB32EB2E29700073840 /* Products */,
