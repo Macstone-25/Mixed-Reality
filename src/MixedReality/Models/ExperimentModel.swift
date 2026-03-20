@@ -10,6 +10,9 @@ enum ExperimentError: Error {
 }
 
 struct ExperimentModel: Encodable {
+    /// Controls the Speech Engine to be used for STT
+    let speechEngine: SpeechEngines
+    
     /// Controls the LLM to be used for general tasks
     let llm: LLMConfig
     
@@ -47,6 +50,11 @@ struct ExperimentModel: Encodable {
             throw ExperimentError.insufficientOptions("No mini LLMs selected")
         }
         self.miniLLM = miniLLM
+        
+        guard let speechEngine = config.selectedSpeechEngines.randomElement() else {
+            throw ExperimentError.insufficientOptions("No Speech Engine selected")
+        }
+        self.speechEngine = speechEngine
         
         guard !config.selectedTriggerEvaluationStrategies.isEmpty else {
             throw ExperimentError.insufficientOptions("No trigger evaluators selected")
