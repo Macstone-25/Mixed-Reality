@@ -30,6 +30,12 @@ class LLMService : LLMGenerator {
     func generate(systemPrompt: String, userPrompt: String) async throws -> String {
         do {
             return try await llmProvider.generate(systemPrompt: systemPrompt, userPrompt: userPrompt)
+        } catch is CancellationError {
+            await artifacts.logEvent(type: "LLM", message: "Request cancelled")
+            throw CancellationError()
+        } catch let error as URLError where error.code == .cancelled {
+            await artifacts.logEvent(type: "LLM", message: "Request cancelled")
+            throw CancellationError()
         } catch LLMProviderError.noResponse {
             await artifacts.logEvent(type: "LLM", message: "Connection Error: No response")
             throw LLMProviderError.noResponse

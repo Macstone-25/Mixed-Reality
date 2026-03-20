@@ -106,6 +106,8 @@ struct ConfigView: View {
                     Pause Evaluator: Triggers after a fixed duration of silence.
                         
                     Filler Evaluator: Triggers after 3 sequential sentences ending with a filler word (e.g. "hm", "um", "uh").
+                        
+                    LLM Evaluator: Uses the selected mini AI model to evaluate recent transcript context and decide whether an intervention should be triggered.
                     """)
                         .font(.caption)
                 }
@@ -182,4 +184,3 @@ struct ConfigView: View {
         .frame(maxWidth: 750, maxHeight: 500)
         .glassBackgroundEffect()
 }
-
