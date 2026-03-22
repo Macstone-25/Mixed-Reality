@@ -129,13 +129,11 @@ public struct TranscriptChunk: Sendable, Codable, Hashable, CustomStringConverti
     
     /// True if the chunk is only a filler / hesitation word.
     public var isFiller: Bool {
-        // TODO: make this more advanced with a small LLM
         TranscriptChunk.fillerWords.contains(plainText)
     }
 
     /// True if the chunk ends with a filler / hesitation word.
     public var endsWithFiller: Bool {
-        // TODO: make this more advanced with a small LLM
         TranscriptChunk.fillerWords.contains(words.last ?? "")
     }
     
