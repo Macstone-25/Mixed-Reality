@@ -353,16 +353,24 @@ class OpenAIEngine: NSObject, SpeechEngine, WebSocketDelegate {
         let trimmedText = event.transcript.trimmingCharacters(in: .whitespaces)
         guard !trimmedText.isEmpty else { return }
 
-        partialTranscripts.removeValue(forKey: event.item_id)
-
         let endAt = Date().timeIntervalSince(sessionStartTime)
-        let speechDuration = estimatedSpeechDuration(for: trimmedText)
+        
+        // Use the start time we captured when the first delta arrived,
+        // falling back to a word-rate estimate if we somehow missed all deltas
+        let startAt: TimeInterval
+        if let fragment = partialTranscripts[event.item_id] {
+            startAt = fragment.startTime
+        } else {
+            startAt = max(0, endAt - estimatedSpeechDuration(for: trimmedText))
+        }
+        
+        partialTranscripts.removeValue(forKey: event.item_id)
 
         let chunk = TranscriptChunk(
             text: trimmedText,
             speakerID: "Speaker:User",
             isFinal: true,
-            startAt: max(0, endAt - speechDuration),
+            startAt: startAt,
             endAt: endAt
         )
 
