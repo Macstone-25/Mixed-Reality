@@ -39,6 +39,11 @@ struct ConfigModel: Codable {
         .openAI(.gpt_4_1_mini),
     ]
     
+    var selectedSpeechEngines: Set<SpeechEngines> = [
+        .openai,
+        .deepgram
+    ]
+  
     var isDeleteEnabled: Bool = false
 }
 
