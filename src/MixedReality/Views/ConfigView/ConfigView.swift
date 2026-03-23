@@ -130,7 +130,7 @@ struct ConfigView: View {
                         ))
                     }
 
-                    ForEach(GoogleModel.allCases, id: \.self) { (llm) in
+                    ForEach(GoogleModel.selectableCases, id: \.self) { (llm) in
                         Toggle("\(llm.rawValue) (Google)", isOn: Binding<Bool>(
                             get: { viewModel.config.selectedLLMs.contains(.google(llm)) },
                             set: { isOn in
@@ -173,7 +173,7 @@ struct ConfigView: View {
                         ))
                     }
 
-                    ForEach(GoogleModel.allCases, id: \.self) { (llm) in
+                    ForEach(GoogleModel.selectableCases, id: \.self) { (llm) in
                         Toggle("\(llm.rawValue) (Google)", isOn: Binding<Bool>(
                             get: { viewModel.config.selectedMiniLLMs.contains(.google(llm)) },
                             set: { isOn in

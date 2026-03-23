@@ -5,11 +5,11 @@
 
 import Foundation
 
-enum GoogleModel: String, Codable, CaseIterable {
+enum GoogleModel: String, Codable {
     case gemini_2_5_flash = "gemini-2.5-flash"
     case gemini_2_5_pro = "gemini-2.5-pro"
 
-    static var allCases: [GoogleModel] {
+    static var selectableCases: [GoogleModel] {
         [.gemini_2_5_flash]
     }
 }

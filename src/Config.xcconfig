@@ -1,0 +1,6 @@
+#include? "Config.local.xcconfig"
+
+// Safe defaults for clean checkouts and CI. Override locally in Config.local.xcconfig.
+DEEPGRAM_API_KEY =
+OPENAI_API_KEY =
+GEMINI_API_KEY =
