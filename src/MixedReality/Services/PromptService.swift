@@ -62,6 +62,17 @@ actor PromptService {
         - Summarize topics in chronological order so that it will be easier to discard stale information in future summary updates.
         - Do not reference speaker numbers, as these are volatile and inaccurate.
         """
+
+    private static let retrySystemPrompt = """
+        Your previous draft was invalid because it sounded like dialogue from one of the speakers instead of coaching text for the user.
+
+        Retry and follow these extra rules:
+        - Start with coaching language such as "You could..." or "You were talking about...".
+        - Do not greet anyone.
+        - Do not use first-person dialogue such as "I", "I'm", "I've", "my", "me", "we", or "our".
+        - Do not repeat or closely paraphrase the transcript.
+        - Output only one sentence of coaching text.
+        """
     
     init(artifacts: ArtifactService, experiment: ExperimentModel, llm: LLMService, miniLLM: LLMService, speechService: SpeechService) {
         self.artifacts = artifacts
@@ -149,10 +160,7 @@ actor PromptService {
 
         do {
             let start = CFAbsoluteTimeGetCurrent()
-            let prompt = try await self.llm.generate(
-                systemPrompt: Self.systemPrompt,
-                userPrompt: promptContext
-            )
+            let prompt = try await generateValidatedPrompt(promptContext: promptContext, transcriptSnapshot: Array(snapshot))
             let end = CFAbsoluteTimeGetCurrent()
             let duration = String(format: "%.1f", end - start)
             await self.artifacts.logEvent(type: "Prompt", message: "(#\(eventId)) (\(duration)s delay) \"\(prompt)\"")
@@ -162,4 +170,97 @@ actor PromptService {
             return "Failed to generate prompt."
         }
     }
+
+    private func generateValidatedPrompt(promptContext: String, transcriptSnapshot: [TranscriptChunk]) async throws -> String {
+        let firstAttempt = try await self.llm.generate(
+            systemPrompt: Self.systemPrompt,
+            userPrompt: promptContext
+        )
+
+        guard shouldRetryPrompt(firstAttempt, transcriptSnapshot: transcriptSnapshot) else {
+            return firstAttempt
+        }
+
+        await self.artifacts.logEvent(
+            type: "Prompt",
+            message: "Rejected participant-style prompt draft; retrying with stricter coaching instructions"
+        )
+
+        let retryUserPrompt = """
+            \(promptContext)
+
+            Rejected draft:
+            \(firstAttempt)
+
+            Generate a replacement that follows all instructions.
+            """
+
+        return try await self.llm.generate(
+            systemPrompt: Self.systemPrompt + "\n\n" + Self.retrySystemPrompt,
+            userPrompt: retryUserPrompt
+        )
+    }
+
+    private func shouldRetryPrompt(_ prompt: String, transcriptSnapshot: [TranscriptChunk]) -> Bool {
+        let normalizedPrompt = normalizeText(prompt)
+        guard !normalizedPrompt.isEmpty else { return true }
+
+        let firstPersonMarkers = [
+            " i ",
+            " i'm ",
+            " ive ",
+            " i've ",
+            " i'd ",
+            " i'll ",
+            " my ",
+            " me ",
+            " we ",
+            " our "
+        ]
+
+        let paddedPrompt = " \(normalizedPrompt) "
+        if firstPersonMarkers.contains(where: { paddedPrompt.contains($0) }) {
+            return true
+        }
+
+        let greetingPrefixes = [
+            "hello",
+            "hi",
+            "good morning",
+            "good afternoon",
+            "good evening"
+        ]
+        if greetingPrefixes.contains(where: { normalizedPrompt.hasPrefix($0) }) {
+            return true
+        }
+
+        let recentTexts = transcriptSnapshot.map { normalizeText($0.text) }.filter { !$0.isEmpty }
+        if recentTexts.contains(where: { $0 == normalizedPrompt || $0.contains(normalizedPrompt) || normalizedPrompt.contains($0) }) {
+            return true
+        }
+
+        if recentTexts.contains(where: { tokenOverlap(normalizedPrompt, $0) >= 0.7 }) {
+            return true
+        }
+
+        return false
+    }
+
+    private func normalizeText(_ text: String) -> String {
+        text
+            .lowercased()
+            .replacingOccurrences(of: "[^a-z0-9\\s]", with: " ", options: .regularExpression)
+            .replacingOccurrences(of: "\\s+", with: " ", options: .regularExpression)
+            .trimmingCharacters(in: .whitespacesAndNewlines)
+    }
+
+    private func tokenOverlap(_ lhs: String, _ rhs: String) -> Double {
+        let lhsTokens = Set(lhs.split(separator: " ").map(String.init))
+        let rhsTokens = Set(rhs.split(separator: " ").map(String.init))
+        guard !lhsTokens.isEmpty, !rhsTokens.isEmpty else { return 0 }
+
+        let intersection = lhsTokens.intersection(rhsTokens).count
+        return Double(intersection) / Double(min(lhsTokens.count, rhsTokens.count))
+    }
+
 }
