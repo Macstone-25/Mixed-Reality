@@ -48,9 +48,7 @@ extension ConfigModel {
     private static let storageKey = "ConfigModel.storage"
 
     func save() {
-        let sanitized = sanitizedForCurrentModels()
-
-        if let data = try? JSONEncoder().encode(sanitized) {
+        if let data = try? JSONEncoder().encode(self) {
             UserDefaults.standard.set(data, forKey: Self.storageKey)
         }
     }
@@ -62,25 +60,6 @@ extension ConfigModel {
         else {
             return `default`
         }
-        return config.sanitizedForCurrentModels()
-    }
-
-    private func sanitizedForCurrentModels() -> ConfigModel {
-        var config = self
-        let removedLargePro = config.selectedLLMs.contains(.google(.gemini_2_5_pro))
-        let removedMiniPro = config.selectedMiniLLMs.contains(.google(.gemini_2_5_pro))
-
-        config.selectedLLMs.remove(.google(.gemini_2_5_pro))
-        config.selectedMiniLLMs.remove(.google(.gemini_2_5_pro))
-
-        if removedLargePro && config.selectedLLMs.isEmpty {
-            config.selectedLLMs = [.google(.gemini_2_5_flash)]
-        }
-
-        if removedMiniPro && config.selectedMiniLLMs.isEmpty {
-            config.selectedMiniLLMs = [.google(.gemini_2_5_flash)]
-        }
-
         return config
     }
 }

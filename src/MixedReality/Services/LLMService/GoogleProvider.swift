@@ -5,13 +5,9 @@
 
 import Foundation
 
-enum GoogleModel: String, Codable {
+enum GoogleModel: String, Codable, CaseIterable {
     case gemini_2_5_flash = "gemini-2.5-flash"
     case gemini_2_5_pro = "gemini-2.5-pro"
-
-    static var selectableCases: [GoogleModel] {
-        [.gemini_2_5_flash]
-    }
 }
 
 private struct GoogleGenerateContentRequest: Encodable {
