@@ -23,8 +23,7 @@ actor TriggerService {
     private let miniLLM: LLMService
     
     private let evaluators: [TriggerEvaluator]
-    private var finalEvaluatorContext = Deque<TranscriptChunk>()
-    private var signalEvaluatorContext = Deque<TranscriptChunk>()
+    private var evaluatorContext = Deque<TranscriptChunk>()
     private var evaluationTask: Task<Void, Never>?
     
     private var onTrigger: (@Sendable (InterventionEvent) -> (Void))?
@@ -66,20 +65,9 @@ actor TriggerService {
     }
     
     func handleTranscriptChunk(chunk: TranscriptChunk) {
-        // Keep a final-only context for event payload quality.
-        if chunk.isFinal {
-            finalEvaluatorContext.insertSorted(chunk)
-            if finalEvaluatorContext.count > experiment.triggerContext {
-                _ = finalEvaluatorContext.popFirst()
-            }
-        }
-        
-        // Keep a larger signal context that includes interim updates to improve
-        // trigger reliability when fillers are dropped at finalization.
-        signalEvaluatorContext.insertSorted(chunk)
-        let signalContextLimit = max(experiment.triggerContext * 3, experiment.triggerContext + 5)
-        if signalEvaluatorContext.count > signalContextLimit {
-            _ = signalEvaluatorContext.popFirst()
+        evaluatorContext.insertSorted(chunk)
+        if evaluatorContext.count > experiment.triggerContext {
+            _ = evaluatorContext.popFirst()
         }
         
         // people usually pause to read prompts when they appear, so to avoid
@@ -97,8 +85,7 @@ actor TriggerService {
         lastChunk = chunk
         
         // launch (or relaunch) evaluation
-        var signalChunkContext = Array(signalEvaluatorContext)
-        var finalChunkContext = Array(finalEvaluatorContext)
+        let chunkContext = Array(evaluatorContext)
         evaluationTask?.cancel()
         evaluationTask = Task { [weak self] in
             do {
@@ -113,7 +100,7 @@ actor TriggerService {
                     
                     for evaluator in evaluators {
                         group.addTask {
-                            return await evaluator.evaluate(chunk: chunk, context: signalChunkContext)
+                            return await evaluator.evaluate(chunk: chunk, context: chunkContext)
                         }
                     }
                     
@@ -135,10 +122,6 @@ actor TriggerService {
                 
                 // if an intervention reason was found, we need to trigger an event
                 
-                if chunk.isFinal && chunk != finalChunkContext.last {
-                    finalChunkContext.append(chunk)
-                }
-                
                 let at = Date.now
                 guard let id = await self?.getNextId(at) else { return }
                 try Task.checkCancellation()
@@ -147,7 +130,7 @@ actor TriggerService {
                     id: id,
                     at: at,
                     reason: reason,
-                    context: finalChunkContext
+                    context: Self.buildInterventionContext(from: chunkContext, triggeringChunk: chunk)
                 )
                 
                 let message = "(#\(event.id)) \(reasonString) @ \(String(format: "%.1f", chunk.endAt))s"
@@ -179,9 +162,19 @@ actor TriggerService {
     nonisolated static func shouldSuppressDuplicateChunk(_ chunk: TranscriptChunk, comparedTo lastChunk: TranscriptChunk?) -> Bool {
         guard let lastChunk else { return false }
         guard chunk.text == lastChunk.text else { return false }
+        guard abs(chunk.startAt - lastChunk.startAt) < duplicateSuppressionThreshold else { return false }
         guard abs(chunk.endAt - lastChunk.endAt) < duplicateSuppressionThreshold else { return false }
-        
-        // Preserve rapid filler-only updates to improve recall for hesitation bursts.
-        return !chunk.isOnlyRepeatedFillerWords
+        return true
+    }
+    
+    nonisolated static func buildInterventionContext(
+        from chunkContext: [TranscriptChunk],
+        triggeringChunk: TranscriptChunk
+    ) -> [TranscriptChunk] {
+        var interventionContext = chunkContext.filter(\.isFinal)
+        if !interventionContext.contains(triggeringChunk) {
+            interventionContext.append(triggeringChunk)
+        }
+        return interventionContext
     }
 }

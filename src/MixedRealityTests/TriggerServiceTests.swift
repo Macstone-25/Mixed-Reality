@@ -2,40 +2,58 @@ import XCTest
 @testable import MRCS
 
 final class TriggerServiceTests: XCTestCase {
-    func testShouldSuppressDuplicateChunk_ForNonFillerNearDuplicate() {
-        let last = makeChunk("hello there", endAt: 1.0)
-        let current = makeChunk("hello there", endAt: 1.3)
+    func testShouldSuppressDuplicateChunk_ForNearIdenticalReplay() {
+        let last = makeChunk("hello there", isFinal: false, startAt: 0.6, endAt: 1.0)
+        let current = makeChunk("hello there", isFinal: false, startAt: 0.7, endAt: 1.2)
         
         XCTAssertTrue(TriggerService.shouldSuppressDuplicateChunk(current, comparedTo: last))
     }
     
-    func testShouldNotSuppressDuplicateChunk_ForFillerNearDuplicate() {
-        let last = makeChunk("um", endAt: 1.0)
-        let current = makeChunk("um", endAt: 1.3)
+    func testShouldSuppressDuplicateChunk_ForFillerNearIdenticalReplay() {
+        let last = makeChunk("um", isFinal: false, startAt: 0.0, endAt: 0.4)
+        let current = makeChunk("um", isFinal: false, startAt: 0.1, endAt: 0.5)
         
-        XCTAssertFalse(TriggerService.shouldSuppressDuplicateChunk(current, comparedTo: last))
+        XCTAssertTrue(TriggerService.shouldSuppressDuplicateChunk(current, comparedTo: last))
     }
     
-    func testShouldNotSuppressDuplicateChunk_WhenTimeGapIsLarge() {
-        let last = makeChunk("hello there", endAt: 1.0)
-        let current = makeChunk("hello there", endAt: 1.6)
+    func testShouldNotSuppressDuplicateChunk_WhenStartWindowDiffers() {
+        let last = makeChunk("hello there", isFinal: false, startAt: 0.0, endAt: 1.0)
+        let current = makeChunk("hello there", isFinal: false, startAt: 0.6, endAt: 1.2)
         
         XCTAssertFalse(TriggerService.shouldSuppressDuplicateChunk(current, comparedTo: last))
     }
     
     func testShouldNotSuppressDuplicateChunk_WhenTextDiffers() {
-        let last = makeChunk("hello there", endAt: 1.0)
-        let current = makeChunk("hello again", endAt: 1.2)
+        let last = makeChunk("hello there", isFinal: false, startAt: 0.6, endAt: 1.0)
+        let current = makeChunk("hello again", isFinal: false, startAt: 0.7, endAt: 1.2)
         
         XCTAssertFalse(TriggerService.shouldSuppressDuplicateChunk(current, comparedTo: last))
     }
     
-    private func makeChunk(_ text: String, endAt: Double) -> TranscriptChunk {
+    func testBuildInterventionContext_AppendsTriggeringInterimChunk() {
+        let finalChunk = makeChunk("Hello there.", isFinal: true, startAt: 0.0, endAt: 1.0)
+        let interimChunk = makeChunk("um", isFinal: false, startAt: 1.2, endAt: 1.5)
+        
+        let context = TriggerService.buildInterventionContext(
+            from: [finalChunk, interimChunk],
+            triggeringChunk: interimChunk
+        )
+        
+        XCTAssertEqual(context, [finalChunk, interimChunk])
+    }
+    
+    private func makeChunk(
+        _ text: String,
+        isFinal: Bool,
+        speakerID: String = "Speaker:1",
+        startAt: Double,
+        endAt: Double
+    ) -> TranscriptChunk {
         TranscriptChunk(
             text: text,
-            speakerID: "Speaker:1",
-            isFinal: false,
-            startAt: max(0, endAt - 0.4),
+            speakerID: speakerID,
+            isFinal: isFinal,
+            startAt: startAt,
             endAt: endAt
         )
     }
