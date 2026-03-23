@@ -158,7 +158,10 @@ class SpeechService: WebSocketDelegate {
             throw SpeechServiceError.configError("Invalid WebSocket URL")
         }
         
-        guard let deepgramKey = ProcessInfo.processInfo.environment["DEEPGRAM_API_KEY"] else {
+        guard
+            let deepgramKey = ProcessInfo.processInfo.environment["DEEPGRAM_API_KEY"],
+            !deepgramKey.isEmpty
+        else {
             throw SpeechServiceError.apiError("DEEPGRAM_API_KEY not set")
         }
         
@@ -332,9 +335,15 @@ class SpeechService: WebSocketDelegate {
                     }
                 }
             case .error(let error):
+                let errorDescription: String
+                if let error {
+                    errorDescription = "\(error.localizedDescription) [\(String(describing: error))]"
+                } else {
+                    errorDescription = "unknown"
+                }
                 await artifacts.logEvent(
                     type: "Deepgram",
-                    message: "WebSocket error: \(error?.localizedDescription ?? "unknown")"
+                    message: "WebSocket error: \(errorDescription)"
                 )
             default:
                 await artifacts.logEvent(
