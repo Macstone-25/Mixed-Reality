@@ -32,6 +32,9 @@ Temporary Items
 ## User settings
 xcuserdata/
 
+## Private build settings
+Config.xcconfig
+
 ## Obj-C/Swift specific
 *.hmap
 
