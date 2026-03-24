@@ -47,8 +47,8 @@ func makeConfig(
     config.minTriggerEvaluators = minTriggerEvaluators
     config.selectedTriggerEvaluationStrategies = selectedStrategies
 
-    config.selectedLLMs = [.openAI(.gpt_4_1)]
-    config.selectedMiniLLMs = [.openAI(.gpt_4_1_mini)]
+    config.selectedLLMs = [.openAI(.gpt41)]
+    config.selectedMiniLLMs = [.openAI(.gpt41Mini)]
 
     return config
 }
@@ -60,7 +60,7 @@ func makeExperiment(
     triggerCooldownMs: Int = 0,
     minTriggerEvaluators: Int = 1,
     selectedStrategies: Set<TriggerEvaluationStrategy> = [.pauseEvaluator]
-    ) throws -> ExperimentModel {
+) throws -> ExperimentModel {
     try ExperimentModel(
         config: makeConfig(
             triggerDelayMs: triggerDelayMs,
