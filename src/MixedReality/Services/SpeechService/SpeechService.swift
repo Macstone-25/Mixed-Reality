@@ -5,38 +5,9 @@
 
 import Foundation
 import Combine
-import Starscream
 import AVFoundation
 import OSLog
 import os
-
-/// Standard message envelope indicating the message type (e.g. Results, SpeechStarted, ...)
-private struct DeepgramEnvelope: Codable {
-    let type: String?
-}
-
-/// Deepgram Results format
-private struct DeepgramResults: Codable {
-    let is_final: Bool
-    let channel: Channel
-
-    struct Channel: Codable {
-        let alternatives: [Alternative]
-    }
-
-    struct Alternative: Codable {
-        let transcript: String
-        let words: [Word]
-    }
-
-    struct Word: Codable {
-        let word: String
-        let punctuated_word: String?
-        let speaker: Int?
-        let start: Double
-        let end: Double
-    }
-}
 
 enum SpeechServiceError: Error {
     case configError(String)
@@ -45,81 +16,94 @@ enum SpeechServiceError: Error {
     case permissionError(String)
 }
 
-enum AudioAnonymizationPolicy {
-    case none
-    case pitchShift(semitones: Float, deleteOriginal: Bool)
-}
-
-class SpeechService: WebSocketDelegate {
+class SpeechService {
     private let logger = Logger(subsystem: "SpeechService", category: "Services")
-    
+
     private let artifacts: ArtifactService
     private let experiment: ExperimentModel
-    private let config: DeepgramConfig
-    private let anonymizationPolicy: AudioAnonymizationPolicy
-    
-    /// Fired any time a transcript chunk is received from Deepgram
-    let transcriptChunkEvent = PassthroughSubject<TranscriptChunk, Never>()
-    
-    private var socket: Starscream.WebSocket
-    private var keepAliveTimer: Timer?
+    private let anonymizer: (any AudioAnonymizer)?
+
+    /// Fired any time a transcript chunk is received from the active SpeechEngine
+    var transcriptChunkEvent: AnyPublisher<TranscriptChunk, Never> {
+        engine.transcriptChunkEvent
+            .handleEvents(receiveOutput: { [weak self] chunk in
+                self?.logChunk(chunk)
+            })
+            .eraseToAnyPublisher()
+    }
+
+    private let engine: SpeechEngine
+
     private var isActive = false
     private var isConnected = false
     private var hasInputTapInstalled = false
-    
+
     private let audioEngine = AVAudioEngine()
     private let audioFormat: AVAudioFormat
-    
+
     private let assetWriter: AVAssetWriter
     private let assetWriterInput: AVAssetWriterInput
     private let conversationFileURL: URL
-    
-    private let jsonDecoder = JSONDecoder()
-    
+    private let outputName: String
+
     init(
+        engine: SpeechEngines,
         artifacts: ArtifactService,
         experiment: ExperimentModel,
-        config: DeepgramConfig,
-        anonymizationPolicy: AudioAnonymizationPolicy
+        anonymizer: (any AudioAnonymizer)? = nil
     ) async throws {
         self.artifacts = artifacts
         self.experiment = experiment
-        self.config = config
-        self.anonymizationPolicy = anonymizationPolicy
-        
+        self.anonymizer = anonymizer
+
         /// Configure audio session
-        let preferredSampleRate = config.preferredSampleRate
-        try await Task.detached(priority: nil) {
-            let isPermissionGranted = await AVAudioApplication.requestRecordPermission()
-            guard isPermissionGranted else {
-                throw SpeechServiceError.permissionError("Recording permission was not granted")
-            }
-            
-            let session = AVAudioSession.sharedInstance()
-            try session.setCategory(
-                .playAndRecord,
-                mode: .measurement,
-                options: [.allowBluetoothA2DP, .defaultToSpeaker]
+        let isPermissionGranted = await AVAudioApplication.requestRecordPermission()
+        guard isPermissionGranted else {
+            throw SpeechServiceError.permissionError("Recording permission was not granted")
+        }
+
+        let session = AVAudioSession.sharedInstance()
+        try session.setCategory(
+            .playAndRecord,
+            mode: .measurement,
+            options: [.allowBluetoothA2DP, .defaultToSpeaker]
+        )
+
+        try session.setPreferredSampleRate(48_000)
+        try session.setPreferredIOBufferDuration(0.005) // 5 ms
+        try session.setActive(true, options: .notifyOthersOnDeactivation)
+
+        audioFormat = audioEngine.inputNode.inputFormat(forBus: 0)
+
+        /// Initialize the correct SpeechEngine
+        switch engine {
+        case .openai:
+            self.engine = try OpenAIEngine(
+                artifacts: artifacts,
+                config: OpenAIConfig()
             )
-            
-            try session.setPreferredSampleRate(preferredSampleRate)
-            try session.setPreferredIOBufferDuration(0.005) // 5 ms
-            try session.setActive(true, options: .notifyOthersOnDeactivation)
-        }.value
-        
+
+        case .deepgram:
+            self.engine = try DeepgramEngine(
+                artifacts: artifacts,
+                config: DeepgramConfig(),
+                audioFormat: audioFormat
+            )
+        }
+
         /// Create AssetWriter
         let fileURL = try await artifacts.getFileURL(name: "Conversation.m4a")
         self.conversationFileURL = fileURL
-        
+        self.outputName = "Anonymized_Conversation.m4a"
+
         assetWriter = try AVAssetWriter(outputURL: fileURL, fileType: .m4a)
-        
-        audioFormat = audioEngine.inputNode.inputFormat(forBus: 0)
+
         guard audioFormat.channelCount > 0, audioFormat.sampleRate > 0 else {
             throw SpeechServiceError.runtimeError(
                 "Invalid input format — channels: \(audioFormat.channelCount), sample rate: \(audioFormat.sampleRate)"
             )
         }
-        
+
         let sr = audioFormat.sampleRate
         let safeSampleRate: Double = (sr == 44_100 || sr == 48_000) ? sr : 48_000
 
@@ -129,7 +113,7 @@ class SpeechService: WebSocketDelegate {
             AVNumberOfChannelsKey: min(Int(audioFormat.channelCount), 2),
             AVEncoderBitRateKey: 128_000
         ])
-        
+
         if assetWriter.canAdd(assetWriterInput) {
             assetWriterInput.expectsMediaDataInRealTime = true
             assetWriter.add(assetWriterInput)
@@ -171,41 +155,35 @@ class SpeechService: WebSocketDelegate {
         socket = Starscream.WebSocket(request: request)
         socket.delegate = self
     }
-    
-    /// Connects to Deepgram and begins streaming audio
-    func activate() async throws {
+
+    /// Connects to the active SpeechEngine and begins streaming audio
+    func connect() async throws {
         guard !isActive else {
             throw SpeechServiceError.runtimeError("Already connected")
         }
-        
+
         try AVAudioSession.sharedInstance().setActive(true, options: .notifyOthersOnDeactivation)
         installInputTapIfNeeded()
 
         if !audioEngine.isRunning {
             try audioEngine.start()
         }
-        
-        await artifacts.logEvent(
-            type: "SpeechService",
-            message: "Connecting to \(socket.request.url?.absoluteString ?? "nil")"
-        )
-        
-        socket.connect()
+
+        try await engine.start()
+
         isActive = true
-        startKeepAliveTimer()
     }
-    
-    
-    /// Disconnect from Deepgram WebSocket and deactivate microphone
-    func deactivate() async {
+
+    /// Disconnect from the active SpeechEngine and deactivate microphone
+    func disconnect() async {
         guard isActive else {
             logger.error("Already disconnected")
             return
         }
-        
-        logger.info("🔌 Disconnecting SpeechService...")
+
+        logger.info("Disconnecting SpeechService...")
         isActive = false
-        
+
         if hasInputTapInstalled {
             audioEngine.inputNode.removeTap(onBus: 0)
             hasInputTapInstalled = false
@@ -213,14 +191,11 @@ class SpeechService: WebSocketDelegate {
         if audioEngine.isRunning { audioEngine.stop() }
         audioEngine.reset()
         try? AVAudioSession.sharedInstance().setActive(false)
-        
-        keepAliveTimer?.invalidate()
-        keepAliveTimer = nil
-        
-        socket.disconnect(closeCode: 1000)
-        
+
+        await engine.stop()
+
         await assetWriter.finishWriting()
-        
+
         if let error = assetWriter.error {
             await artifacts.logEvent(
                 type: "SpeechService",
@@ -229,39 +204,51 @@ class SpeechService: WebSocketDelegate {
         } else {
             await artifacts.logEvent(
                 type: "SpeechService",
-                message: "Audio recording saved to \(conversationFileURL.lastPathComponent)"
+                message: "Audio saved to \(conversationFileURL.lastPathComponent)"
             )
-            
-            switch anonymizationPolicy {
-            case .none:
-                await artifacts.logEvent(
-                    type: "SpeechService",
-                    message: "Audio anonymization disabled"
-                )
-                
-            case .pitchShift(let semitones, let deleteOriginal):
+
+            if let anonymizer {
                 do {
-                    let anonymizedURL = try await anonymizeConversationAudio(
-                        pitchSemitones: semitones,
-                        deleteOriginal: deleteOriginal
+                    let outputURL = try await artifacts.getFileURL(name: outputName)
+                    let finalURL = try await anonymizer.anonymize(
+                        inputURL: conversationFileURL,
+                        outputURL: outputURL
                     )
                     
+                    // Log the success
                     await artifacts.logEvent(
                         type: "SpeechService",
-                        message: "Anonymized audio created: \(anonymizedURL.lastPathComponent)"
+                        message: "Anonymization complete: \(finalURL?.lastPathComponent ?? "unknown")"
                     )
+                    
+                    // Delete the original file now that we have the anonymized version
+                    if finalURL != nil {
+                        try FileManager.default.removeItem(at: conversationFileURL)
+                        await artifacts.logEvent(
+                            type: "SpeechService",
+                            message: "Original file deleted: \(conversationFileURL.lastPathComponent)"
+                        )
+                    }
+                    
                 } catch {
                     await artifacts.logEvent(
                         type: "SpeechService",
-                        message: "Audio anonymization failed: \(error.localizedDescription)"
+                        message: "Anonymization failed: \(error.localizedDescription)"
                     )
                 }
+            } else {
+                await artifacts.logEvent(
+                    type: "SpeechService",
+                    message: "No anonymizer configured — skipping"
+                )
             }
         }
-        
-        logger.info("🛑 SpeechService stopped")
+
+        logger.info("SpeechService stopped")
     }
 
+    /// Reactivates the audio session and engine after the app returns to the foreground.
+    /// No-ops if the service was intentionally disconnected.
     func reactivateIfNeeded() async {
         guard isActive else {
             await artifacts.logEvent(
@@ -274,16 +261,8 @@ class SpeechService: WebSocketDelegate {
         do {
             try AVAudioSession.sharedInstance().setActive(true, options: .notifyOthersOnDeactivation)
             if !audioEngine.isRunning {
+                installInputTapIfNeeded()
                 try audioEngine.start()
-            }
-
-            if !isConnected {
-                await artifacts.logEvent(
-                    type: "SpeechService",
-                    message: "WebSocket disconnected during restore; reconnecting"
-                )
-                socket.connect()
-                startKeepAliveTimer()
             }
 
             await artifacts.logEvent(
@@ -391,19 +370,14 @@ class SpeechService: WebSocketDelegate {
 
         hasInputTapInstalled = true
     }
-    
-    /// Performs format conversions and sends audio data to the WebSocket and AssetWriter
+
+    /// Performs format conversions and sends audio data to the SpeechEngine and AssetWriter
     private func processAudioBuffer(buffer: AVAudioPCMBuffer, time: AVAudioTime) {
         guard isActive else { return }
-        
-        /// Send audio buffer to Deepgram via WebSocket (in PCM16 format)
-        if isConnected, let pcmData = AudioBufferUtils.convertBufferToPCM16(
-            buffer: buffer,
-            targetChannelCount: config.channels
-        ) {
-            socket.write(data: pcmData)
-        }
-        
+
+        /// Send audio buffer to the active SpeechEngine for transcription
+        engine.processAudioBuffer(buffer: buffer, time: time)
+
         /// Send audio buffer to asset writer (in native format)
         if let sampleBuffer = AudioBufferUtils.cmSampleBufferFromPCM(buffer) {
             if assetWriter.status == .unknown {
@@ -412,142 +386,28 @@ class SpeechService: WebSocketDelegate {
                     assetWriter.startSession(atSourceTime: startTime)
                 }
             }
-            
+
             if assetWriter.status == .writing,
                assetWriterInput.isReadyForMoreMediaData {
                 assetWriterInput.append(sampleBuffer)
             }
         }
     }
-    
-    /// Parses JSON data into TranscriptChunk events
-    private func processJSON(data: Data) async throws {
-        /// We are only interested in Results data frames, the rest can be ignored
-        let envelope = try jsonDecoder.decode(DeepgramEnvelope.self, from: data)
-        guard envelope.type == "Results" else { return }
-        
-        let results = try jsonDecoder.decode(DeepgramResults.self, from: data)
-        
-        /// We can only handle one interpretation, so we take the most likely option and ignore other alternatives
-        /// If this result was empty (i.e. there are no words), we simply ignore it and continue
-        guard let words = results.channel.alternatives.first?.words,
-              !words.isEmpty else { return }
-        
-        // Assemble full diarized sentences from individually diarized words
-        var speakerSentences: [String: (text: String, start: Double, end: Double)] = [:]
-        
-        for wordInfo in words {
-            let speakerID = wordInfo.speaker.map { "Speaker:\($0)" } ?? "Speaker:Unknown"
-            let word = wordInfo.punctuated_word ?? wordInfo.word
-            
-            if var entry = speakerSentences[speakerID] {
-                entry.text += " " + word
-                entry.end = wordInfo.end
-                speakerSentences[speakerID] = entry
-            } else {
-                speakerSentences[speakerID] = (
-                    text: word,
-                    start: wordInfo.start,
-                    end: wordInfo.end
-                )
-            }
-        }
-        
-        for (speakerID, entry) in speakerSentences {
-            let trimmedText = entry.text.trimmingCharacters(in: .whitespaces)
-            guard !trimmedText.isEmpty else { continue }
-            
-            let chunk = TranscriptChunk(
-                text: trimmedText,
-                speakerID: speakerID,
-                isFinal: results.is_final,
-                startAt: entry.start,
-                endAt: entry.end
-            )
-            
-            let timeRange = String(
-                format: "(%.1fs - %.1fs)",
-                chunk.startAt,
-                chunk.endAt
-            )
-            
-            let logMessage = "\(timeRange) \(chunk)"
-            
-            if chunk.isFinal {
-                logger.info("✅ \(logMessage)")
+
+    /// Helper to handle the logging logic
+    private func logChunk(_ chunk: TranscriptChunk) {
+        let timeRange = String(format: "(%.1fs - %.1fs)", chunk.startAt, chunk.endAt)
+        let status = chunk.isFinal ? "[FINAL]" : "[PARTIAL]"
+        let speakerID = chunk.speakerID
+        let logMessage = "\(timeRange) \(status) \(speakerID): \(chunk.text)"
+
+        logger.info("\(logMessage)")
+
+        // Only log to persistent artifacts if it's the final transcript
+        if chunk.isFinal {
+            Task {
                 await artifacts.logEvent(type: "Transcript", message: logMessage)
-            } else {
-                logger.info("❓ \(logMessage)")
-            }
-            
-            transcriptChunkEvent.send(chunk)
-        }
-    }
-    
-    private func anonymizeConversationAudio(
-        outputName: String = "Conversation_Anonymized.m4a",
-        pitchSemitones: Float,
-        deleteOriginal: Bool
-    ) async throws -> URL {
-        let inputURL = conversationFileURL
-        let outputURL = try await artifacts.getFileURL(name: outputName)
-
-        let inputFile = try AVAudioFile(forReading: inputURL)
-        let format = inputFile.processingFormat
-
-        let engine = AVAudioEngine()
-        let player = AVAudioPlayerNode()
-        let pitch = AVAudioUnitTimePitch()
-
-        pitch.pitch = pitchSemitones * 100 // cents
-
-        engine.attach(player)
-        engine.attach(pitch)
-        engine.connect(player, to: pitch, format: format)
-        engine.connect(pitch, to: engine.mainMixerNode, format: format)
-
-        try engine.enableManualRenderingMode(
-            .offline,
-            format: format,
-            maximumFrameCount: 4096
-        )
-
-        try engine.start()
-
-        let outputFile = try AVAudioFile(
-            forWriting: outputURL,
-            settings: inputFile.fileFormat.settings
-        )
-
-        player.scheduleFile(inputFile, at: nil, completionHandler: nil)
-        player.play()
-
-        let buffer = AVAudioPCMBuffer(
-            pcmFormat: engine.manualRenderingFormat,
-            frameCapacity: engine.manualRenderingMaximumFrameCount
-        )!
-
-        while engine.manualRenderingSampleTime < inputFile.length {
-            let status = try engine.renderOffline(
-                buffer.frameCapacity,
-                to: buffer
-            )
-
-            if status == .success {
-                try outputFile.write(from: buffer)
             }
         }
-
-        engine.stop()
-        engine.reset()
-
-        if deleteOriginal {
-            try? FileManager.default.removeItem(at: inputURL)
-            logger.info("Deleted original conversation audio after anonymization")
-        }
-
-        logger.info("Anonymized audio written to \(outputURL.lastPathComponent)")
-        return outputURL
     }
-
 }
