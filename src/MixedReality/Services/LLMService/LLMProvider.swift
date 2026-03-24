@@ -11,8 +11,8 @@ enum LLMProviderError: Error {
     case runtimeError(String)
 }
 
-protocol LLMProvider : LLMGenerator {
+protocol LLMProvider: LLMGenerator {
     associatedtype Model
-    
+
     init(artifacts: ArtifactService, experiment: ExperimentModel, model: Model)
 }

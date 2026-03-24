@@ -6,8 +6,8 @@
 import Foundation
 
 enum GoogleModel: String, Codable, CaseIterable {
-    case gemini_2_5_flash = "gemini-2.5-flash"
-    case gemini_2_5_pro = "gemini-2.5-pro"
+    case gemini25Flash = "gemini-2.5-flash"
+    case gemini25Pro = "gemini-2.5-pro"
 }
 
 private struct GoogleGenerateContentRequest: Encodable {
@@ -62,7 +62,8 @@ final class GoogleProvider: LLMProvider {
         _ = artifacts
         _ = experiment
         self.model = model
-        self.apiKey = ProcessInfo.processInfo.environment["GEMINI_API_KEY"]
+        self.apiKey =
+            ProcessInfo.processInfo.environment["GEMINI_API_KEY"]
             ?? ProcessInfo.processInfo.environment["GOOGLE_API_KEY"]
         self.session = Self.makeSession()
     }
@@ -80,7 +81,8 @@ final class GoogleProvider: LLMProvider {
         )
 
         var request = URLRequest(
-            url: URL(string: "https://generativelanguage.googleapis.com/v1beta/models/\(model.rawValue):generateContent")!
+            url: URL(
+                string: "https://generativelanguage.googleapis.com/v1beta/models/\(model.rawValue):generateContent")!
         )
         request.httpMethod = "POST"
         request.setValue("application/json", forHTTPHeaderField: "Content-Type")
@@ -94,8 +96,9 @@ final class GoogleProvider: LLMProvider {
             throw LLMProviderError.noResponse
         }
 
-        guard (200 ... 299).contains(http.statusCode) else {
-            let errorMessage = (try? JSONDecoder().decode(GoogleErrorEnvelope.self, from: data).error.message)
+        guard (200...299).contains(http.statusCode) else {
+            let errorMessage =
+                (try? JSONDecoder().decode(GoogleErrorEnvelope.self, from: data).error.message)
                 ?? (String(data: data, encoding: .utf8) ?? "<unreadable>")
             throw LLMProviderError.httpError(code: http.statusCode, body: errorMessage)
         }

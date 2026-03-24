@@ -6,12 +6,12 @@
 import Foundation
 
 enum OpenAIModel: String, Codable, CaseIterable {
-    case gpt_4_1 = "gpt-4.1"
-    case gpt_4_1_mini = "gpt-4.1-mini"
-    case gpt_5_2 = "gpt-5.2-chat-latest"
-    case gpt_5_mini = "gpt-5-mini"
+    case gpt41 = "gpt-4.1"
+    case gpt41Mini = "gpt-4.1-mini"
+    case gpt52 = "gpt-5.2-chat-latest"
+    case gpt5Mini = "gpt-5-mini"
     /// GPT-5 nano is extremely slow for some reason (do not use)
-    case gpt_5_nano = "gpt-5-nano"
+    case gpt5Nano = "gpt-5-nano"
 }
 
 struct OpenAIChatCompletionResponse: Decodable {
@@ -22,31 +22,31 @@ struct OpenAIChatCompletionResponse: Decodable {
     let choices: [Choice]
 }
 
-final class OpenAIProvider : LLMProvider {
+final class OpenAIProvider: LLMProvider {
     private let artifacts: ArtifactService
     private let experiment: ExperimentModel
     private let model: OpenAIModel
-    
+
     private let apiKey: String
     private var session: URLSession
     private static let maxRetryAttempts = 3
-    
+
     init(artifacts: ArtifactService, experiment: ExperimentModel, model: OpenAIModel) {
         self.artifacts = artifacts
         self.experiment = experiment
         self.model = model
-        
+
         guard let key = ProcessInfo.processInfo.environment["OPENAI_API_KEY"] else {
             fatalError("Missing OPENAI_API_KEY in environment")
         }
         self.apiKey = key
         self.session = Self.makeSession()
     }
-    
+
     func generate(systemPrompt: String, userPrompt: String) async throws -> String {
         var lastError: Error?
 
-        for attempt in 1 ... Self.maxRetryAttempts {
+        for attempt in 1...Self.maxRetryAttempts {
             do {
                 return try await generateOnce(systemPrompt: systemPrompt, userPrompt: userPrompt)
             } catch let cancellation as CancellationError {
@@ -65,7 +65,8 @@ final class OpenAIProvider : LLMProvider {
                 let formattedDelay = String(format: "%.1f", delaySeconds)
                 await artifacts.logEvent(
                     type: "LLM",
-                    message: "Transient OpenAI failure (attempt \(attempt)/\(Self.maxRetryAttempts)): \(error.localizedDescription). Retrying in \(formattedDelay)s."
+                    message:
+                        "Transient OpenAI failure (attempt \(attempt)/\(Self.maxRetryAttempts)): \(error.localizedDescription). Retrying in \(formattedDelay)s."
                 )
 
                 let nanos = UInt64(delaySeconds * 1_000_000_000)
@@ -86,7 +87,7 @@ final class OpenAIProvider : LLMProvider {
             "model": self.model.rawValue,
             "messages": [
                 ["role": "system", "content": systemPrompt],
-                ["role": "user", "content": userPrompt]
+                ["role": "user", "content": userPrompt],
             ],
         ]
 
@@ -99,7 +100,7 @@ final class OpenAIProvider : LLMProvider {
             throw LLMProviderError.noResponse
         }
 
-        guard (200 ... 299).contains(http.statusCode) else {
+        guard (200...299).contains(http.statusCode) else {
             let bodyText = String(data: data, encoding: .utf8) ?? "<unreadable>"
             throw LLMProviderError.httpError(code: http.statusCode, body: bodyText)
         }
@@ -125,7 +126,7 @@ final class OpenAIProvider : LLMProvider {
 
     private static func retryDelaySeconds(forAttempt attempt: Int) -> Double {
         let base = 0.5 * pow(2.0, Double(max(attempt - 1, 0)))
-        let jitter = Double.random(in: 0 ... 0.25)
+        let jitter = Double.random(in: 0...0.25)
         return min(base + jitter, 3.0)
     }
 
@@ -138,7 +139,7 @@ final class OpenAIProvider : LLMProvider {
                 if code == 408 || code == 409 || code == 425 || code == 429 {
                     return true
                 }
-                return (500 ... 599).contains(code)
+                return (500...599).contains(code)
             case .runtimeError:
                 return false
             }
@@ -159,16 +160,16 @@ final class OpenAIProvider : LLMProvider {
     private static func isTransient(urlErrorCode: URLError.Code) -> Bool {
         switch urlErrorCode {
         case .networkConnectionLost,
-             .notConnectedToInternet,
-             .timedOut,
-             .cannotConnectToHost,
-             .cannotFindHost,
-             .dnsLookupFailed,
-             .resourceUnavailable,
-             .cannotLoadFromNetwork,
-             .dataNotAllowed,
-             .internationalRoamingOff,
-             .callIsActive:
+            .notConnectedToInternet,
+            .timedOut,
+            .cannotConnectToHost,
+            .cannotFindHost,
+            .dnsLookupFailed,
+            .resourceUnavailable,
+            .cannotLoadFromNetwork,
+            .dataNotAllowed,
+            .internationalRoamingOff,
+            .callIsActive:
             return true
         default:
             return false
