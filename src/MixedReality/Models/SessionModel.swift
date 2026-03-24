@@ -38,17 +38,15 @@ class SessionModel {
         
         self.llm = LLMService(artifacts: self.artifacts, experiment: experiment, llm: experiment.llm)
         self.miniLLM = LLMService(artifacts: self.artifacts, experiment: experiment, llm: experiment.miniLLM)
-
-        // Create the SpeechService with the chosen engine
         self.speechService = try await SpeechService(
             engine: experiment.speechEngine,
             artifacts: self.artifacts,
             experiment: experiment,
             anonymizer: PitchShiftAnonymizer(
                 semitones: Float.random(in: -3 ... -1)
-            )
+            ),
+            audioBootstrapper: AudioSessionBootstrapper.shared
         )
-        
         self.triggerService = await TriggerService(artifacts: self.artifacts, experiment: experiment, speechService: self.speechService, miniLLM: self.miniLLM)
         self.soundService = SoundService()
         self.promptService = PromptService(artifacts: self.artifacts, experiment: experiment, llm: self.llm, miniLLM: self.miniLLM,  speechService: self.speechService)

@@ -35,11 +35,11 @@ class SpeechService {
     private let engine: SpeechEngine
 
     private var isActive = false
-    private var isConnected = false
     private var hasInputTapInstalled = false
 
     private let audioEngine = AVAudioEngine()
     private let audioFormat: AVAudioFormat
+    private let audioBootstrapper: AudioSessionBootstrapping
 
     private let assetWriter: AVAssetWriter
     private let assetWriterInput: AVAssetWriterInput
@@ -50,39 +50,26 @@ class SpeechService {
         engine: SpeechEngines,
         artifacts: ArtifactService,
         experiment: ExperimentModel,
-        anonymizer: (any AudioAnonymizer)? = nil
+        anonymizer: (any AudioAnonymizer)? = nil,
+        audioBootstrapper: AudioSessionBootstrapping
     ) async throws {
         self.artifacts = artifacts
         self.experiment = experiment
         self.anonymizer = anonymizer
+        self.audioBootstrapper = audioBootstrapper
 
-        /// Configure audio session
-        let isPermissionGranted = await AVAudioApplication.requestRecordPermission()
-        guard isPermissionGranted else {
-            throw SpeechServiceError.permissionError("Recording permission was not granted")
-        }
-
-        let session = AVAudioSession.sharedInstance()
-        try session.setCategory(
-            .playAndRecord,
-            mode: .measurement,
-            options: [.allowBluetoothA2DP, .defaultToSpeaker]
+        let preferredSampleRate = DeepgramConfig().preferredSampleRate
+        self.audioFormat = try await audioBootstrapper.resolveInputFormat(
+            for: audioEngine.inputNode,
+            preferredSampleRate: preferredSampleRate
         )
 
-        try session.setPreferredSampleRate(48_000)
-        try session.setPreferredIOBufferDuration(0.005) // 5 ms
-        try session.setActive(true, options: .notifyOthersOnDeactivation)
-
-        audioFormat = audioEngine.inputNode.inputFormat(forBus: 0)
-
-        /// Initialize the correct SpeechEngine
         switch engine {
         case .openai:
             self.engine = try OpenAIEngine(
                 artifacts: artifacts,
                 config: OpenAIConfig()
             )
-
         case .deepgram:
             self.engine = try DeepgramEngine(
                 artifacts: artifacts,
@@ -91,21 +78,14 @@ class SpeechService {
             )
         }
 
-        /// Create AssetWriter
         let fileURL = try await artifacts.getFileURL(name: "Conversation.m4a")
         self.conversationFileURL = fileURL
         self.outputName = "Anonymized_Conversation.m4a"
 
         assetWriter = try AVAssetWriter(outputURL: fileURL, fileType: .m4a)
 
-        guard audioFormat.channelCount > 0, audioFormat.sampleRate > 0 else {
-            throw SpeechServiceError.runtimeError(
-                "Invalid input format — channels: \(audioFormat.channelCount), sample rate: \(audioFormat.sampleRate)"
-            )
-        }
-
-        let sr = audioFormat.sampleRate
-        let safeSampleRate: Double = (sr == 44_100 || sr == 48_000) ? sr : 48_000
+        let sampleRate = audioFormat.sampleRate
+        let safeSampleRate: Double = (sampleRate == 44_100 || sampleRate == 48_000) ? sampleRate : 48_000
 
         assetWriterInput = AVAssetWriterInput(mediaType: .audio, outputSettings: [
             AVFormatIDKey: kAudioFormatMPEG4AAC,
@@ -126,6 +106,7 @@ class SpeechService {
             throw SpeechServiceError.runtimeError("Already connected")
         }
 
+        // Re-activate the already prewarmed session before installing the input tap.
         try AVAudioSession.sharedInstance().setActive(true, options: .notifyOthersOnDeactivation)
         installInputTapIfNeeded()
 
@@ -134,7 +115,6 @@ class SpeechService {
         }
 
         try await engine.start()
-
         isActive = true
     }
 
@@ -178,14 +158,12 @@ class SpeechService {
                         inputURL: conversationFileURL,
                         outputURL: outputURL
                     )
-                    
-                    // Log the success
+
                     await artifacts.logEvent(
                         type: "SpeechService",
                         message: "Anonymization complete: \(finalURL?.lastPathComponent ?? "unknown")"
                     )
-                    
-                    // Delete the original file now that we have the anonymized version
+
                     if finalURL != nil {
                         try FileManager.default.removeItem(at: conversationFileURL)
                         await artifacts.logEvent(
@@ -193,7 +171,6 @@ class SpeechService {
                             message: "Original file deleted: \(conversationFileURL.lastPathComponent)"
                         )
                     }
-                    
                 } catch {
                     await artifacts.logEvent(
                         type: "SpeechService",
@@ -259,10 +236,8 @@ class SpeechService {
     private func processAudioBuffer(buffer: AVAudioPCMBuffer, time: AVAudioTime) {
         guard isActive else { return }
 
-        /// Send audio buffer to the active SpeechEngine for transcription
         engine.processAudioBuffer(buffer: buffer, time: time)
 
-        /// Send audio buffer to asset writer (in native format)
         if let sampleBuffer = AudioBufferUtils.cmSampleBufferFromPCM(buffer) {
             if assetWriter.status == .unknown {
                 let startTime = CMSampleBufferGetPresentationTimeStamp(sampleBuffer)
@@ -278,7 +253,6 @@ class SpeechService {
         }
     }
 
-    /// Helper to handle the logging logic
     private func logChunk(_ chunk: TranscriptChunk) {
         let timeRange = String(format: "(%.1fs - %.1fs)", chunk.startAt, chunk.endAt)
         let status = chunk.isFinal ? "[FINAL]" : "[PARTIAL]"
@@ -287,7 +261,6 @@ class SpeechService {
 
         logger.info("\(logMessage)")
 
-        // Only log to persistent artifacts if it's the final transcript
         if chunk.isFinal {
             Task {
                 await artifacts.logEvent(type: "Transcript", message: logMessage)
