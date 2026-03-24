@@ -90,9 +90,6 @@ jobs:
       - name: Select Xcode 26.3
         run: sudo xcode-select -s /Applications/Xcode_26.3.app/Contents/Developer
 
-      - name: Create dummy Config.xcconfig
-        run: touch ./src/Config.xcconfig
-
       - name: Boot Vision Pro Simulator
         run: |
           UDID=$(xcrun simctl list devices available | grep "Apple Vision Pro" | head -n1 | awk -F '[()]' '{print $2}')
