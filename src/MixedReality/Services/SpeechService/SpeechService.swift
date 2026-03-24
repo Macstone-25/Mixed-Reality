@@ -118,42 +118,6 @@ class SpeechService {
             assetWriterInput.expectsMediaDataInRealTime = true
             assetWriter.add(assetWriterInput)
         }
-        
-        /// Construct Deepgram WebSocket URL with audio and transcription parameters
-        var urlComponents = URLComponents()
-        urlComponents.scheme = "wss"
-        urlComponents.host = "api.deepgram.com"
-        urlComponents.path = "/v1/listen"
-        urlComponents.queryItems = [
-            URLQueryItem(name: "encoding", value: "linear16"),
-            URLQueryItem(name: "sample_rate", value: String(Int(audioFormat.sampleRate))),
-            URLQueryItem(name: "model", value: config.model),
-            URLQueryItem(name: "language", value: config.language),
-            URLQueryItem(name: "channels", value: String(config.channels)),
-            URLQueryItem(name: "endpointing", value: String(config.endpointingMs)),
-            URLQueryItem(name: "diarize", value: config.diarize ? "true" : "false"),
-            URLQueryItem(name: "punctuate", value: config.punctuate ? "true" : "false"),
-            URLQueryItem(name: "filler_words", value: config.fillerWords ? "true" : "false"),
-            URLQueryItem(name: "interim_results", value: config.interimResults ? "true" : "false"),
-            URLQueryItem(name: "vad_events", value: config.vadEvents ? "true" : "false")
-        ]
-        
-        guard let url = urlComponents.url else {
-            throw SpeechServiceError.configError("Invalid WebSocket URL")
-        }
-        
-        guard
-            let deepgramKey = ProcessInfo.processInfo.environment["DEEPGRAM_API_KEY"],
-            !deepgramKey.isEmpty
-        else {
-            throw SpeechServiceError.apiError("DEEPGRAM_API_KEY not set")
-        }
-        
-        var request = URLRequest(url: url)
-        request.setValue("Token \(deepgramKey)", forHTTPHeaderField: "Authorization")
-        
-        socket = Starscream.WebSocket(request: request)
-        socket.delegate = self
     }
 
     /// Connects to the active SpeechEngine and begins streaming audio
@@ -274,86 +238,6 @@ class SpeechService {
                 type: "SpeechService",
                 message: "Failed to reactivate audio after app foreground: \(error.localizedDescription)"
             )
-        }
-    }
-    
-    /// Starscream WebSocket delegate method for handling connection, messages, and errors
-    func didReceive(event: Starscream.WebSocketEvent, client: any Starscream.WebSocketClient) {
-        Task {
-            switch event {
-            case .connected:
-                isConnected = true
-                await artifacts.logEvent(type: "Deepgram", message: "WebSocket connected")
-            case .peerClosed:
-                isConnected = false
-                keepAliveTimer?.invalidate()
-                keepAliveTimer = nil
-                await artifacts.logEvent(type: "Deepgram", message: "WebSocket closed")
-            case .cancelled:
-                isConnected = false
-                keepAliveTimer?.invalidate()
-                keepAliveTimer = nil
-                await artifacts.logEvent(type: "Deepgram", message: "WebSocket cancelled")
-            case .disconnected(let reason, let code):
-                isConnected = false
-                keepAliveTimer?.invalidate()
-                keepAliveTimer = nil
-                await artifacts.logEvent(
-                    type: "Deepgram",
-                    message: "WebSocket disconnected (\(code)): \(reason)"
-                )
-            case .text(let text):
-                if let data = text.data(using: .utf8) {
-                    do {
-                        try await processJSON(data: data)
-                    } catch {
-                        await artifacts.logEvent(
-                            type: "Deepgram",
-                            message: "Failed to parse Deepgram response: \(error.localizedDescription)"
-                        )
-                    }
-                }
-            case .error(let error):
-                let errorDescription: String
-                if let error {
-                    errorDescription = "\(error.localizedDescription) [\(String(describing: error))]"
-                } else {
-                    errorDescription = "unknown"
-                }
-                await artifacts.logEvent(
-                    type: "Deepgram",
-                    message: "WebSocket error: \(errorDescription)"
-                )
-            default:
-                await artifacts.logEvent(
-                    type: "Deepgram",
-                    message: "Unhandled WebSocketEvent: \(String(describing: event))"
-                )
-            }
-        }
-    }
-    
-    private func sendKeepAlive() {
-        let keepAlive: [String: Any] = ["type": "KeepAlive"]
-        do {
-            let data = try JSONSerialization.data(withJSONObject: keepAlive, options: [])
-            if let jsonString = String(data: data, encoding: .utf8) {
-                socket.write(string: jsonString)
-            } else {
-                logger.warning("Failed to convert data to UTF-8 string: \(data)")
-            }
-        } catch {
-            logger.warning("Failed to encode KeepAlive message: \(error)")
-        }
-    }
-
-    private func startKeepAliveTimer() {
-        keepAliveTimer?.invalidate()
-        keepAliveTimer = Timer.scheduledTimer(
-            withTimeInterval: 5.0,
-            repeats: true
-        ) { [weak self] _ in
-            self?.sendKeepAlive()
         }
     }
 
