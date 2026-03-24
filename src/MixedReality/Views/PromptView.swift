@@ -88,6 +88,25 @@ struct PromptView: View {
         .onChange(of: sessionViewModel.prompt) { _, _ in
             heightByWidth = [:]
         }
+        .task(id: sessionViewModel.prompt) {
+            let currentPrompt = sessionViewModel.prompt.trimmingCharacters(in: .whitespacesAndNewlines)
+            guard !currentPrompt.isEmpty else { return }
+
+            let wordCount = currentPrompt
+                .split { $0.isWhitespace || $0.isNewline }
+                .count
+
+            let wordsPerSecond = 3.3   // about 200 wpm
+            let baseSeconds = 1.5
+            let rawDelay = baseSeconds + (Double(wordCount) / wordsPerSecond)
+            let delaySeconds = min(max(rawDelay, 3.0), 8.0)
+
+            try? await Task.sleep(for: .seconds(delaySeconds))
+
+            if sessionViewModel.prompt == currentPrompt {
+                sessionViewModel.prompt = ""
+            }
+        }
         .onPreferenceChange(HeightMapKey.self) { map in
             heightByWidth.merge(map, uniquingKeysWith: { _, new in new })
 
