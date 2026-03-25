@@ -45,7 +45,6 @@ class DeepgramEngine: NSObject, SpeechEngine, WebSocketDelegate {
 
     private let artifacts: ArtifactService
     private let config: DeepgramConfig
-    private let audioFormat: AVAudioFormat
 
     private var socket: Starscream.WebSocket
     private var keepAliveTimer: Timer?
@@ -54,12 +53,12 @@ class DeepgramEngine: NSObject, SpeechEngine, WebSocketDelegate {
 
     init(
         artifacts: ArtifactService,
-        config: DeepgramConfig,
-        audioFormat: AVAudioFormat
+        config: DeepgramConfig
     ) throws {
         self.artifacts = artifacts
         self.config = config
-        self.audioFormat = audioFormat
+        
+        let sampleRate = AVAudioSession.sharedInstance().sampleRate
 
         /// Construct Deepgram WebSocket URL with audio and transcription parameters
         var urlComponents = URLComponents()
@@ -68,7 +67,7 @@ class DeepgramEngine: NSObject, SpeechEngine, WebSocketDelegate {
         urlComponents.path = "/v1/listen"
         urlComponents.queryItems = [
             URLQueryItem(name: "encoding",        value: "linear16"),
-            URLQueryItem(name: "sample_rate",     value: String(Int(audioFormat.sampleRate))),
+            URLQueryItem(name: "sample_rate",     value: String(Int(sampleRate))),
             URLQueryItem(name: "model",           value: config.model),
             URLQueryItem(name: "language",        value: config.language),
             URLQueryItem(name: "channels",        value: String(config.channels)),

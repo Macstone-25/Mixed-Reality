@@ -22,6 +22,7 @@ class SpeechService {
     private let artifacts: ArtifactService
     private let experiment: ExperimentModel
     private let anonymizer: (any AudioAnonymizer)?
+    private let capture: any AudioCapture
 
     /// Fired any time a transcript chunk is received from the active SpeechEngine
     var transcriptChunkEvent: AnyPublisher<TranscriptChunk, Never> {
@@ -38,56 +39,34 @@ class SpeechService {
     private var isConnected = false
     private var hasInputTapInstalled = false
 
-    private let audioEngine = AVAudioEngine()
-    private let audioFormat: AVAudioFormat
-
-    private let assetWriter: AVAssetWriter
-    private let assetWriterInput: AVAssetWriterInput
     private let conversationFileURL: URL
     private let outputName: String
 
     init(
-        engine: SpeechEngines,
+        engine: any SpeechEngine,
         artifacts: ArtifactService,
         experiment: ExperimentModel,
-        anonymizer: (any AudioAnonymizer)? = nil
+        anonymizer: (any AudioAnonymizer)? = nil,
+        capture: any AudioCapture = LiveAudioCapture()
     ) async throws {
+        self.engine = engine
         self.artifacts = artifacts
         self.experiment = experiment
         self.anonymizer = anonymizer
+        self.capture = capture
 
         /// Configure audio session
-        let isPermissionGranted = await AVAudioApplication.requestRecordPermission()
+        let isPermissionGranted = await capture.requestPermission()
         guard isPermissionGranted else {
             throw SpeechServiceError.permissionError("Recording permission was not granted")
         }
 
-        let session = AVAudioSession.sharedInstance()
-        try session.setCategory(
-            .playAndRecord,
-            mode: .measurement,
-            options: [.allowBluetoothA2DP, .defaultToSpeaker]
-        )
-
-        try session.setPreferredSampleRate(48_000)
-        try session.setPreferredIOBufferDuration(0.005) // 5 ms
-        try session.setActive(true, options: .notifyOthersOnDeactivation)
-
-        audioFormat = audioEngine.inputNode.inputFormat(forBus: 0)
-
-        /// Initialize the correct SpeechEngine
-        switch engine {
-        case .openai:
-            self.engine = try OpenAIEngine(
-                artifacts: artifacts,
-                config: OpenAIConfig()
-            )
-
-        case .deepgram:
-            self.engine = try DeepgramEngine(
-                artifacts: artifacts,
-                config: DeepgramConfig(),
-                audioFormat: audioFormat
+        try capture.activateSession()
+        
+        let audioFormat = capture.inputFormat
+        guard audioFormat.channelCount > 0, audioFormat.sampleRate > 0 else {
+            throw SpeechServiceError.runtimeError(
+                "Invalid input format — channels: \(audioFormat.channelCount), sample rate: \(audioFormat.sampleRate)"
             )
         }
 
@@ -96,28 +75,7 @@ class SpeechService {
         self.conversationFileURL = fileURL
         self.outputName = "Anonymized_Conversation.m4a"
 
-        assetWriter = try AVAssetWriter(outputURL: fileURL, fileType: .m4a)
-
-        guard audioFormat.channelCount > 0, audioFormat.sampleRate > 0 else {
-            throw SpeechServiceError.runtimeError(
-                "Invalid input format — channels: \(audioFormat.channelCount), sample rate: \(audioFormat.sampleRate)"
-            )
-        }
-
-        let sr = audioFormat.sampleRate
-        let safeSampleRate: Double = (sr == 44_100 || sr == 48_000) ? sr : 48_000
-
-        assetWriterInput = AVAssetWriterInput(mediaType: .audio, outputSettings: [
-            AVFormatIDKey: kAudioFormatMPEG4AAC,
-            AVSampleRateKey: safeSampleRate,
-            AVNumberOfChannelsKey: min(Int(audioFormat.channelCount), 2),
-            AVEncoderBitRateKey: 128_000
-        ])
-
-        if assetWriter.canAdd(assetWriterInput) {
-            assetWriterInput.expectsMediaDataInRealTime = true
-            assetWriter.add(assetWriterInput)
-        }
+        try capture.startRecording(to: fileURL)
     }
 
     /// Connects to the active SpeechEngine and begins streaming audio
@@ -126,11 +84,11 @@ class SpeechService {
             throw SpeechServiceError.runtimeError("Already connected")
         }
 
-        try AVAudioSession.sharedInstance().setActive(true, options: .notifyOthersOnDeactivation)
+        try capture.activateSession()
         installInputTapIfNeeded()
 
-        if !audioEngine.isRunning {
-            try audioEngine.start()
+        if !capture.isEngineRunning {
+            try capture.startEngine()
         }
 
         try await engine.start()
@@ -149,18 +107,18 @@ class SpeechService {
         isActive = false
 
         if hasInputTapInstalled {
-            audioEngine.inputNode.removeTap(onBus: 0)
+            capture.removeTap()
             hasInputTapInstalled = false
         }
-        if audioEngine.isRunning { audioEngine.stop() }
-        audioEngine.reset()
-        try? AVAudioSession.sharedInstance().setActive(false)
+        if capture.isEngineRunning { capture.stopEngine() }
+        capture.resetEngine()
+        try? capture.deactivateSession()
 
         await engine.stop()
 
-        await assetWriter.finishWriting()
+        await capture.stopRecording()
 
-        if let error = assetWriter.error {
+        if let error = capture.recordingError {
             await artifacts.logEvent(
                 type: "SpeechService",
                 message: "AssetWriter error: \(error.localizedDescription)"
@@ -223,10 +181,10 @@ class SpeechService {
         }
 
         do {
-            try AVAudioSession.sharedInstance().setActive(true, options: .notifyOthersOnDeactivation)
-            if !audioEngine.isRunning {
+            try capture.activateSession()
+            if !capture.isEngineRunning {
                 installInputTapIfNeeded()
-                try audioEngine.start()
+                try capture.startEngine()
             }
 
             await artifacts.logEvent(
@@ -244,11 +202,7 @@ class SpeechService {
     private func installInputTapIfNeeded() {
         guard !hasInputTapInstalled else { return }
 
-        audioEngine.inputNode.installTap(
-            onBus: 0,
-            bufferSize: 4096,
-            format: audioFormat
-        ) { [weak self] buffer, time in
+        try? capture.installTap(bufferSize: 4096) { [weak self] buffer, time in
             self?.processAudioBuffer(buffer: buffer, time: time)
         }
 
@@ -264,17 +218,7 @@ class SpeechService {
 
         /// Send audio buffer to asset writer (in native format)
         if let sampleBuffer = AudioBufferUtils.cmSampleBufferFromPCM(buffer) {
-            if assetWriter.status == .unknown {
-                let startTime = CMSampleBufferGetPresentationTimeStamp(sampleBuffer)
-                if assetWriter.startWriting() {
-                    assetWriter.startSession(atSourceTime: startTime)
-                }
-            }
-
-            if assetWriter.status == .writing,
-               assetWriterInput.isReadyForMoreMediaData {
-                assetWriterInput.append(sampleBuffer)
-            }
+            capture.append(sampleBuffer)
         }
     }
 
