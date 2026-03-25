@@ -78,7 +78,7 @@ jobs:
         
       - name: Install xcbeautify
         run: brew install xcbeautify
-  
+
       - name: Cache Xcode DerivedData
         uses: actions/cache@v4
         with:
@@ -103,7 +103,6 @@ jobs:
             -scheme MixedRealityTests \
             -destination 'platform=visionOS Simulator,name=Apple Vision Pro' \
             -resultBundlePath TestResults.xcresult \
-            -parallelizeTargets \
-            -parallel-testing-enabled YES \
+            -parallel-testing-enabled NO \
             COMPILER_INDEX_STORE_ENABLE=NO \
           | xcbeautify --renderer github-actions
