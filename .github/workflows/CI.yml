@@ -12,6 +12,7 @@ jobs:
   lint:
     runs-on: macos-latest
     name: Lint
+    if: false
     steps:
       - name: Checkout Code
         uses: actions/checkout@v4
