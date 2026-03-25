@@ -244,6 +244,11 @@ class OpenAIEngine: NSObject, SpeechEngine, WebSocketDelegate {
     func didReceive(event: Starscream.WebSocketEvent, client: any Starscream.WebSocketClient) {
         Task {
             switch event {
+            case .ping(let data):
+                await artifacts.logEvent(
+                    type: "OpenAI",
+                    message: "Ping received (\(data?.count ?? 0) bytes)"
+                )
             case .connected:
                 await artifacts.logEvent(type: "OpenAI", message: "WebSocket connected")
                 await sendSessionConfiguration()
