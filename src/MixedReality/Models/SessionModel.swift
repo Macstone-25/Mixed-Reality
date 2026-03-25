@@ -59,7 +59,7 @@ class SessionModel {
             artifacts: self.artifacts,
             experiment: experiment,
             anonymizer: PitchShiftAnonymizer(
-                semitones: Float.random(in: -3 ... -1)
+                semitones: Float.random(in: -3 ... -2)
             ),
             capture: LiveAudioCapture()
         )
