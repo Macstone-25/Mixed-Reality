@@ -38,15 +38,30 @@ class SessionModel {
         
         self.llm = LLMService(artifacts: self.artifacts, experiment: experiment, llm: experiment.llm)
         self.miniLLM = LLMService(artifacts: self.artifacts, experiment: experiment, llm: experiment.miniLLM)
+        
+        let speechEngine: any SpeechEngine
+        switch experiment.speechEngine {
+        case .openai:
+            speechEngine = try OpenAIEngine(
+                artifacts: artifacts,
+                config: OpenAIConfig()
+            )
+        case .deepgram:
+            speechEngine = try DeepgramEngine(
+                artifacts: artifacts,
+                config: DeepgramConfig()
+            )
+        }
 
         // Create the SpeechService with the chosen engine
         self.speechService = try await SpeechService(
-            engine: experiment.speechEngine,
+            engine: speechEngine,
             artifacts: self.artifacts,
             experiment: experiment,
             anonymizer: PitchShiftAnonymizer(
-                semitones: Float.random(in: -3 ... -1)
-            )
+                semitones: Float.random(in: -3 ... -2)
+            ),
+            capture: LiveAudioCapture()
         )
         
         self.triggerService = await TriggerService(artifacts: self.artifacts, experiment: experiment, speechService: self.speechService, miniLLM: self.miniLLM)
