@@ -230,16 +230,8 @@ actor PromptService {
             "good afternoon",
             "good evening"
         ]
+        
         if greetingPrefixes.contains(where: { normalizedPrompt.hasPrefix($0) }) {
-            return true
-        }
-
-        let recentTexts = transcriptSnapshot.map { normalizeText($0.text) }.filter { !$0.isEmpty }
-        if recentTexts.contains(where: { $0 == normalizedPrompt || $0.contains(normalizedPrompt) || normalizedPrompt.contains($0) }) {
-            return true
-        }
-
-        if recentTexts.contains(where: { tokenOverlap(normalizedPrompt, $0) >= 0.7 }) {
             return true
         }
 
