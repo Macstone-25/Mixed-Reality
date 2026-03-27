@@ -150,6 +150,10 @@ class DeepgramEngine: NSObject, SpeechEngine, WebSocketDelegate {
                     type: "Deepgram",
                     message: "WebSocket disconnected (\(code)): \(reason)"
                 )
+                if code == 1011 {
+                    await artifacts.logEvent(type: "Deepgram", message: "Attempting to reconnect...")
+                    try? await start()
+                }
             case .text(let text):
                 if let data = text.data(using: .utf8) {
                     do {
