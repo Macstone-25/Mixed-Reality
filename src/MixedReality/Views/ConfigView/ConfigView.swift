@@ -114,6 +114,23 @@ struct ConfigView: View {
                         .font(.caption)
                 }
                 
+                Section ("Transcription Providers") {
+                    Text("The provider used to transcribe audio.")
+                    
+                    ForEach(SpeechEngines.allCases, id: \.self) { (engine) in
+                        Toggle("\(engine.rawValue)", isOn: Binding<Bool>(
+                            get: { viewModel.config.selectedSpeechEngines.contains(engine) },
+                            set: { isOn in
+                                if isOn {
+                                    viewModel.config.selectedSpeechEngines.insert(engine)
+                                } else {
+                                    viewModel.config.selectedSpeechEngines.remove(engine)
+                                }
+                            }
+                        ))
+                    }
+                }
+                
                 Section("Large AI Models") {
                     Text("The models used for infrequent tasks (e.g. prompt generation).")
                     

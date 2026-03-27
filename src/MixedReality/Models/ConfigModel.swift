@@ -31,8 +31,7 @@ struct ConfigModel: Codable {
         .openAI(.gpt41),
         .openAI(.gpt41Mini),
         .openAI(.gpt52),
-        // TODO: Complete OpenAI verification to unlock these (https://platform.openai.com/settings/organization/general)
-        // .openAI(.gpt5Mini),
+        .openAI(.gpt5Mini),
     ]
 
     var selectedMiniLLMs: Set<LLMConfig> = [

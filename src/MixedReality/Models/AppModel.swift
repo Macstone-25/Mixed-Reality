@@ -43,7 +43,7 @@ class AppModel {
                 lastSessionId = session?.id
             } catch {
                 logger.error("❌ Failed to start session: \(error)")
-                launchError = error.localizedDescription
+                launchError = String(describing: error)
             }
             isLaunchingSession = false
         }

@@ -91,6 +91,7 @@
 				9B9B4CB42EB2E29700073840 /* MixedReality */,
 				9B64712D2ECD408D0032BC9D /* MixedRealityTests */,
 				9B9B4CB32EB2E29700073840 /* Products */,
+				FA3C5EFA2F76030D008E83F0 /* Recovered References */,
 			);
 			sourceTree = "<group>";
 		};
@@ -101,6 +102,14 @@
 				9B64712C2ECD408D0032BC9D /* MixedRealityTests.xctest */,
 			);
 			name = Products;
+			sourceTree = "<group>";
+		};
+		FA3C5EFA2F76030D008E83F0 /* Recovered References */ = {
+			isa = PBXGroup;
+			children = (
+				FAC66E0C2F5A3B7E002C7FFC /* Config.xcconfig */,
+			);
+			name = "Recovered References";
 			sourceTree = "<group>";
 		};
 /* End PBXGroup section */
