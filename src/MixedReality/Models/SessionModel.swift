@@ -79,26 +79,26 @@ class SessionModel {
         await artifacts.logEvent(type: "Session", message: "Experiment config saved as JSON")
         logger.info("\(String(describing: self.experiment))")
         
+        let chunks = speechService.transcriptChunkEvent.share()
+        
         // Connect TriggerService to SpeechService
         sinks.insert(
-            speechService.transcriptChunkEvent
-                .sink { chunk in
-                    Task { [weak self] in
-                        guard let self = self else { return }
-                        await self.triggerService.handleTranscriptChunk(chunk: chunk)
-                    }
+            chunks.sink { chunk in
+                Task { [weak self] in
+                    guard let self = self else { return }
+                    await self.triggerService.handleTranscriptChunk(chunk: chunk)
                 }
+            }
         )
         
         // Connect PromptService to SpeechService
         sinks.insert(
-            speechService.transcriptChunkEvent
-                .sink { chunk in
-                    Task { [weak self] in
-                        guard let self = self else { return }
-                        await self.promptService.handleTranscriptChunk(chunk: chunk)
-                    }
+            chunks.sink { chunk in
+                Task { [weak self] in
+                    guard let self = self else { return }
+                    await self.promptService.handleTranscriptChunk(chunk: chunk)
                 }
+            }
         )
         
         // Connect PromptService to TriggerService
