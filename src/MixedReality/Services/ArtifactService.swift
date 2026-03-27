@@ -122,7 +122,7 @@ final actor ArtifactService {
         
         for url in urls {
             if !FileManager.default.fileExists(atPath: url.path()) {
-                logger.warning("⚠️ File no longer exists for upload: \(url.path())")
+                logger.warning("⚠️ File no longer exists for upload: \(url.lastPathComponent)")
                 continue
             }
             
@@ -130,7 +130,7 @@ final actor ArtifactService {
             Task.detached {
                 do {
                     let data = try Data(contentsOf: url)
-                    logger.info("☁️ Uploading \(url.lastPathComponent) (\(data.count) bytes)...")
+                    logger.info("☁️ Uploading \(url.lastPathComponent) (\(data.count.formatted(.byteCount(style: .file))))...")
                     let response = try await supabase.storage
                         .from("artifacts")
                         .upload("\(collectionId)/\(url.lastPathComponent)", data: data)
