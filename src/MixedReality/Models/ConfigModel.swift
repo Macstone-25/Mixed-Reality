@@ -32,10 +32,14 @@ struct ConfigModel: Codable {
         .openAI(.gpt41Mini),
         .openAI(.gpt52),
         .openAI(.gpt5Mini),
+        .google(.gemini25Flash),
+        .apple(.onDevice)
     ]
 
     var selectedMiniLLMs: Set<LLMConfig> = [
-        .openAI(.gpt41Mini)
+        .openAI(.gpt41Mini),
+        .google(.gemini25Flash),
+        .apple(.onDevice)
     ]
 
     var selectedSpeechEngines: Set<SpeechEngines> = [

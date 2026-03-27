@@ -183,7 +183,7 @@ actor PromptService {
 
         await self.artifacts.logEvent(
             type: "Prompt",
-            message: "Rejected participant-style prompt draft; retrying with stricter coaching instructions"
+            message: "Rejected participant-style prompt draft; retrying with stricter coaching instructions: \"\(firstAttempt)\""
         )
 
         let retryUserPrompt = """

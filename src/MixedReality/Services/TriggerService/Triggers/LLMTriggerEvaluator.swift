@@ -34,6 +34,7 @@ final class LLMTriggerEvaluator: TriggerEvaluator {
         - Set should_trigger=false if conversation appears to be progressing normally.
         - rationale must be concise and grounded in the provided transcript context.
         - Never include markdown, code fences, or extra keys.
+        - Focus on the most recent transcript lines. Earlier lines are provided only for context. Do not intervene based solely on older conversation, as the user may have already seen a prompt since then.
     """
     
     init(artifacts: ArtifactService? = nil, miniLLM: any LLMGenerator) {
