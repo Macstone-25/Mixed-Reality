@@ -42,10 +42,6 @@ final class LLMTriggerEvaluator: TriggerEvaluator {
     }
     
     func evaluate(chunk: TranscriptChunk, context: [TranscriptChunk]) async -> InterventionReason? {
-        guard chunk.isFinal else {
-            return nil
-        }
-        
         var contextSnapshot = context
         if chunk != contextSnapshot.last {
             contextSnapshot.append(chunk)
