@@ -67,7 +67,11 @@ export function TabsContent({ session }: TabsContentProps) {
             }}
             onClick={() => handleTabClick(tab.value)}
             onKeyDown={(e) => handleKeyDown(e, tab.value)}
-            onFocus={() => setFocusedTab(tab.value)}
+            onFocus={(e) => {
+              setFocusedTab(tab.value);
+              e.currentTarget.style.outline = '2px solid #7F5539';
+              e.currentTarget.style.outlineOffset = '-4px';
+            }}
             onMouseEnter={(e) => {
               if (activeTab !== tab.value) {
                 e.currentTarget.style.color = 'rgba(45, 45, 45, 0.8)';
@@ -83,10 +87,6 @@ export function TabsContent({ session }: TabsContentProps) {
               borderColor: activeTab === tab.value ? '#7F5539' : 'transparent',
               color: activeTab === tab.value ? '#7F5539' : 'rgba(45, 45, 45, 0.6)',
               outlineOffset: '-2px',
-            }}
-            onFocus={(e) => {
-              e.currentTarget.style.outline = '2px solid #7F5539';
-              e.currentTarget.style.outlineOffset = '-4px';
             }}
             onBlur={(e) => {
               e.currentTarget.style.outline = 'none';

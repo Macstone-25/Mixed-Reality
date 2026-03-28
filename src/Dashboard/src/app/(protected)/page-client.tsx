@@ -5,25 +5,23 @@ import Link from 'next/link';
 import { Menu, Clock, AlertCircle, MessageSquare, Zap, BarChart3, Bell, ArrowRight } from 'lucide-react';
 import { Sidenav } from '@/components/Sidenav';
 import { SessionHealthCard } from '@/components/SessionHealthCard';
-import { getMostRecentSession, getAllSessions, getAggregateStats } from '@/lib/mockData';
 import { formatTimeOnly, formatDateTimeFull } from '@/lib/dateUtils';
+import type { SessionDetail, SessionListItem, AggregateStats } from '@/lib/types';
 
-export default function Home() {
+interface HomePageClientProps {
+  mostRecentSession: SessionDetail | null;
+  recentSessions: SessionListItem[];
+  stats: AggregateStats;
+  coherence: number | null;
+}
+
+export default function HomePageClient({
+  mostRecentSession,
+  recentSessions,
+  stats,
+  coherence,
+}: HomePageClientProps) {
   const [sidenavOpen, setSidenavOpen] = useState(false);
-  const mostRecentSession = getMostRecentSession();
-  const allSessions = getAllSessions();
-  const stats = getAggregateStats();
-  const recentSessions = allSessions.slice(0, 10);
-
-  // Calculate coherence percentage safely
-  const calculateCoherence = (interventions: number, transcriptChunks?: number) => {
-    if (!transcriptChunks || transcriptChunks === 0) {
-      return null; // No data available
-    }
-    return Math.max(0, Math.min(100, 100 - ((interventions / transcriptChunks) * 100)));
-  };
-
-  const coherence = mostRecentSession ? calculateCoherence(mostRecentSession.interventions, mostRecentSession.transcriptChunks) : null;
 
   const toggleSidenav = () => {
     setSidenavOpen(!sidenavOpen);
