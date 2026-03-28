@@ -7,9 +7,9 @@ import Foundation
 import AVFoundation
 import Combine
 
-enum SpeechEngines: Encodable, Decodable {
-    case deepgram
-    case openai
+enum SpeechEngines: String, Encodable, Decodable, CaseIterable {
+    case deepgram = "Deepgram"
+    case openai = "OpenAI Whisper"
 }
 
 protocol SpeechEngine: AnyObject {

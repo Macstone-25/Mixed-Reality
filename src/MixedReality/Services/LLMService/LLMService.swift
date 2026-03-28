@@ -8,25 +8,31 @@ import OSLog
 
 enum LLMConfig: Hashable, Codable {
     case openAI(OpenAIModel)
+    case google(GoogleModel)
+    case apple(AppleModel)
 }
 
-class LLMService : LLMGenerator {
+class LLMService: LLMGenerator {
     private let artifacts: ArtifactService
     private let experiment: ExperimentModel
     private let llmProvider: any LLMProvider
-    
+
     private let logger = Logger(subsystem: "LLMService", category: "Services")
-    
+
     init(artifacts: ArtifactService, experiment: ExperimentModel, llm: LLMConfig) {
         self.artifacts = artifacts
         self.experiment = experiment
-        
+
         switch llm {
         case .openAI(let model):
             self.llmProvider = OpenAIProvider(artifacts: artifacts, experiment: experiment, model: model)
+        case .google(let model):
+            self.llmProvider = GoogleProvider(artifacts: artifacts, experiment: experiment, model: model)
+        case .apple(let model):
+            self.llmProvider = AppleProvider(artifacts: artifacts, experiment: experiment, model: model)
         }
     }
-    
+
     func generate(systemPrompt: String, userPrompt: String) async throws -> String {
         do {
             return try await llmProvider.generate(systemPrompt: systemPrompt, userPrompt: userPrompt)
@@ -42,6 +48,9 @@ class LLMService : LLMGenerator {
         } catch LLMProviderError.httpError(let code, let body) {
             await artifacts.logEvent(type: "LLM", message: "HTTP Error: (\(code)) \(body)")
             throw LLMProviderError.httpError(code: code, body: body)
+        } catch LLMProviderError.runtimeError(let message) {
+            await artifacts.logEvent(type: "LLM", message: "Runtime Error: \(message)")
+            throw LLMProviderError.runtimeError(message)
         } catch {
             await artifacts.logEvent(type: "LLM", message: "Unknown Error: \(error.localizedDescription)")
             throw error
