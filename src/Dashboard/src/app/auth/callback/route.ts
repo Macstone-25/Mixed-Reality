@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { createServerClient } from '@supabase/ssr';
+import type { CookieOptions } from '@supabase/ssr';
 import { cookies } from 'next/headers';
 
 export async function GET(request: NextRequest) {
@@ -9,6 +10,8 @@ export async function GET(request: NextRequest) {
 
   if (code) {
     const cookieStore = await cookies();
+    let response = NextResponse.next();
+
     const supabase = createServerClient(
       process.env.NEXT_PUBLIC_SUPABASE_URL!,
       process.env.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_DEFAULT_KEY!,
@@ -19,10 +22,14 @@ export async function GET(request: NextRequest) {
           },
           setAll(cookiesToSet) {
             try {
-              cookiesToSet.forEach(({ name, value, options }) =>
-                cookieStore.set(name, value, options)
-              );
-            } catch {
+              cookiesToSet.forEach(({ name, value, options }) => {
+                // Set in request cookies
+                cookieStore.set(name, value, options as CookieOptions);
+                // Also set in response cookies to ensure they're sent back
+                response.cookies.set(name, value, options as CookieOptions);
+              });
+            } catch (error) {
+              console.warn('Failed to set cookies:', error);
               // The `setAll` method was called from a Server Component.
               // This can be ignored if you have middleware refreshing
               // user sessions.
@@ -52,17 +59,19 @@ export async function GET(request: NextRequest) {
 
       if (approvalStatus === 'approved') {
         // User is approved, redirect to requested page
-        return NextResponse.redirect(new URL(next, request.url));
+        return NextResponse.redirect(new URL(next, request.url), {
+          headers: response.headers,
+        });
       } else if (approvalStatus === 'pending') {
         // User is pending approval, redirect to pending page
-        return NextResponse.redirect(
-          new URL('/auth/pending-approval', request.url)
-        );
+        return NextResponse.redirect(new URL('/auth/pending-approval', request.url), {
+          headers: response.headers,
+        });
       } else if (approvalStatus === 'rejected') {
         // User was rejected, redirect to login with error
-        return NextResponse.redirect(
-          new URL('/auth/login?error=rejected', request.url)
-        );
+        return NextResponse.redirect(new URL('/auth/login?error=rejected', request.url), {
+          headers: response.headers,
+        });
       }
     }
   }
