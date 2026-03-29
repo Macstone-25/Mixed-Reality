@@ -1,4 +1,4 @@
-import { getSessionById } from '@/lib/mockData';
+import { getSessionById } from '@/lib/db';
 import SessionDetailPageClient from '@/components/SessionDetailPageClient';
 
 interface Props {
@@ -9,7 +9,7 @@ interface Props {
 
 export default async function SessionDetailPage({ params }: Props) {
   const { id } = await params;
-  const session = getSessionById(id);
+  const session = await getSessionById(id);
 
   return (
     <SessionDetailPageClient sessionId={id} session={session} />

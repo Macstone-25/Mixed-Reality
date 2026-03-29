@@ -6,6 +6,7 @@
 import Combine
 import Foundation
 import OSLog
+import AVFoundation
 
 class SessionModel {
     let id: String
@@ -37,7 +38,32 @@ class SessionModel {
         
         self.llm = LLMService(artifacts: self.artifacts, experiment: experiment, llm: experiment.llm)
         self.miniLLM = LLMService(artifacts: self.artifacts, experiment: experiment, llm: experiment.miniLLM)
-        self.speechService = try await SpeechService(artifacts: self.artifacts, experiment: experiment, config: DeepgramConfig(), anonymizationPolicy: .pitchShift(semitones: Float.random(in: -3 ... -1), deleteOriginal: true))
+        
+        let speechEngine: any SpeechEngine
+        switch experiment.speechEngine {
+        case .openai:
+            speechEngine = try OpenAIEngine(
+                artifacts: artifacts,
+                config: OpenAIConfig()
+            )
+        case .deepgram:
+            speechEngine = try DeepgramEngine(
+                artifacts: artifacts,
+                config: DeepgramConfig()
+            )
+        }
+
+        // Create the SpeechService with the chosen engine
+        self.speechService = try await SpeechService(
+            engine: speechEngine,
+            artifacts: self.artifacts,
+            experiment: experiment,
+            anonymizer: PitchShiftAnonymizer(
+                semitones: Float.random(in: -3 ... -2)
+            ),
+            capture: LiveAudioCapture()
+        )
+        
         self.triggerService = await TriggerService(artifacts: self.artifacts, experiment: experiment, speechService: self.speechService, miniLLM: self.miniLLM)
         self.soundService = SoundService()
         self.promptService = PromptService(artifacts: self.artifacts, experiment: experiment, llm: self.llm, miniLLM: self.miniLLM,  speechService: self.speechService)
@@ -53,26 +79,26 @@ class SessionModel {
         await artifacts.logEvent(type: "Session", message: "Experiment config saved as JSON")
         logger.info("\(String(describing: self.experiment))")
         
+        let chunks = speechService.transcriptChunkEvent.share()
+        
         // Connect TriggerService to SpeechService
         sinks.insert(
-            speechService.transcriptChunkEvent
-                .sink { chunk in
-                    Task { [weak self] in
-                        guard let self = self else { return }
-                        await self.triggerService.handleTranscriptChunk(chunk: chunk)
-                    }
+            chunks.sink { chunk in
+                Task { [weak self] in
+                    guard let self = self else { return }
+                    await self.triggerService.handleTranscriptChunk(chunk: chunk)
                 }
+            }
         )
         
         // Connect PromptService to SpeechService
         sinks.insert(
-            speechService.transcriptChunkEvent
-                .sink { chunk in
-                    Task { [weak self] in
-                        guard let self = self else { return }
-                        await self.promptService.handleTranscriptChunk(chunk: chunk)
-                    }
+            chunks.sink { chunk in
+                Task { [weak self] in
+                    guard let self = self else { return }
+                    await self.promptService.handleTranscriptChunk(chunk: chunk)
                 }
+            }
         )
         
         // Connect PromptService to TriggerService
@@ -98,7 +124,7 @@ class SessionModel {
 
         soundService.prepareDing()
 
-        try await speechService.activate()
+        try await speechService.connect()
     }
 
     func restoreAfterForegrounding() async {
@@ -109,7 +135,7 @@ class SessionModel {
     
     func end() async {
         await artifacts.logEvent(type: "Session", message: "Ending session...")
-        await speechService.deactivate()
+        await speechService.disconnect()
         await triggerService.stop()
         await artifacts.finalize()
     }

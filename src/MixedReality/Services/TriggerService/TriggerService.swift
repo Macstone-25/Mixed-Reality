@@ -11,33 +11,32 @@ import OSLog
 enum TriggerEvaluationStrategy: String, Hashable, Codable, CaseIterable {
     case pauseEvaluator = "Pause Evaluator"
     case fillerEvaluator = "Filler Evaluator"
-    // TODO: support llm evaluation (use experiment.miniLLM)
+    case llmEvaluator = "LLM Evaluator"
 }
 
 actor TriggerService {
     private let logger = Logger(subsystem: "TriggerService", category: "Services")
-    
+
     private let artifacts: ArtifactService
     private let experiment: ExperimentModel
     private let speechService: SpeechService
     private let miniLLM: LLMService
-    
+
     private let evaluators: [TriggerEvaluator]
     private var evaluatorContext = Deque<TranscriptChunk>()
     private var evaluationTask: Task<Void, Never>?
-    
+
     private var onTrigger: (@Sendable (InterventionEvent) -> (Void))?
     private var nextEventId: UInt64 = 1
     private var lastEventAt: Date = Date.distantPast
     private var lastChunk: TranscriptChunk?
     private static let duplicateSuppressionThreshold: TimeInterval = 0.5
-    
     init(artifacts: ArtifactService, experiment: ExperimentModel, speechService: SpeechService, miniLLM: LLMService) async {
         self.artifacts = artifacts
         self.experiment = experiment
         self.speechService = speechService
         self.miniLLM = miniLLM
-        
+
         self.evaluators = await MainActor.run {
             experiment.triggerEvaluationStrategies.map { strategy in
                 switch strategy {
@@ -45,25 +44,27 @@ actor TriggerService {
                     return PauseEvaluator(experiment: experiment)
                 case .fillerEvaluator:
                     return FillerEvaluator()
+                case .llmEvaluator:
+                    return LLMTriggerEvaluator(artifacts: artifacts, miniLLM: miniLLM)
                 }
             }
         }
-        
+
         for evaluator in evaluators {
             logger.info("Added evaluator: \(String(describing: type(of: evaluator)))")
         }
     }
-    
+
     func setOnTrigger(_ handler: @Sendable @escaping (InterventionEvent) -> Void) {
         self.onTrigger = handler
     }
-    
+
     func getNextId(_ at: Date) -> UInt64 {
         nextEventId += 1
         lastEventAt = at
         return nextEventId - 1
     }
-    
+
     func handleTranscriptChunk(chunk: TranscriptChunk) {
         if chunk.isFinal {
             evaluatorContext.insertSorted(chunk)
@@ -85,43 +86,31 @@ actor TriggerService {
             return
         }
         lastChunk = chunk
-        
+
         // launch (or relaunch) evaluation
         var chunkContext = Array(evaluatorContext)
+        let triggerDelayMs = experiment.triggerDelayMs
+        let evaluators = self.evaluators
         evaluationTask?.cancel()
         evaluationTask = Task { [weak self] in
             do {
                 // sleep to give the user a chance to speak more before potentially triggering
                 try Task.checkCancellation()
-                try await Task.sleep(nanoseconds: UInt64(self?.experiment.triggerDelayMs ?? 0) * 1_000_000)
+                try await Task.sleep(nanoseconds: UInt64(triggerDelayMs) * 1_000_000)
                 try Task.checkCancellation()
-                
-                // race all evaluators and take the first intervention reason found
-                let interventionReason = await withTaskGroup(of: InterventionReason?.self) { [weak self] group in
-                    guard let evaluators = await self?.evaluators else { return InterventionReason?(nil) }
-                    
-                    for evaluator in evaluators {
-                        group.addTask {
-                            return await evaluator.evaluate(chunk: chunk, context: chunkContext)
-                        }
-                    }
-                    
-                    for await result in group {
-                        if result != nil {
-                            group.cancelAll()
-                            return result
-                        }
-                    }
-                    
-                    return nil
-                }
-                
+
+                let interventionReason = await TriggerService.evaluateWithRace(
+                    chunk: chunk,
+                    context: chunkContext,
+                    evaluators: evaluators
+                )
+
                 // if no intervention reason was found or the task was cancelled, end the evaluation
-                
+
                 guard let reason = interventionReason else { return }
                 let reasonString = await MainActor.run { reason.description }
                 try Task.checkCancellation()
-                
+
                 // if an intervention reason was found, we need to trigger an event
                 let at = Date.now
                 guard let id = await self?.getNextId(at) else { return }
@@ -130,18 +119,17 @@ actor TriggerService {
                 if chunk != chunkContext.last {
                     chunkContext.append(chunk)
                 }
-                
                 let event = InterventionEvent(
                     id: id,
                     at: at,
                     reason: reason,
                     context: chunkContext
                 )
-                
+
                 let message = "(#\(event.id)) \(reasonString) @ \(String(format: "%.1f", chunk.endAt))s"
                 await self?.artifacts.logEvent(type: "Intervention", message: message)
                 try Task.checkCancellation()
-                
+
                 guard let onTrigger = await self?.onTrigger else {
                     self?.logger.warning("No trigger callback set, dropping intervention event: \(reasonString)")
                     return
@@ -151,7 +139,30 @@ actor TriggerService {
             } catch { }
         }
     }
-    
+
+    static func evaluateWithRace(
+        chunk: TranscriptChunk,
+        context: [TranscriptChunk],
+        evaluators: [TriggerEvaluator]
+    ) async -> InterventionReason? {
+        await withTaskGroup(of: InterventionReason?.self) { group in
+            for evaluator in evaluators {
+                group.addTask {
+                    await evaluator.evaluate(chunk: chunk, context: context)
+                }
+            }
+
+            for await result in group {
+                if result != nil {
+                    group.cancelAll()
+                    return result
+                }
+            }
+
+            return InterventionReason?(nil)
+        }
+    }
+
     func stop() {
         evaluationTask?.cancel()
         onTrigger = nil
