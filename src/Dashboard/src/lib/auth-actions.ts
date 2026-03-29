@@ -2,6 +2,7 @@
 
 import { redirect } from 'next/navigation';
 import { createClient } from '@/lib/supabase/server';
+import { getOAuthCallbackUrl } from '@/lib/auth-helpers';
 
 export interface AuthError {
   message: string;
@@ -133,6 +134,7 @@ export async function getCurrentUser() {
 
 /**
  * Sign in with Google OAuth
+ * Uses dynamic redirect URL that works across all deployment environments
  */
 export async function signInWithGoogle(): Promise<{
   success: boolean;
@@ -142,10 +144,13 @@ export async function signInWithGoogle(): Promise<{
   const supabase = await createClient();
 
   try {
+    // Get the correct redirect URL for this environment
+    const redirectTo = await getOAuthCallbackUrl();
+
     const { data, error } = await supabase.auth.signInWithOAuth({
       provider: 'google',
       options: {
-        redirectTo: `${process.env.NEXT_PUBLIC_APP_URL}/auth/callback`,
+        redirectTo,
         queryParams: {
           access_type: 'offline',
           prompt: 'consent',

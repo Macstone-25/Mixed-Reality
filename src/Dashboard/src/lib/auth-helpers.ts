@@ -1,7 +1,54 @@
 'use server';
 
 import { createClient } from '@/lib/supabase/server';
+import { headers } from 'next/headers';
 import type { AuthProfile } from '@/lib/auth-context';
+
+/**
+ * Get the correct base URL for OAuth redirects.
+ * Works across all environments:
+ * - Local development: http://localhost:3000
+ * - Vercel production: https://mixed-reality-phi.vercel.app
+ * - Vercel preview: https://<preview-url>.vercel.app
+ *
+ * Priority:
+ * 1. Try to use request headers (most reliable on server)
+ * 2. Fall back to NEXT_PUBLIC_APP_URL env variable
+ * 3. Fall back to default localhost (development only)
+ */
+export async function getAuthRedirectUrl(): Promise<string> {
+  try {
+    // Get the Host header from incoming request
+    const headersList = await headers();
+    const host = headersList.get('host');
+
+    if (host) {
+      // Determine protocol based on host
+      const protocol = host.includes('localhost') || host.includes('127.0.0.1') ? 'http' : 'https';
+      return `${protocol}://${host}`;
+    }
+  } catch (error) {
+    console.warn('Failed to get host from headers:', error);
+  }
+
+  // Fall back to environment variable if available
+  if (process.env.NEXT_PUBLIC_APP_URL) {
+    return process.env.NEXT_PUBLIC_APP_URL;
+  }
+
+  // Final fallback for development
+  console.warn('No app URL could be determined, falling back to localhost:3000');
+  return 'http://localhost:3000';
+}
+
+/**
+ * Get the OAuth callback redirect URL.
+ * Returns: https://example.com/auth/callback
+ */
+export async function getOAuthCallbackUrl(): Promise<string> {
+  const baseUrl = await getAuthRedirectUrl();
+  return `${baseUrl}/auth/callback`;
+}
 
 /**
  * Get the current user's profile (server-side)
