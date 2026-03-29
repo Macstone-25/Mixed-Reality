@@ -29,16 +29,4 @@ final class TriggerServiceTests: XCTestCase {
         
         XCTAssertFalse(TriggerService.shouldSuppressDuplicateChunk(current, comparedTo: last))
     }
-    
-    func testBuildInterventionContext_AppendsTriggeringInterimChunk() {
-        let finalChunk = TranscriptChunk(text: "Hello there.", speakerID: "Speaker:1", isFinal: true, startAt: 0.0, endAt: 1.0)
-        let interimChunk = TranscriptChunk(text: "um", speakerID: "Speaker:1", isFinal: false, startAt: 1.2, endAt: 1.5)
-        
-        let context = TriggerService.buildInterventionContext(
-            from: [finalChunk, interimChunk],
-            triggeringChunk: interimChunk
-        )
-        
-        XCTAssertEqual(context, [finalChunk, interimChunk])
-    }
 }

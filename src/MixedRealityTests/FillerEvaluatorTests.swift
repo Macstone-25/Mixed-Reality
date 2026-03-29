@@ -76,32 +76,6 @@ final class FillerEvaluatorTests: XCTestCase {
         XCTAssertNil(reason)
     }
     
-    func testEvaluate_DoesNotCountExactReplayDuplicatesAcrossChunks() async {
-        let context = [
-            makeChunk("um", isFinal: false, startAt: 0.0, endAt: 0.4),
-            makeChunk("um", isFinal: false, startAt: 0.0, endAt: 0.4),
-            makeChunk("um", isFinal: false, startAt: 0.0, endAt: 0.4)
-        ]
-        let chunk = makeChunk("um", isFinal: false, startAt: 1.0, endAt: 1.4)
-        
-        let reason = await evaluator.evaluate(chunk: chunk, context: context)
-        
-        XCTAssertNil(reason)
-    }
-    
-    func testEvaluate_TriggersForDistinctRapidFillersWithReplayNoise() async {
-        let context = [
-            makeChunk("um", isFinal: false, startAt: 0.0, endAt: 0.4),
-            makeChunk("um", isFinal: false, startAt: 0.0, endAt: 0.4),
-            makeChunk("um", isFinal: false, startAt: 0.8, endAt: 1.2)
-        ]
-        let chunk = makeChunk("um", isFinal: false, startAt: 1.6, endAt: 2.0)
-        
-        let reason = await evaluator.evaluate(chunk: chunk, context: context)
-        
-        XCTAssertEqual(reason?.description, "Filler words (um, um, um)")
-    }
-    
     func testEvaluate_DoesNotTreatAndAsChunkEndingFiller() async {
         let context = [
             makeChunk("we stopped and.", isFinal: true, startAt: 0, endAt: 1),

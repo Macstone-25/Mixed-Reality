@@ -11,16 +11,13 @@ import Foundation
 class FillerEvaluator: TriggerEvaluator {
     private let chunksToCheck: Int
     private let fillerBurstGapThreshold: TimeInterval
-    private let replayTimingTolerance: TimeInterval
     
     init(
         chunksToCheck: Int = 3,
-        fillerBurstGapThreshold: TimeInterval = 3,
-        replayTimingTolerance: TimeInterval = 0.25
+        fillerBurstGapThreshold: TimeInterval = 3
     ) {
         self.chunksToCheck = chunksToCheck
         self.fillerBurstGapThreshold = fillerBurstGapThreshold
-        self.replayTimingTolerance = replayTimingTolerance
     }
     
     func evaluate(chunk: TranscriptChunk, context: [TranscriptChunk]) async -> InterventionReason? {
@@ -43,7 +40,7 @@ class FillerEvaluator: TriggerEvaluator {
     private func repeatedFillerBurstAcrossChunks(chunk: TranscriptChunk, context: [TranscriptChunk]) -> [String]? {
         guard chunk.isOnlyRepeatedFillerWords else { return nil }
         
-        let chunks = distinctChunksEndingWithCurrent(chunk: chunk, context: context)
+        let chunks = orderedChunksEndingWithCurrent(chunk: chunk, context: context)
         var burstFamilies = [String]()
         var earliestStartAt = chunk.startAt
         
@@ -69,20 +66,6 @@ class FillerEvaluator: TriggerEvaluator {
         return nil
     }
     
-    private func distinctChunksEndingWithCurrent(chunk: TranscriptChunk, context: [TranscriptChunk]) -> [TranscriptChunk] {
-        let chunks = orderedChunksEndingWithCurrent(chunk: chunk, context: context)
-        var distinctChunks = [TranscriptChunk]()
-        
-        for candidate in chunks {
-            if isReplayDuplicate(candidate, comparedTo: distinctChunks.last) {
-                continue
-            }
-            distinctChunks.append(candidate)
-        }
-        
-        return distinctChunks
-    }
-    
     private func orderedChunksEndingWithCurrent(chunk: TranscriptChunk, context: [TranscriptChunk]) -> [TranscriptChunk] {
         if let chunkIndex = context.lastIndex(of: chunk) {
             return Array(context[...chunkIndex])
@@ -102,14 +85,5 @@ class FillerEvaluator: TriggerEvaluator {
         }
         
         return finalChunks.suffix(chunksToCheck)
-    }
-    
-    private func isReplayDuplicate(_ chunk: TranscriptChunk, comparedTo lastChunk: TranscriptChunk?) -> Bool {
-        guard let lastChunk else { return false }
-        guard chunk.speakerID == lastChunk.speakerID else { return false }
-        guard chunk.text == lastChunk.text else { return false }
-        guard abs(chunk.startAt - lastChunk.startAt) <= replayTimingTolerance else { return false }
-        guard abs(chunk.endAt - lastChunk.endAt) <= replayTimingTolerance else { return false }
-        return true
     }
 }

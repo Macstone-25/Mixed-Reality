@@ -65,9 +65,11 @@ actor TriggerService {
     }
     
     func handleTranscriptChunk(chunk: TranscriptChunk) {
-        evaluatorContext.insertSorted(chunk)
-        if evaluatorContext.count > experiment.triggerContext {
-            _ = evaluatorContext.popFirst()
+        if chunk.isFinal {
+            evaluatorContext.insertSorted(chunk)
+            if evaluatorContext.count > experiment.triggerContext {
+                _ = evaluatorContext.popFirst()
+            }
         }
         
         // people usually pause to read prompts when they appear, so to avoid
@@ -85,7 +87,7 @@ actor TriggerService {
         lastChunk = chunk
         
         // launch (or relaunch) evaluation
-        let chunkContext = Array(evaluatorContext)
+        var chunkContext = Array(evaluatorContext)
         evaluationTask?.cancel()
         evaluationTask = Task { [weak self] in
             do {
@@ -121,16 +123,19 @@ actor TriggerService {
                 try Task.checkCancellation()
                 
                 // if an intervention reason was found, we need to trigger an event
-                
                 let at = Date.now
                 guard let id = await self?.getNextId(at) else { return }
                 try Task.checkCancellation()
+
+                if chunk != chunkContext.last {
+                    chunkContext.append(chunk)
+                }
                 
                 let event = InterventionEvent(
                     id: id,
                     at: at,
                     reason: reason,
-                    context: Self.buildInterventionContext(from: chunkContext, triggeringChunk: chunk)
+                    context: chunkContext
                 )
                 
                 let message = "(#\(event.id)) \(reasonString) @ \(String(format: "%.1f", chunk.endAt))s"
@@ -165,16 +170,5 @@ actor TriggerService {
         guard abs(chunk.startAt - lastChunk.startAt) < duplicateSuppressionThreshold else { return false }
         guard abs(chunk.endAt - lastChunk.endAt) < duplicateSuppressionThreshold else { return false }
         return true
-    }
-    
-    nonisolated static func buildInterventionContext(
-        from chunkContext: [TranscriptChunk],
-        triggeringChunk: TranscriptChunk
-    ) -> [TranscriptChunk] {
-        var interventionContext = chunkContext.filter(\.isFinal)
-        if !interventionContext.contains(triggeringChunk) {
-            interventionContext.append(triggeringChunk)
-        }
-        return interventionContext
     }
 }
