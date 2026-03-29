@@ -10,7 +10,7 @@ export async function GET(request: NextRequest) {
 
   if (code) {
     const cookieStore = await cookies();
-    let response = NextResponse.next();
+    const cookiesToSet: Array<{ name: string; value: string; options: CookieOptions }> = [];
 
     const supabase = createServerClient(
       process.env.NEXT_PUBLIC_SUPABASE_URL!,
@@ -20,19 +20,16 @@ export async function GET(request: NextRequest) {
           getAll() {
             return cookieStore.getAll();
           },
-          setAll(cookiesToSet) {
+          setAll(cookiesToSetFromSupabase) {
             try {
-              cookiesToSet.forEach(({ name, value, options }) => {
-                // Set in request cookies
+              cookiesToSetFromSupabase.forEach(({ name, value, options }) => {
+                // Store cookies to apply to response later
+                cookiesToSet.push({ name, value, options });
+                // Also set in request cookies
                 cookieStore.set(name, value, options as CookieOptions);
-                // Also set in response cookies to ensure they're sent back
-                response.cookies.set(name, value, options as CookieOptions);
               });
             } catch (error) {
               console.warn('Failed to set cookies:', error);
-              // The `setAll` method was called from a Server Component.
-              // This can be ignored if you have middleware refreshing
-              // user sessions.
             }
           },
         },
@@ -59,19 +56,26 @@ export async function GET(request: NextRequest) {
 
       if (approvalStatus === 'approved') {
         // User is approved, redirect to requested page
-        return NextResponse.redirect(new URL(next, request.url), {
-          headers: response.headers,
+        const response = NextResponse.redirect(new URL(next, request.url));
+        // Apply cookies to response
+        cookiesToSet.forEach(({ name, value, options }) => {
+          response.cookies.set(name, value, options as CookieOptions);
         });
+        return response;
       } else if (approvalStatus === 'pending') {
         // User is pending approval, redirect to pending page
-        return NextResponse.redirect(new URL('/auth/pending-approval', request.url), {
-          headers: response.headers,
+        const response = NextResponse.redirect(new URL('/auth/pending-approval', request.url));
+        cookiesToSet.forEach(({ name, value, options }) => {
+          response.cookies.set(name, value, options as CookieOptions);
         });
+        return response;
       } else if (approvalStatus === 'rejected') {
         // User was rejected, redirect to login with error
-        return NextResponse.redirect(new URL('/auth/login?error=rejected', request.url), {
-          headers: response.headers,
+        const response = NextResponse.redirect(new URL('/auth/login?error=rejected', request.url));
+        cookiesToSet.forEach(({ name, value, options }) => {
+          response.cookies.set(name, value, options as CookieOptions);
         });
+        return response;
       }
     }
   }
