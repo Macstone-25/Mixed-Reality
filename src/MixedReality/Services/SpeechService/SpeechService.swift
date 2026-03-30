@@ -7,7 +7,6 @@ import Foundation
 import Combine
 import AVFoundation
 import OSLog
-import os
 
 enum SpeechServiceError: Error {
     case configError(String)
@@ -18,6 +17,7 @@ enum SpeechServiceError: Error {
 
 class SpeechService {
     private let logger = Logger(subsystem: "SpeechService", category: "Services")
+    private static let inputTapBufferSize: AVAudioFrameCount = 2048
 
     private let artifacts: ArtifactService
     private let experiment: ExperimentModel
@@ -36,7 +36,6 @@ class SpeechService {
     private let engine: SpeechEngine
 
     private var isActive = false
-    private var isConnected = false
     private var hasInputTapInstalled = false
 
     private let conversationFileURL: URL
@@ -62,7 +61,7 @@ class SpeechService {
         }
 
         try capture.activateSession()
-        
+
         let audioFormat = capture.inputFormat
         guard audioFormat.channelCount > 0, audioFormat.sampleRate > 0 else {
             throw SpeechServiceError.runtimeError(
@@ -136,14 +135,12 @@ class SpeechService {
                         inputURL: conversationFileURL,
                         outputURL: outputURL
                     )
-                    
-                    // Log the success
+
                     await artifacts.logEvent(
                         type: "SpeechService",
                         message: "Anonymization complete: \(finalURL?.lastPathComponent ?? "unknown")"
                     )
-                    
-                    // Delete the original file now that we have the anonymized version
+
                     if finalURL != nil {
                         try FileManager.default.removeItem(at: conversationFileURL)
                         await artifacts.logEvent(
@@ -151,7 +148,6 @@ class SpeechService {
                             message: "Original file deleted: \(conversationFileURL.lastPathComponent)"
                         )
                     }
-                    
                 } catch {
                     await artifacts.logEvent(
                         type: "SpeechService",
@@ -202,7 +198,7 @@ class SpeechService {
     private func installInputTapIfNeeded() {
         guard !hasInputTapInstalled else { return }
 
-        try? capture.installTap(bufferSize: 4096) { [weak self] buffer, time in
+        try? capture.installTap(bufferSize: Self.inputTapBufferSize) { [weak self] buffer, time in
             self?.processAudioBuffer(buffer: buffer, time: time)
         }
 
@@ -231,7 +227,6 @@ class SpeechService {
 
         logger.info("\(logMessage)")
 
-        // Only log to persistent artifacts if it's the final transcript
         if chunk.isFinal {
             Task {
                 await artifacts.logEvent(type: "Transcript", message: logMessage)

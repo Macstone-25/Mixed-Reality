@@ -2,7 +2,7 @@ import XCTest
 @testable import MRCS
 
 final class FillerEvaluatorEdgeTests: XCTestCase {
-    func testEvaluate_ReturnsNil_WhenContextCountEqualsChunksToCheckBoundary() async {
+    func testEvaluate_UsesCurrentChunkAtBoundaryWhenTrailingFillersReachThreshold() async {
         let evaluator = FillerEvaluator(chunksToCheck: 3)
         let context = [
             makeChunk(text: "um"),
@@ -13,7 +13,10 @@ final class FillerEvaluatorEdgeTests: XCTestCase {
 
         let reason = await evaluator.evaluate(chunk: chunk, context: context)
 
-        XCTAssertNil(reason)
+        guard case .filler(let words) = reason else {
+            return XCTFail("Expected filler reason")
+        }
+        XCTAssertEqual(words, "uh, hm, like")
     }
 
     func testEvaluate_ReturnsNil_WhenOneTrailingContextChunkIsNotFiller() async {
@@ -46,7 +49,7 @@ final class FillerEvaluatorEdgeTests: XCTestCase {
         guard case .filler(let words) = reason else {
             return XCTFail("Expected filler reason")
         }
-        XCTAssertEqual(words, "um, uh, hm, like")
+        XCTAssertEqual(words, "uh, hm, like")
     }
 
     func testEvaluate_CustomChunksToCheckTwo_PositiveAndNegativeCases() async {
@@ -63,7 +66,7 @@ final class FillerEvaluatorEdgeTests: XCTestCase {
         guard case .filler(let words) = positiveReason else {
             return XCTFail("Expected filler reason for positive case")
         }
-        XCTAssertEqual(words, "uh, hm, um")
+        XCTAssertEqual(words, "hm, um")
 
         let negativeContext = [
             makeChunk(text: "start"),
@@ -91,6 +94,6 @@ final class FillerEvaluatorEdgeTests: XCTestCase {
         guard case .filler(let words) = reason else {
             return XCTFail("Expected filler reason")
         }
-        XCTAssertEqual(words, "ah, er, uh, hm")
+        XCTAssertEqual(words, "er, uh, hm")
     }
 }

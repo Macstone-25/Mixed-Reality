@@ -30,7 +30,7 @@ actor TriggerService {
     private var nextEventId: UInt64 = 1
     private var lastEventAt: Date = Date.distantPast
     private var lastChunk: TranscriptChunk?
-
+    private static let duplicateSuppressionThreshold: TimeInterval = 0.5
     init(artifacts: ArtifactService, experiment: ExperimentModel, speechService: SpeechService, miniLLM: LLMService) async {
         self.artifacts = artifacts
         self.experiment = experiment
@@ -66,8 +66,6 @@ actor TriggerService {
     }
 
     func handleTranscriptChunk(chunk: TranscriptChunk) {
-        // Update context only for finalized chunks, but allow all chunks to drive
-        // trigger timing so evaluations are not delayed by endpointing finalization.
         if chunk.isFinal {
             evaluatorContext.insertSorted(chunk)
             if evaluatorContext.count > experiment.triggerContext {
@@ -84,7 +82,7 @@ actor TriggerService {
         // sometimes deepgram hesitates (1-2 seconds) to mark a chunk as final and will
         // "spam" the same chunk without any refinement during that period. we want to
         // ignore chunks without change to avoid unnecessarily delaying our triggers.
-        if chunk.text == lastChunk?.text && abs(chunk.endAt - (lastChunk?.endAt ?? 0)) < 0.5 {
+        if Self.shouldSuppressDuplicateChunk(chunk, comparedTo: lastChunk) {
             return
         }
         lastChunk = chunk
@@ -114,15 +112,13 @@ actor TriggerService {
                 try Task.checkCancellation()
 
                 // if an intervention reason was found, we need to trigger an event
-
-                if chunk != chunkContext.last {
-                    chunkContext.append(chunk)
-                }
-
                 let at = Date.now
                 guard let id = await self?.getNextId(at) else { return }
                 try Task.checkCancellation()
 
+                if chunk != chunkContext.last {
+                    chunkContext.append(chunk)
+                }
                 let event = InterventionEvent(
                     id: id,
                     at: at,
@@ -177,5 +173,13 @@ actor TriggerService {
         evaluationTask?.cancel()
         evaluationTask = nil
         logger.info("🔄 TriggerService restored after app foreground")
+    }
+    
+    nonisolated static func shouldSuppressDuplicateChunk(_ chunk: TranscriptChunk, comparedTo lastChunk: TranscriptChunk?) -> Bool {
+        guard let lastChunk else { return false }
+        guard chunk.text == lastChunk.text else { return false }
+        guard abs(chunk.startAt - lastChunk.startAt) < duplicateSuppressionThreshold else { return false }
+        guard abs(chunk.endAt - lastChunk.endAt) < duplicateSuppressionThreshold else { return false }
+        return true
     }
 }

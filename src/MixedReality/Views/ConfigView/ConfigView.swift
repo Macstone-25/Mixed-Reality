@@ -107,7 +107,7 @@ struct ConfigView: View {
                     Text("""
                     Pause Evaluator: Triggers after a fixed duration of silence.
                         
-                    Filler Evaluator: Triggers after 3 sequential sentences ending with a filler word (e.g. "hm", "um", "uh").
+                    Filler Evaluator: Triggers after 3 sequential sentences ending with a filler word, or when a filler word repeats 3 times within a sentence (e.g. "um um um" or "and, and, and").
                         
                     LLM Evaluator: Uses the selected mini AI model to evaluate recent transcript context and decide whether an intervention should be triggered.
                     """)

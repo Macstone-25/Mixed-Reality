@@ -7,7 +7,7 @@ import AVFoundation
 
 struct DeepgramConfig {
     /// https://developers.deepgram.com/docs/model
-    let model: String = "nova-3"
+    let model: String = "nova-2"
     
     /// https://developers.deepgram.com/docs/language
     let language: String = "en"
