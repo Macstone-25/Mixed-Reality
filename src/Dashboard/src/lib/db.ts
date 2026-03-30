@@ -217,10 +217,12 @@ export async function getMostRecentSession(): Promise<SessionDetail | null> {
     .select('session_id')
     .order('created_at', { ascending: false })
     .limit(1)
-    .single();
+    .maybeSingle();
 
   if (error || !session) {
-    console.error('Error fetching most recent session:', error);
+    if (error) {
+      console.error('Error fetching most recent session:', error);
+    }
     return null;
   }
 

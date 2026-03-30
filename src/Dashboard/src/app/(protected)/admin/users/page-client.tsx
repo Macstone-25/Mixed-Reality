@@ -358,11 +358,9 @@ export default function AdminUsersPageClient() {
                           <th className="px-6 py-3 text-left text-sm font-semibold" style={{ color: '#2D2D2D' }}>
                             Name
                           </th>
-                          {activeTab === 'all' && (
-                            <th className="px-6 py-3 text-left text-sm font-semibold" style={{ color: '#2D2D2D' }}>
-                              Email
-                            </th>
-                          )}
+                          <th className="px-6 py-3 text-left text-sm font-semibold" style={{ color: '#2D2D2D' }}>
+                            Email
+                          </th>
                           {activeTab === 'all' && (
                             <th className="px-6 py-3 text-left text-sm font-semibold" style={{ color: '#2D2D2D' }}>
                               Role
@@ -391,11 +389,9 @@ export default function AdminUsersPageClient() {
                             <td className="px-6 py-4 text-sm" style={{ color: '#2D2D2D' }}>
                               {user.name}
                             </td>
-                            {activeTab === 'all' && (
-                              <td className="px-6 py-4 text-sm" style={{ color: '#7F5539' }}>
-                                {user.email}
-                              </td>
-                            )}
+                            <td className="px-6 py-4 text-sm" style={{ color: '#7F5539' }}>
+                              {user.email}
+                            </td>
                             {activeTab === 'all' && (
                               <td className="px-6 py-4 text-sm" style={{ color: '#2D2D2D' }}>
                                 <span

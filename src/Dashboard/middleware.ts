@@ -18,20 +18,15 @@ const APPROVAL_REQUIRED_ROUTES = ['/admin', '/sessions'];
 const ADMIN_ROUTES = ['/admin'];
 
 export async function middleware(request: NextRequest) {
-  // First, update the session (refresh tokens)
-  const response = await updateSession(request);
   const pathname = request.nextUrl.pathname;
 
-  // DEBUG: Log all requests to verify middleware is running
-  console.log(`🔒 [Middleware] ${request.method} ${pathname}`);
-
-  // Allow public routes
+  // Allow public routes without session updates
   if (PUBLIC_ROUTES.some((route) => pathname.startsWith(route))) {
-    console.log(`✅ [Middleware] ${pathname} is public - allowing`);
-    return response;
+    return NextResponse.next();
   }
 
-  // Validate session for all protected routes
+  // For protected routes, update the session (refresh tokens)
+  const response = await updateSession(request);
   try {
     const cookieStore = await cookies();
     const supabase = createServerClient(
@@ -71,13 +66,30 @@ export async function middleware(request: NextRequest) {
     // Fetch user profile - fail-closed on error
     const { data: profile, error: profileError } = await supabase
       .from('profiles')
-      .select('approval_status, role')
+      .select('approval_status, role, first_name')
       .eq('id', user.id)
       .single();
 
     if (profileError || !profile) {
       console.error('Middleware: Profile validation failed', { userId: user.id, profileError });
       return NextResponse.redirect(new URL('/auth/login', request.url));
+    }
+
+    console.log(`📋 [Middleware] Profile loaded for ${user.email}:`, {
+      first_name: profile.first_name,
+      approval_status: profile.approval_status,
+      role: profile.role,
+    });
+
+    // Check if user needs to complete onboarding (no first name set)
+    if (!profile.first_name) {
+      console.log(`🔄 [Middleware] User ${user.email} has no first_name, checking if on onboarding page...`);
+      if (pathname !== '/auth/onboarding') {
+        console.log(`↪️ [Middleware] Redirecting ${user.email} to /auth/onboarding`);
+        return NextResponse.redirect(new URL('/auth/onboarding', request.url));
+      }
+      console.log(`✅ [Middleware] User ${user.email} is on /auth/onboarding, allowing`);
+      return response;
     }
 
     // Pending users can only access pending-approval page

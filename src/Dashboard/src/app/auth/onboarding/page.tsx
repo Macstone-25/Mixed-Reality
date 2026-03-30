@@ -17,8 +17,13 @@ export default function OnboardingPage() {
   const [currentStep, setCurrentStep] = useState<'welcome' | 'form'>('welcome');
 
   useEffect(() => {
-    // If user is not authenticated, redirect to login
-    if (!authLoading && !user) {
+    // If user session loads and they already have a name, redirect to post-onboarding flow
+    if (!authLoading && user) {
+      // User is authenticated, page can proceed
+      // If they already completed onboarding, middleware will handle redirecting them
+      // based on their approval status when they go to /
+    } else if (!authLoading && !user) {
+      // User is not authenticated, redirect to login
       router.push('/auth/login');
     }
   }, [user, authLoading, router]);
@@ -27,7 +32,7 @@ export default function OnboardingPage() {
     setCurrentStep('form');
   };
 
-  const handleSubmit = async (e: React.FormEvent) => {
+  const handleFormSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
     setError(null);
 
@@ -70,7 +75,7 @@ export default function OnboardingPage() {
 
   return (
     <div
-      className="min-h-screen flex items-center justify-center px-4"
+      className="min-h-[80vh] flex items-center justify-center px-2 rounded-2xl"
       style={{ backgroundColor: '#7F5539' }}
     >
       <div className="w-full max-w-md">
@@ -116,7 +121,7 @@ export default function OnboardingPage() {
             {/* Welcome Title */}
             <div>
               <h1 className="text-3xl font-bold mb-3" style={{ color: '#F5F1ED' }}>
-                Welcome!
+                Welcome{user.user_metadata?.display_name ? `, ${user.user_metadata.display_name.split(' ')[0]}` : ''}!
               </h1>
               <p style={{ color: 'rgba(245, 241, 237, 0.8)', fontSize: '1.05rem' }}>
                 Just a few quick details to complete your profile.
@@ -190,7 +195,7 @@ export default function OnboardingPage() {
             </div>
 
             {/* Form */}
-            <form onSubmit={handleSubmit} className="space-y-4">
+            <form onSubmit={handleFormSubmit} className="space-y-4">
               {/* First Name */}
               <div>
                 <label htmlFor="firstName" className="block text-sm font-medium mb-2" style={{ color: '#F5F1ED' }}>

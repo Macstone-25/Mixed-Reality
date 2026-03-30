@@ -2,13 +2,13 @@
 
 import { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
-import { Clock, RefreshCw, CheckCircle2, AlertCircle } from 'lucide-react';
+import { Clock, RefreshCw, CheckCircle2, AlertCircle, Clock3 } from 'lucide-react';
 import { useAuth } from '@/lib/auth-context';
 import { signOut } from '@/lib/auth-actions';
 
 export default function PendingApprovalPage() {
   const router = useRouter();
-  const { isApproved, loading, refreshAuth } = useAuth();
+  const { isApproved, loading, refreshAuth, profile } = useAuth();
   const [isLoading, setIsLoading] = useState(false);
   const [isChecking, setIsChecking] = useState(false);
   const [lastCheckTime, setLastCheckTime] = useState<Date | null>(null);
@@ -55,7 +55,22 @@ export default function PendingApprovalPage() {
 
   const handleLogout = async () => {
     setIsLoading(true);
-    await signOut();
+    try {
+      const result = await signOut();
+      if (result.success) {
+        // Refresh auth context to clear client-side session
+        await refreshAuth();
+        // Small delay to ensure cookies are cleared
+        await new Promise(resolve => setTimeout(resolve, 500));
+        router.push('/auth/login');
+      } else {
+        console.error('Logout failed:', result.error);
+        setIsLoading(false);
+      }
+    } catch (error) {
+      console.error('Logout error:', error);
+      setIsLoading(false);
+    }
   };
 
   // Format time since last check
@@ -70,7 +85,7 @@ export default function PendingApprovalPage() {
   };
 
   return (
-    <div className="space-y-8 text-center">
+    <div className="space-y-5 text-center">
       {/* Icon */}
       <div className="flex justify-center">
         <div
@@ -94,6 +109,27 @@ export default function PendingApprovalPage() {
         </p>
       </div>
 
+      {/* User Account Info */}
+      {loading ? (
+        <div
+          className="p-2 rounded-lg text-sm"
+          style={{
+            color: 'rgba(127, 85, 57, 0.7)',
+          }}
+        >
+          Loading account information...
+        </div>
+      ) : (
+        <div
+          className="p-2 rounded-lg text-sm"
+          style={{
+            color: 'rgba(45, 45, 45, 0.8)',
+          }}
+        >
+          <p>{profile?.first_name && profile?.last_name ? `${profile.first_name} ${profile.last_name}` : 'Your account'} | <span style={{ fontSize: '0.875rem', color: 'rgba(45, 45, 45, 0.6)', marginTop: '0.5rem' }}>{profile?.email}</span></p>
+        </div>
+      )}
+
       {/* Message */}
       <div
         className="p-6 rounded-lg"
@@ -103,33 +139,9 @@ export default function PendingApprovalPage() {
       >
         <p style={{ color: 'rgba(45, 45, 45, 0.8)', lineHeight: '1.6' }}>
           Your account has been created and is now pending approval by an administrator.
-          <br />
-          <br />
-          You will receive an email notification once your account has been approved,
-          at which point you'll be automatically redirected to the dashboard.
         </p>
       </div>
 
-      {/* Info Box - What's Happening */}
-      <div
-        className="p-4 rounded-lg text-sm flex items-start gap-3"
-        style={{
-          backgroundColor: '#FEF3C7',
-          color: '#78350F',
-          borderLeft: '4px solid #F59E0B',
-        }}
-      >
-        <AlertCircle size={20} className="flex-shrink-0 mt-0.5" />
-        <div className="text-left">
-          <p className="font-semibold mb-1">What's Happening</p>
-          <ul style={{ fontSize: '0.875rem', lineHeight: '1.5' }}>
-            <li>✓ Your account is created</li>
-            <li>⏳ An administrator is reviewing your request</li>
-            <li>✓ Your status is checked automatically every 5 seconds</li>
-            <li>📧 You'll get an email when approved</li>
-          </ul>
-        </div>
-      </div>
 
       {/* Auto-Check Status */}
       <div
@@ -145,8 +157,8 @@ export default function PendingApprovalPage() {
           <span className="font-semibold">Auto-checking in progress</span>
         </div>
         <p>
-          Status checked {lastCheckTime ? getTimeSinceLastCheck() : 'continuously'} — 
-          will refresh automatically every 5 seconds.
+          Status checked {lastCheckTime ? getTimeSinceLastCheck() : 'continuously'} - 
+          refreshing automatically every 5 seconds.
         </p>
       </div>
 
@@ -165,50 +177,52 @@ export default function PendingApprovalPage() {
         </div>
       )}
 
-      {/* Manual Refresh Button */}
-      <button
-        onClick={handleManualRefresh}
-        disabled={isChecking}
-        className="w-full py-3 rounded-lg font-semibold transition-colors disabled:opacity-50 flex items-center justify-center gap-2"
-        style={{
-          backgroundColor: 'rgba(127, 85, 57, 0.1)',
-          color: '#7F5539',
-          border: '2px solid #7F5539',
-        }}
-        onMouseEnter={(e) => {
-          if (!isChecking) {
-            e.currentTarget.style.backgroundColor = 'rgba(127, 85, 57, 0.15)';
-          }
-        }}
-        onMouseLeave={(e) => {
-          e.currentTarget.style.backgroundColor = 'rgba(127, 85, 57, 0.1)';
-        }}
-      >
-        <RefreshCw size={18} className={isChecking ? 'animate-spin' : ''} />
-        {isChecking ? 'Checking...' : 'Refresh Check Now'}
-      </button>
+      <div className="flex gap-x-3">
+        {/* Manual Refresh Button */}
+        <button
+          onClick={handleManualRefresh}
+          disabled={isChecking}
+          className="flex-1 py-3 rounded-lg font-semibold transition-colors disabled:opacity-50 flex items-center justify-center gap-2"
+          style={{
+            backgroundColor: 'rgba(127, 85, 57, 0.1)',
+            color: '#7F5539',
+            border: '2px solid #7F5539',
+          }}
+          onMouseEnter={(e) => {
+            if (!isChecking) {
+              e.currentTarget.style.backgroundColor = 'rgba(127, 85, 57, 0.15)';
+            }
+          }}
+          onMouseLeave={(e) => {
+            e.currentTarget.style.backgroundColor = 'rgba(127, 85, 57, 0.1)';
+          }}
+        >
+          <RefreshCw size={18} className={isChecking ? 'animate-spin' : ''} />
+          {isChecking ? 'Checking...' : 'Check Now'}
+        </button>
 
-      {/* Logout Button */}
-      <button
-        onClick={handleLogout}
-        disabled={isLoading}
-        className="w-full py-3 rounded-lg font-semibold transition-colors disabled:opacity-50"
-        style={{
-          backgroundColor: '#7F5539',
-          color: '#F5F1ED',
-        }}
-        onMouseEnter={(e) => {
-          if (!isLoading) {
-            e.currentTarget.style.backgroundColor = '#6B4C3D';
-          }
-        }}
-        onMouseLeave={(e) => {
-          e.currentTarget.style.backgroundColor = '#7F5539';
-        }}
-      >
-        {isLoading ? 'Logging Out...' : 'Log Out'}
-      </button>
-
+        {/* Logout Button */}
+        <button
+          onClick={handleLogout}
+          disabled={isLoading}
+          className="flex-1 py-3 rounded-lg font-semibold transition-colors disabled:opacity-50"
+          style={{
+            backgroundColor: '#7F5539',
+            color: '#F5F1ED',
+          }}
+          onMouseEnter={(e) => {
+            if (!isLoading) {
+              e.currentTarget.style.backgroundColor = '#6B4C3D';
+            }
+          }}
+          onMouseLeave={(e) => {
+            e.currentTarget.style.backgroundColor = '#7F5539';
+          }}
+        >
+          {isLoading ? 'Logging Out...' : 'Log Out'}
+        </button>
+      </div>
+      
       {/* Back to Sign In */}
       <p style={{ color: 'rgba(45, 45, 45, 0.6)', fontSize: '0.875rem' }}>
         Already approved?{' '}

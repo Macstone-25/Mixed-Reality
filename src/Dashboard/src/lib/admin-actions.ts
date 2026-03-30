@@ -162,6 +162,7 @@ export async function getPendingUsers() {
     const users = data?.map((profile: any) => ({
       id: profile.id,
       name: `${profile.first_name} ${profile.last_name}`,
+      email: profile.email,
       createdAt: profile.created_at,
       status: profile.approval_status,
     })) || [];

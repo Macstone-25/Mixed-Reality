@@ -43,16 +43,17 @@ export async function GET(request: NextRequest) {
       // Use the user from the code exchange response
       const user = data.user;
 
-      // Check user's approval status
+      // Check user's approval status and profile info
       const { data: profile, error: profileError } = await supabase
         .from('profiles')
-        .select('approval_status')
+        .select('approval_status, first_name')
         .eq('id', user.id)
         .single();
 
       // If profile query fails or approval_status is not set, treat as pending
       // (database trigger should create profile with approval_status='pending' on signup)
       const approvalStatus = profile?.approval_status || 'pending';
+      const hasName = profile?.first_name;
 
       if (approvalStatus === 'approved') {
         // User is approved, redirect to requested page
@@ -63,8 +64,9 @@ export async function GET(request: NextRequest) {
         });
         return response;
       } else if (approvalStatus === 'pending') {
-        // User is pending approval, redirect to pending page
-        const response = NextResponse.redirect(new URL('/auth/pending-approval', request.url));
+        // User is pending - route to onboarding if they haven't completed it yet
+        const targetUrl = hasName ? '/auth/pending-approval' : '/auth/onboarding';
+        const response = NextResponse.redirect(new URL(targetUrl, request.url));
         cookiesToSet.forEach(({ name, value, options }) => {
           response.cookies.set(name, value, options as CookieOptions);
         });
